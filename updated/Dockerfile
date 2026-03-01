@@ -60,6 +60,7 @@ USER node
 # Install global packages
 ENV NPM_CONFIG_PREFIX=/usr/local/share/npm-global
 ENV PATH=$PATH:/usr/local/share/npm-global/bin
+ENV PATH=/home/node/.local/bin:$PATH
 
 # Set the default shell to zsh rather than sh
 ENV SHELL=/bin/zsh
@@ -78,17 +79,18 @@ RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/
   -a "export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhistory/.bash_history" \
   -x
 
-# Install Claude
+# Install Claude Code once using official bootstrap installer as the runtime user
 RUN set -eux; \
-  for attempt in 1 2 3; do \
-    if curl -fsSL https://claude.ai/install.sh | bash; then \
-      exit 0; \
-    fi; \
-    echo "Claude install attempt ${attempt} failed; retrying..." >&2; \
-    sleep $((attempt * 5)); \
-  done; \
-  echo "Claude install failed after 3 attempts." >&2; \
-  exit 1
+  curl -fsSL https://claude.ai/install.sh | bash -s -- "${CLAUDE_CODE_VERSION}"; \
+  echo "DEBUG: whoami=$(whoami) HOME=$HOME PATH=$PATH"; \
+  echo "DEBUG: listing /home/node/.local/bin"; \
+  ls -la /home/node/.local/bin || true; \
+  echo "DEBUG: listing /home/node/.claude"; \
+  ls -la /home/node/.claude || true; \
+  echo "DEBUG: command -v claude"; \
+  command -v claude; \
+  echo "DEBUG: claude --version"; \
+  claude --version
 
 # Install Codex
 RUN npm i -g @openai/codex

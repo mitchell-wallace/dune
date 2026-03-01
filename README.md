@@ -40,7 +40,24 @@ docker exec -it great_jones zsh
 
 
 
+## key filepaths
 
-Gemini settings path: ~/.gemini/settings.json
-Codex mcp path: ~/.codex/mcp-servers.toml
-Claude mcp path: ~/.claude/.mcp.json
+*MCP CONFIG*
+- Gemini settings path: ~/.gemini/settings.json
+- Codex mcp path: ~/.codex/mcp-servers.toml
+- Claude mcp path: ~/.claude/.mcp.json
+
+*AUTH PERSISTENCE*
+- Gemini auth path: ~/.gemini/google_accounts.json ~/.gemini/oauth_creds.json
+- Codex auth path: ~/.codex/auth.json
+- Claude auth path: ~/.claude/.credentials.json
+
+*SHELL ALIASES*
+- cc -> claude --dangerously-skip-permissions
+- cx -> codex --dangerously-bypass-approvals-and-sandbox
+- ge -> gemini --model gemini-3.1-pro-preview --yolo
+
+## startup message
+
+- describe shell aliases
+
