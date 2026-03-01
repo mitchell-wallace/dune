@@ -42,9 +42,9 @@ RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhisto
 # Set `DEVCONTAINER` environment variable to help with orientation
 ENV DEVCONTAINER=true
 
-# Create workspace and config directories and set permissions
-RUN mkdir -p /workspace /home/node/.claude /home/node/.codex /home/node/.gemini && \
-  chown -R node:node /workspace /home/node/.claude /home/node/.codex /home/node/.gemini
+# Create workspace, config directories, and persisted agent storage
+RUN mkdir -p /workspace /home/node/.claude /home/node/.codex /home/node/.gemini /persist/agent /opt/agent-defaults && \
+  chown -R node:node /workspace /home/node/.claude /home/node/.codex /home/node/.gemini /persist/agent /opt/agent-defaults
 
 WORKDIR /workspace
 
@@ -101,7 +101,14 @@ RUN npm install -g @google/gemini-cli
 # Copy user home config scaffold from updated/home into /home/node
 COPY --chown=node:node home/ /home/node/
 COPY --chown=node:node add-omc.sh /home/node/add-omc.sh
+COPY --chown=node:node setup-agent-persist.sh /usr/local/bin/setup-agent-persist.sh
 RUN chmod +x /home/node/add-omc.sh && \
+  chmod +x /usr/local/bin/setup-agent-persist.sh && \
+  mkdir -p /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defaults/gemini && \
+  cp -a /home/node/.claude/. /opt/agent-defaults/claude/ && \
+  cp -a /home/node/.codex/. /opt/agent-defaults/codex/ && \
+  cp -a /home/node/.gemini/. /opt/agent-defaults/gemini/ && \
+  /usr/local/bin/setup-agent-persist.sh && \
   touch /home/node/.bashrc /home/node/.zshrc && \
   if ! grep -qxF '[ -f ~/.agent-shell-setup.sh ] && source ~/.agent-shell-setup.sh' /home/node/.bashrc; then \
     echo '[ -f ~/.agent-shell-setup.sh ] && source ~/.agent-shell-setup.sh' >> /home/node/.bashrc; \
@@ -119,6 +126,13 @@ RUN chmod +x /tmp/configure-claude.sh /tmp/configure-codex.sh /tmp/configure-gem
   /tmp/configure-codex.sh && \
   /tmp/configure-gemini.sh && \
   rm -f /tmp/configure-claude.sh /tmp/configure-codex.sh /tmp/configure-gemini.sh
+
+# Refresh defaults after setup scripts so empty persisted volumes can be re-seeded.
+RUN rm -rf /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defaults/gemini && \
+  mkdir -p /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defaults/gemini && \
+  cp -a /persist/agent/claude/. /opt/agent-defaults/claude/ && \
+  cp -a /persist/agent/codex/. /opt/agent-defaults/codex/ && \
+  cp -a /persist/agent/gemini/. /opt/agent-defaults/gemini/
 
 # Copy and set up firewall script
 COPY init-firewall.sh /usr/local/bin/
