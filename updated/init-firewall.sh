@@ -72,7 +72,16 @@ for domain in \
     "statsig.com" \
     "marketplace.visualstudio.com" \
     "vscode.blob.core.windows.net" \
-    "update.code.visualstudio.com"; do
+    "update.code.visualstudio.com" \
+    "api.openai.com" \
+    "auth.openai.com" \
+    "generativelanguage.googleapis.com" \
+    "accounts.google.com" \
+    "oauth2.googleapis.com" \
+    "play.googleapis.com" \
+    "aiplatform.googleapis.com" \
+    "cloudcode-pa.googleapis.com" \
+    "iamcredentials.googleapis.com"; do
     echo "Resolving $domain..."
     ips=$(dig +noall +answer A "$domain" | awk '$4 == "A" {print $5}')
     if [ -z "$ips" ]; then
