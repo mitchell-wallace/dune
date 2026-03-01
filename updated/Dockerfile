@@ -98,11 +98,30 @@ RUN npm i -g @openai/codex
 # Install Gemini CLI
 RUN npm install -g @google/gemini-cli
 
+# Copy user home config scaffold from updated/home into /home/node
+COPY --chown=node:node home/ /home/node/
+COPY --chown=node:node add-omc.sh /home/node/add-omc.sh
+RUN chmod +x /home/node/add-omc.sh && \
+  touch /home/node/.bashrc /home/node/.zshrc && \
+  if ! grep -qxF '[ -f ~/.agent-shell-setup.sh ] && source ~/.agent-shell-setup.sh' /home/node/.bashrc; then \
+    echo '[ -f ~/.agent-shell-setup.sh ] && source ~/.agent-shell-setup.sh' >> /home/node/.bashrc; \
+  fi && \
+  if ! grep -qxF '[ -f ~/.agent-shell-setup.sh ] && source ~/.agent-shell-setup.sh' /home/node/.zshrc; then \
+    echo '[ -f ~/.agent-shell-setup.sh ] && source ~/.agent-shell-setup.sh' >> /home/node/.zshrc; \
+  fi
+
+# Run per-agent configuration scripts after all CLIs are installed
+COPY --chown=node:node configure-claude.sh /tmp/configure-claude.sh
+COPY --chown=node:node configure-codex.sh /tmp/configure-codex.sh
+COPY --chown=node:node configure-gemini.sh /tmp/configure-gemini.sh
+RUN chmod +x /tmp/configure-claude.sh /tmp/configure-codex.sh /tmp/configure-gemini.sh && \
+  /tmp/configure-claude.sh && \
+  /tmp/configure-codex.sh && \
+  /tmp/configure-gemini.sh && \
+  rm -f /tmp/configure-claude.sh /tmp/configure-codex.sh /tmp/configure-gemini.sh
+
 # Copy and set up firewall script
 COPY init-firewall.sh /usr/local/bin/
-COPY --chown=node:node .claude/.mcp.json /home/node/.claude/.mcp.json
-COPY --chown=node:node .codex/mcp-servers.toml /home/node/.codex/mcp-servers.toml
-COPY --chown=node:node .gemini/settings.json /home/node/.gemini/settings.json
 USER root
 RUN chmod +x /usr/local/bin/init-firewall.sh && \
   echo "node ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh" > /etc/sudoers.d/node-firewall && \

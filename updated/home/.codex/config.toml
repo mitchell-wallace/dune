@@ -1,0 +1,14 @@
+model = "gpt-5.3-codex"
+model_reasoning_effort = "medium"
+
+[notice]
+hide_full_access_warning = true
+
+[mcp_servers.grep_app]
+url = "https://mcp.grep.app"
+
+[mcp_servers.context7]
+url = "https://mcp.context7.com/mcp"
+
+[mcp_servers.exa]
+url = "https://mcp.exa.ai/mcp?tools=web_search_exa"
