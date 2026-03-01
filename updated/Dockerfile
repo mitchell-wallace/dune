@@ -43,8 +43,8 @@ RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhisto
 ENV DEVCONTAINER=true
 
 # Create workspace and config directories and set permissions
-RUN mkdir -p /workspace /home/node/.claude && \
-  chown -R node:node /workspace /home/node/.claude
+RUN mkdir -p /workspace /home/node/.claude /home/node/.codex /home/node/.gemini && \
+  chown -R node:node /workspace /home/node/.claude /home/node/.codex /home/node/.gemini
 
 WORKDIR /workspace
 
@@ -98,6 +98,9 @@ RUN npm install -g @google/gemini-cli
 
 # Copy and set up firewall script
 COPY init-firewall.sh /usr/local/bin/
+COPY --chown=node:node .claude/.mcp.json /home/node/.claude/.mcp.json
+COPY --chown=node:node .codex/mcp-servers.toml /home/node/.codex/mcp-servers.toml
+COPY --chown=node:node .gemini/settings.json /home/node/.gemini/settings.json
 USER root
 RUN chmod +x /usr/local/bin/init-firewall.sh && \
   echo "node ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh" > /etc/sudoers.d/node-firewall && \

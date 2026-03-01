@@ -38,3 +38,9 @@ e.g.
 docker exec -it great_jones zsh
 ```
 
+
+
+
+Gemini settings path: ~/.gemini/settings.json
+Codex mcp path: ~/.codex/mcp-servers.toml
+Claude mcp path: ~/.claude/.mcp.json
