@@ -79,7 +79,16 @@ RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/
   -x
 
 # Install Claude
-RUN curl -fsSL https://claude.ai/install.sh | bash
+RUN set -eux; \
+  for attempt in 1 2 3; do \
+    if curl -fsSL https://claude.ai/install.sh | bash; then \
+      exit 0; \
+    fi; \
+    echo "Claude install attempt ${attempt} failed; retrying..." >&2; \
+    sleep $((attempt * 5)); \
+  done; \
+  echo "Claude install failed after 3 attempts." >&2; \
+  exit 1
 
 # Install Codex
 RUN npm i -g @openai/codex
