@@ -19,4 +19,5 @@ Changes:
 Build with:
 npx @devcontainers/cli up --workspace-folder . --config updated/devcontainer.json
 
+API keys for context7 and exa, if needed, are in warp drive
 

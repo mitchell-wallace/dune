@@ -81,7 +81,14 @@ for domain in \
     "play.googleapis.com" \
     "aiplatform.googleapis.com" \
     "cloudcode-pa.googleapis.com" \
-    "iamcredentials.googleapis.com"; do
+    "iamcredentials.googleapis.com" \
+    "mcp.grep.app" \
+    "mcp.context7.com" \
+    "accounts.context7.com" \
+    "auth.context7.com" \
+    "mcp.exa.ai" \
+    "auth.exa.ai" \
+    "accounts.exa.ai"; do
     echo "Resolving $domain..."
     ips=$(dig +noall +answer A "$domain" | awk '$4 == "A" {print $5}')
     if [ -z "$ips" ]; then
