@@ -69,6 +69,37 @@ while read -r cidr; do
     ipset add --exist allowed-domains "$cidr"
 done < <(printf '%s\n' "$gh_cidrs" | sort -u | aggregate -q)
 
+resolve_ipv4s_with_retry() {
+    local domain="$1"
+    local attempts="${2:-5}"
+    local delay_seconds="${3:-1}"
+    local ips=""
+
+    for _ in $(seq 1 "$attempts"); do
+        ips=$(dig +short A "$domain" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' || true)
+        if [ -n "$ips" ]; then
+            printf '%s\n' "$ips" | sort -u
+            return 0
+        fi
+        sleep "$delay_seconds"
+    done
+
+    return 1
+}
+
+is_required_domain() {
+    case "$1" in
+        api.openai.com|auth.openai.com|chatgpt.com|openai.com|chat.openai.com|\
+        mcp.grep.app|mcp.context7.com|mcp.exa.ai|\
+        oauth2.googleapis.com|accounts.google.com|generativelanguage.googleapis.com)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
 # Resolve and add other allowed domains
 for domain in \
     "cli.github.com" \
@@ -82,6 +113,9 @@ for domain in \
     "update.code.visualstudio.com" \
     "api.openai.com" \
     "auth.openai.com" \
+    "chatgpt.com" \
+    "chat.openai.com" \
+    "openai.com" \
     "generativelanguage.googleapis.com" \
     "accounts.google.com" \
     "oauth2.googleapis.com" \
@@ -96,10 +130,15 @@ for domain in \
     "auth.exa.ai" \
     "accounts.exa.ai"; do
     echo "Resolving $domain..."
-    ips=$(dig +noall +answer A "$domain" | awk '$4 == "A" {print $5}')
+    ips="$(resolve_ipv4s_with_retry "$domain" 5 1 || true)"
     if [ -z "$ips" ]; then
-        echo "WARNING: Failed to resolve $domain, skipping..."
-        continue
+        if is_required_domain "$domain"; then
+            echo "ERROR: Failed to resolve required domain $domain"
+            exit 1
+        else
+            echo "WARNING: Failed to resolve $domain, skipping..."
+            continue
+        fi
     fi
     
     while read -r ip; do
@@ -157,3 +196,17 @@ if ! curl --connect-timeout 5 https://api.github.com/zen >/dev/null 2>&1; then
 else
     echo "Firewall verification passed - able to reach https://api.github.com as expected"
 fi
+
+# Verify required Codex/MCP/Gemini auth endpoints are reachable.
+for url in \
+    "https://chatgpt.com/" \
+    "https://api.openai.com/" \
+    "https://mcp.grep.app/" \
+    "https://oauth2.googleapis.com/token"; do
+    if ! curl --connect-timeout 5 "$url" >/dev/null 2>&1; then
+        echo "ERROR: Firewall verification failed - unable to reach $url"
+        exit 1
+    else
+        echo "Firewall verification passed - able to reach $url as expected"
+    fi
+done
