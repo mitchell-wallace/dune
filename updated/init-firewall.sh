@@ -54,6 +54,12 @@ if ! echo "$gh_ranges" | jq -e '.web and .api and .git' >/dev/null; then
 fi
 
 echo "Processing GitHub IPs..."
+gh_cidrs=$(echo "$gh_ranges" | jq -r '.. | strings | select(test("^[0-9]{1,3}(\\.[0-9]{1,3}){3}/[0-9]{1,2}$"))')
+if [ -z "$gh_cidrs" ]; then
+    echo "ERROR: No CIDR ranges found in GitHub meta response"
+    exit 1
+fi
+
 while read -r cidr; do
     if [[ ! "$cidr" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/[0-9]{1,2}$ ]]; then
         echo "ERROR: Invalid CIDR range from GitHub meta: $cidr"
@@ -61,10 +67,11 @@ while read -r cidr; do
     fi
     echo "Adding GitHub range $cidr"
     ipset add --exist allowed-domains "$cidr"
-done < <(echo "$gh_ranges" | jq -r '(.web + .api + .git)[]' | aggregate -q)
+done < <(printf '%s\n' "$gh_cidrs" | sort -u | aggregate -q)
 
 # Resolve and add other allowed domains
 for domain in \
+    "cli.github.com" \
     "registry.npmjs.org" \
     "api.anthropic.com" \
     "sentry.io" \

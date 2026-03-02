@@ -52,14 +52,25 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
 - Gemini auth path: ~/.gemini/google_accounts.json ~/.gemini/oauth_creds.json
 - Codex auth path: ~/.codex/auth.json
 - Claude auth path: ~/.claude/.credentials.json
-- Persisted volume path: /persist/agent/{gemini,codex,claude}
-- Note: ~/.gemini ~/.codex ~/.claude are symlinked to /persist/agent/* by /usr/local/bin/setup-agent-persist.sh
+- GitHub CLI auth path: ~/.config/gh/hosts.yml
+- Git globals for HTTPS auth: ~/.gitconfig ~/.git-credentials
+- Persisted volume path: /persist/agent/{gemini,codex,claude,gh,git}
+- Note: ~/.gemini ~/.codex ~/.claude ~/.config/gh ~/.gitconfig ~/.git-credentials are symlinked to /persist/agent/* by /usr/local/bin/setup-agent-persist.sh
 
 *SHELL ALIASES*
 - cc -> claude --dangerously-skip-permissions
 - cx -> codex --dangerously-bypass-approvals-and-sandbox
 - ge -> gemini --model gemini-3.1-pro-preview --yolo
 - add-omc ~> run add-omc.sh
+
+## one-time github setup
+
+Run once inside any sandbox (auth is globally persisted):
+
+```sh
+gh auth login
+gh auth setup-git
+```
 
 ## startup message
 

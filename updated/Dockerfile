@@ -43,8 +43,8 @@ RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhisto
 ENV DEVCONTAINER=true
 
 # Create workspace, config directories, and persisted agent storage
-RUN mkdir -p /workspace /home/node/.claude /home/node/.codex /home/node/.gemini /persist/agent /opt/agent-defaults && \
-  chown -R node:node /workspace /home/node/.claude /home/node/.codex /home/node/.gemini /persist/agent /opt/agent-defaults
+RUN mkdir -p /workspace /home/node/.claude /home/node/.codex /home/node/.gemini /home/node/.config/gh /persist/agent /opt/agent-defaults && \
+  chown -R node:node /workspace /home/node/.claude /home/node/.codex /home/node/.gemini /home/node/.config /persist/agent /opt/agent-defaults
 
 WORKDIR /workspace
 
@@ -104,10 +104,13 @@ COPY --chown=node:node add-omc.sh /home/node/add-omc.sh
 COPY --chown=node:node setup-agent-persist.sh /usr/local/bin/setup-agent-persist.sh
 RUN chmod +x /home/node/add-omc.sh && \
   chmod +x /usr/local/bin/setup-agent-persist.sh && \
-  mkdir -p /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defaults/gemini && \
+  mkdir -p /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defaults/gemini /opt/agent-defaults/gh/config /opt/agent-defaults/git && \
   cp -a /home/node/.claude/. /opt/agent-defaults/claude/ && \
   cp -a /home/node/.codex/. /opt/agent-defaults/codex/ && \
   cp -a /home/node/.gemini/. /opt/agent-defaults/gemini/ && \
+  if [ -d /home/node/.config/gh ] && [ -n "$(find /home/node/.config/gh -mindepth 1 -print -quit 2>/dev/null)" ]; then cp -a /home/node/.config/gh/. /opt/agent-defaults/gh/config/; fi && \
+  if [ -f /home/node/.gitconfig ] && [ -s /home/node/.gitconfig ]; then cp -a /home/node/.gitconfig /opt/agent-defaults/git/.gitconfig; fi && \
+  if [ -f /home/node/.git-credentials ] && [ -s /home/node/.git-credentials ]; then cp -a /home/node/.git-credentials /opt/agent-defaults/git/.git-credentials; fi && \
   /usr/local/bin/setup-agent-persist.sh && \
   touch /home/node/.bashrc /home/node/.zshrc && \
   if ! grep -qxF '[ -f ~/.agent-shell-setup.sh ] && source ~/.agent-shell-setup.sh' /home/node/.bashrc; then \
@@ -121,18 +124,23 @@ RUN chmod +x /home/node/add-omc.sh && \
 COPY --chown=node:node configure-claude.sh /tmp/configure-claude.sh
 COPY --chown=node:node configure-codex.sh /tmp/configure-codex.sh
 COPY --chown=node:node configure-gemini.sh /tmp/configure-gemini.sh
-RUN chmod +x /tmp/configure-claude.sh /tmp/configure-codex.sh /tmp/configure-gemini.sh && \
+COPY --chown=node:node configure-git-gh.sh /tmp/configure-git-gh.sh
+RUN chmod +x /tmp/configure-claude.sh /tmp/configure-codex.sh /tmp/configure-gemini.sh /tmp/configure-git-gh.sh && \
   /tmp/configure-claude.sh && \
   /tmp/configure-codex.sh && \
   /tmp/configure-gemini.sh && \
-  rm -f /tmp/configure-claude.sh /tmp/configure-codex.sh /tmp/configure-gemini.sh
+  /tmp/configure-git-gh.sh && \
+  rm -f /tmp/configure-claude.sh /tmp/configure-codex.sh /tmp/configure-gemini.sh /tmp/configure-git-gh.sh
 
 # Refresh defaults after setup scripts so empty persisted volumes can be re-seeded.
-RUN rm -rf /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defaults/gemini && \
-  mkdir -p /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defaults/gemini && \
+RUN rm -rf /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defaults/gemini /opt/agent-defaults/gh /opt/agent-defaults/git && \
+  mkdir -p /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defaults/gemini /opt/agent-defaults/gh/config /opt/agent-defaults/git && \
   cp -a /persist/agent/claude/. /opt/agent-defaults/claude/ && \
   cp -a /persist/agent/codex/. /opt/agent-defaults/codex/ && \
-  cp -a /persist/agent/gemini/. /opt/agent-defaults/gemini/
+  cp -a /persist/agent/gemini/. /opt/agent-defaults/gemini/ && \
+  cp -a /persist/agent/gh/config/. /opt/agent-defaults/gh/config/ && \
+  if [ -f /persist/agent/git/.gitconfig ] && [ -s /persist/agent/git/.gitconfig ]; then cp -a /persist/agent/git/.gitconfig /opt/agent-defaults/git/.gitconfig; fi && \
+  if [ -f /persist/agent/git/.git-credentials ] && [ -s /persist/agent/git/.git-credentials ]; then cp -a /persist/agent/git/.git-credentials /opt/agent-defaults/git/.git-credentials; fi
 
 # Copy and set up firewall script
 COPY init-firewall.sh /usr/local/bin/

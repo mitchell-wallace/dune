@@ -10,11 +10,32 @@ dir_has_entries() {
   [ -d "$dir" ] && [ -n "$(find "$dir" -mindepth 1 -print -quit 2>/dev/null)" ]
 }
 
-seed_if_empty() {
-  local agent="$1"
+file_has_content() {
+  local file="$1"
+  [ -f "$file" ] && [ -s "$file" ]
+}
+
+link_home_path() {
+  local home_path="$1"
+  local persist_path="$2"
+
+  if [ -L "$home_path" ]; then
+    local target
+    target="$(readlink "$home_path")"
+    if [ "$target" = "$persist_path" ]; then
+      return 0
+    fi
+  fi
+
+  rm -rf "$home_path"
+  ln -s "$persist_path" "$home_path"
+}
+
+seed_dir_if_empty() {
+  local key="$1"
   local src="$2"
   local dst="$3"
-  local default_dir="${DEFAULT_BASE}/${agent}"
+  local default_dir="${DEFAULT_BASE}/${key}"
   local source_is_link_to_dst=0
 
   mkdir -p "$dst"
@@ -35,25 +56,53 @@ seed_if_empty() {
   fi
 }
 
-link_home_dir() {
-  local home_dir="$1"
-  local persist_dir="$2"
+seed_file_if_empty() {
+  local key="$1"
+  local src="$2"
+  local dst="$3"
+  local default_file="${DEFAULT_BASE}/${key}"
+  local source_is_link_to_dst=0
 
-  if [ -L "$home_dir" ]; then
-    local target
-    target="$(readlink "$home_dir")"
-    if [ "$target" = "$persist_dir" ]; then
+  mkdir -p "$(dirname "$dst")"
+
+  if ! file_has_content "$dst"; then
+    if [ -L "$src" ] && [ "$(readlink "$src")" = "$dst" ]; then
+      source_is_link_to_dst=1
+    fi
+
+    if [ "$source_is_link_to_dst" -eq 0 ] && file_has_content "$src"; then
+      cp -a "$src" "$dst"
       return 0
     fi
-  fi
 
-  rm -rf "$home_dir"
-  ln -s "$persist_dir" "$home_dir"
+    if file_has_content "$default_file"; then
+      cp -a "$default_file" "$dst"
+    fi
+  fi
 }
 
-for agent in claude codex gemini; do
-  home_dir="${HOME_DIR}/.${agent}"
-  persist_dir="${PERSIST_BASE}/${agent}"
-  seed_if_empty "$agent" "$home_dir" "$persist_dir"
-  link_home_dir "$home_dir" "$persist_dir"
-done
+persist_dir_mapping() {
+  local key="$1"
+  local home_dir="$2"
+  local persist_dir="$3"
+
+  seed_dir_if_empty "$key" "$home_dir" "$persist_dir"
+  link_home_path "$home_dir" "$persist_dir"
+}
+
+persist_file_mapping() {
+  local key="$1"
+  local home_file="$2"
+  local persist_file="$3"
+
+  seed_file_if_empty "$key" "$home_file" "$persist_file"
+  link_home_path "$home_file" "$persist_file"
+}
+
+persist_dir_mapping "claude" "${HOME_DIR}/.claude" "${PERSIST_BASE}/claude"
+persist_dir_mapping "codex" "${HOME_DIR}/.codex" "${PERSIST_BASE}/codex"
+persist_dir_mapping "gemini" "${HOME_DIR}/.gemini" "${PERSIST_BASE}/gemini"
+persist_dir_mapping "gh/config" "${HOME_DIR}/.config/gh" "${PERSIST_BASE}/gh/config"
+
+persist_file_mapping "git/.gitconfig" "${HOME_DIR}/.gitconfig" "${PERSIST_BASE}/git/.gitconfig"
+persist_file_mapping "git/.git-credentials" "${HOME_DIR}/.git-credentials" "${PERSIST_BASE}/git/.git-credentials"
