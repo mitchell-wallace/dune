@@ -17,7 +17,7 @@ Sandbox aliases:
   ge      -> gemini --model gemini-3.1-pro-preview --yolo
   add-omc -> ~/add-omc.sh
 
-Oh My Opencode setup:
+Oh My Claudecode setup:
   Run: add-omc
 EOF
 }

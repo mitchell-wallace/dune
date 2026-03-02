@@ -64,7 +64,7 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
 ## startup message
 
 - describe shell aliases
-- describe command to set up oh-my-opencode
+- describe command to set up oh-my-claudecode
 
 ## user notes
 
