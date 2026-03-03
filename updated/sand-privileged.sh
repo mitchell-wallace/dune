@@ -8,6 +8,7 @@ fi
 
 ADDON_DIR="/usr/local/lib/sand/addons"
 MANIFEST_PATH="${ADDON_DIR}/manifest.tsv"
+ADDON_STATE_DIR="/persist/agent/addons"
 SAND_ETC_DIR="/etc/sand"
 MODE_FILE="${SAND_ETC_DIR}/security-mode"
 PROFILE_FILE="${SAND_ETC_DIR}/profile"
@@ -78,6 +79,44 @@ lookup_addon() {
   ' "$MANIFEST_PATH"
 }
 
+addon_state_path() {
+  local addon_name="$1"
+  printf '%s/%s.installed\n' "$ADDON_STATE_DIR" "$addon_name"
+}
+
+validate_helper_commands() {
+  local helper_commands="$1"
+  local helper
+
+  if [ "$helper_commands" = "-" ] || [ -z "$helper_commands" ]; then
+    return 0
+  fi
+
+  IFS=',' read -r -a helpers <<<"$helper_commands"
+  for helper in "${helpers[@]}"; do
+    if [[ ! "$helper" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
+      echo "Invalid helper command name in manifest: $helper" >&2
+      exit 1
+    fi
+  done
+}
+
+mark_addon_installed() {
+  local addon_name="$1"
+  local helper_commands="$2"
+  local state_file
+  state_file="$(addon_state_path "$addon_name")"
+
+  mkdir -p "$ADDON_STATE_DIR"
+  chmod 0755 "$ADDON_STATE_DIR"
+
+  {
+    printf 'installed_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    printf 'helper_commands=%s\n' "$helper_commands"
+  } > "$state_file"
+  chmod 0644 "$state_file"
+}
+
 configure_mode() {
   local requested_mode requested_profile
   requested_mode="$(canonicalize_mode "${1:-${SAND_SECURITY_MODE:-std}}")" || {
@@ -111,8 +150,158 @@ configure_mode() {
   fi
 }
 
+get_pg_version() {
+  local cluster_dir
+  cluster_dir="$(find /etc/postgresql -mindepth 2 -maxdepth 2 -type d -name main 2>/dev/null | sort -V | tail -n1 || true)"
+  if [ -z "$cluster_dir" ]; then
+    return 1
+  fi
+  basename "$(dirname "$cluster_dir")"
+}
+
+pg_local_usage() {
+  cat <<'EOF_PG_USAGE'
+Usage: pg-local <start|stop|restart|status|logs|shell|url>
+EOF_PG_USAGE
+}
+
+pg_local_cmd() {
+  local cmd pg_version log_file
+  cmd="${1:-help}"
+
+  pg_version="$(get_pg_version)" || {
+    echo "PostgreSQL is not installed. Run: addons add-postgres" >&2
+    exit 1
+  }
+
+  case "$cmd" in
+    start)
+      pg_ctlcluster "$pg_version" main start >/dev/null 2>&1 || true
+      echo "postgresql (${pg_version}) started"
+      ;;
+    stop)
+      pg_ctlcluster "$pg_version" main stop >/dev/null 2>&1 || true
+      echo "postgresql (${pg_version}) stopped"
+      ;;
+    restart)
+      pg_ctlcluster "$pg_version" main restart >/dev/null 2>&1
+      echo "postgresql (${pg_version}) restarted"
+      ;;
+    status)
+      if pg_ctlcluster "$pg_version" main status >/dev/null 2>&1; then
+        echo "postgresql (${pg_version}) is running"
+      else
+        echo "postgresql (${pg_version}) is stopped"
+        exit 1
+      fi
+      ;;
+    logs)
+      log_file="/var/log/postgresql/postgresql-${pg_version}-main.log"
+      if [ -f "$log_file" ]; then
+        tail -n 50 "$log_file"
+      else
+        echo "No PostgreSQL log found at $log_file"
+      fi
+      ;;
+    shell)
+      exec runuser -u node -- env \
+        PGHOST=127.0.0.1 \
+        PGPORT=5432 \
+        PGUSER=node \
+        PGDATABASE=app \
+        psql
+      ;;
+    url)
+      echo "postgresql://node@127.0.0.1:5432/app"
+      ;;
+    help|-h|--help)
+      pg_local_usage
+      ;;
+    *)
+      pg_local_usage >&2
+      exit 1
+      ;;
+  esac
+}
+
+redis_local_usage() {
+  cat <<'EOF_REDIS_USAGE'
+Usage: redis-local <start|stop|restart|status|logs|shell|url>
+EOF_REDIS_USAGE
+}
+
+redis_local_running() {
+  redis-cli -h 127.0.0.1 -p 6379 ping >/dev/null 2>&1
+}
+
+redis_local_cmd() {
+  local cmd redis_conf redis_log redis_pid
+  cmd="${1:-help}"
+  redis_conf="/etc/redis/redis-local.conf"
+  redis_log="/var/log/redis/redis-local.log"
+  redis_pid="/var/run/redis-local.pid"
+
+  if ! command -v redis-server >/dev/null 2>&1; then
+    echo "Redis is not installed. Run: addons add-redis" >&2
+    exit 1
+  fi
+
+  case "$cmd" in
+    start)
+      if redis_local_running; then
+        echo "redis is already running"
+      else
+        redis-server "$redis_conf"
+        echo "redis started"
+      fi
+      ;;
+    stop)
+      if redis_local_running; then
+        redis-cli -h 127.0.0.1 -p 6379 shutdown nosave >/dev/null 2>&1 || true
+      fi
+      if [ -f "$redis_pid" ]; then
+        kill "$(cat "$redis_pid")" >/dev/null 2>&1 || true
+        rm -f "$redis_pid"
+      fi
+      echo "redis stopped"
+      ;;
+    restart)
+      "$0" redis-local stop >/dev/null 2>&1 || true
+      "$0" redis-local start
+      ;;
+    status)
+      if redis_local_running; then
+        echo "redis is running"
+      else
+        echo "redis is stopped"
+        exit 1
+      fi
+      ;;
+    logs)
+      if [ -f "$redis_log" ]; then
+        tail -n 50 "$redis_log"
+      else
+        echo "No Redis log found at $redis_log"
+      fi
+      ;;
+    shell)
+      exec runuser -u node -- redis-cli -h 127.0.0.1 -p 6379
+      ;;
+    url)
+      echo "redis://127.0.0.1:6379"
+      ;;
+    help|-h|--help)
+      redis_local_usage
+      ;;
+    *)
+      redis_local_usage >&2
+      exit 1
+      ;;
+  esac
+}
+
 run_addon() {
-  local addon_name row name script description enabled_modes run_as script_path mode
+  local addon_name row name script description enabled_modes run_as helper_commands script_path mode rc
   addon_name="${1:-}"
 
   if [ -z "$addon_name" ]; then
@@ -138,7 +327,8 @@ run_addon() {
     exit 1
   }
 
-  IFS=$'\t' read -r name script description enabled_modes run_as <<<"$row"
+  IFS=$'\t' read -r name script description enabled_modes run_as helper_commands <<<"$row"
+  helper_commands="${helper_commands:--}"
 
   if [ "$name" != "$addon_name" ]; then
     echo "Addon lookup mismatch for $addon_name" >&2
@@ -149,6 +339,8 @@ run_addon() {
     echo "Invalid manifest script path for $addon_name" >&2
     exit 1
   fi
+
+  validate_helper_commands "$helper_commands"
 
   if ! mode_enabled "$mode" "$enabled_modes"; then
     echo "Addon '$addon_name' is not enabled in mode '$mode'" >&2
@@ -161,9 +353,10 @@ run_addon() {
     exit 1
   fi
 
+  set +e
   case "$run_as" in
     root)
-      exec env \
+      env \
         HOME="/home/node" \
         USER="node" \
         LOGNAME="node" \
@@ -171,15 +364,25 @@ run_addon() {
         SAND_TARGET_USER="node" \
         SAND_SECURITY_MODE="$mode" \
         "$script_path"
+      rc=$?
       ;;
     node)
-      exec su - node -c "SAND_SECURITY_MODE='$mode' '$script_path'"
+      su - node -c "SAND_SECURITY_MODE='$mode' '$script_path'"
+      rc=$?
       ;;
     *)
+      set -e
       echo "Invalid run_as in manifest for $addon_name: $run_as" >&2
       exit 1
       ;;
   esac
+  set -e
+
+  if [ "$rc" -eq 0 ]; then
+    mark_addon_installed "$addon_name" "$helper_commands"
+  fi
+
+  exit "$rc"
 }
 
 cmd="${1:-}"
@@ -193,8 +396,14 @@ case "$cmd" in
   run-addon)
     run_addon "${2:-}"
     ;;
+  pg-local)
+    pg_local_cmd "${2:-help}"
+    ;;
+  redis-local)
+    redis_local_cmd "${2:-help}"
+    ;;
   *)
-    echo "Usage: sand-privileged <init-firewall|configure-mode|run-addon>" >&2
+    echo "Usage: sand-privileged <init-firewall|configure-mode|run-addon|pg-local|redis-local>" >&2
     exit 1
     ;;
 esac

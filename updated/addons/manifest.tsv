@@ -1,3 +1,5 @@
-name	script	description	enabled_modes	run_as
-add-omc	add-omc.sh	Install Oh My Claudecode	std,lax,yolo	node
-boost-cli	boost-cli.sh	Install optional CLI boost tools (fd/rg/bat/tree/eza/micro)	std,lax,yolo	root
+name	script	description	enabled_modes	run_as	helper_commands
+add-omc	add-omc.sh	Install Oh My Claudecode	std,lax,yolo	node	-
+boost-cli	boost-cli.sh	Install optional CLI boost tools (fd/rg/bat/tree/eza/micro)	std,lax,yolo	root	-
+add-postgres	add-postgres.sh	Install and configure local PostgreSQL	std,lax,yolo	root	pg-local
+add-redis	add-redis.sh	Install and configure local Redis	std,lax,yolo	root	redis-local
