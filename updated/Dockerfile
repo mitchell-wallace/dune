@@ -109,12 +109,20 @@ USER node
 
 # Copy user home config scaffold from updated/home into /home/node
 COPY --chown=node:node home/ /home/node/
-COPY --chown=node:node add-omc.sh /home/node/add-omc.sh
-COPY --chown=node:node boost-cli.sh /home/node/boost-cli.sh
-COPY --chown=node:node setup-agent-persist.sh /usr/local/bin/setup-agent-persist.sh
-RUN chmod +x /home/node/add-omc.sh && \
-  chmod +x /home/node/boost-cli.sh && \
-  chmod +x /usr/local/bin/setup-agent-persist.sh && \
+USER root
+COPY setup-agent-persist.sh /usr/local/bin/setup-agent-persist.sh
+COPY sand-privileged.sh /usr/local/bin/sand-privileged
+COPY sand-poststart.sh /usr/local/bin/sand-poststart.sh
+COPY addons-cli.sh /usr/local/bin/addons
+COPY addons/ /usr/local/lib/sand/addons/
+RUN chmod 0755 /usr/local/bin/setup-agent-persist.sh /usr/local/bin/sand-privileged /usr/local/bin/sand-poststart.sh /usr/local/bin/addons && \
+  chown root:root /usr/local/bin/setup-agent-persist.sh /usr/local/bin/sand-privileged /usr/local/bin/sand-poststart.sh /usr/local/bin/addons && \
+  chown -R root:root /usr/local/lib/sand && \
+  chmod 0755 /usr/local/lib/sand /usr/local/lib/sand/addons && \
+  chmod 0444 /usr/local/lib/sand/addons/manifest.tsv && \
+  find /usr/local/lib/sand/addons -mindepth 1 -maxdepth 1 -type f ! -name manifest.tsv -exec chmod 0555 {} \;
+USER node
+RUN \
   mkdir -p /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defaults/gemini /opt/agent-defaults/gh/config /opt/agent-defaults/git && \
   cp -a /home/node/.claude/. /opt/agent-defaults/claude/ && \
   cp -a /home/node/.codex/. /opt/agent-defaults/codex/ && \
@@ -156,7 +164,8 @@ RUN rm -rf /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defau
 # Copy and set up firewall script
 COPY init-firewall.sh /usr/local/bin/
 USER root
-RUN chmod +x /usr/local/bin/init-firewall.sh && \
-  echo "node ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh" > /etc/sudoers.d/node-firewall && \
-  chmod 0440 /etc/sudoers.d/node-firewall
+RUN chmod 0755 /usr/local/bin/init-firewall.sh && \
+  chown root:root /usr/local/bin/init-firewall.sh && \
+  echo "node ALL=(root) NOPASSWD: /usr/local/bin/sand-privileged" > /etc/sudoers.d/node-sand-privileged && \
+  chmod 0440 /etc/sudoers.d/node-sand-privileged
 USER node

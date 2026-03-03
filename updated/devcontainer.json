@@ -41,15 +41,17 @@
   "remoteUser": "node",
   "mounts": [
     "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
-    "source=agent-persist-global,target=/persist/agent,type=volume"
+    "source=agent-persist-${localEnv:SAND_PROFILE:0},target=/persist/agent,type=volume"
   ],
   "containerEnv": {
     "NODE_OPTIONS": "--max-old-space-size=4096",
     "CLAUDE_CONFIG_DIR": "/home/node/.claude",
-    "POWERLEVEL9K_DISABLE_GITSTATUS": "true"
+    "POWERLEVEL9K_DISABLE_GITSTATUS": "true",
+    "SAND_PROFILE": "${localEnv:SAND_PROFILE:0}",
+    "SAND_SECURITY_MODE": "${localEnv:SAND_SECURITY_MODE:std}"
   },
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
   "workspaceFolder": "/workspace",
-  "postStartCommand": "/usr/local/bin/setup-agent-persist.sh && sudo /usr/local/bin/init-firewall.sh",
+  "postStartCommand": "/usr/local/bin/sand-poststart.sh",
   "waitFor": "postStartCommand"
 }

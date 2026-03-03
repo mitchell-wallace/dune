@@ -1,0 +1,3 @@
+name	script	description	enabled_modes	run_as
+add-omc	add-omc.sh	Install Oh My Claudecode	std,lax,yolo	node
+boost-cli	boost-cli.sh	Install optional CLI boost tools (fd/rg/bat/tree/eza/micro)	std,lax,yolo	root
