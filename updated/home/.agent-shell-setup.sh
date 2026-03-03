@@ -26,9 +26,11 @@ EOF
   if [ "$mode" != "strict" ]; then
     cat <<'EOF'
 Addons:
-  addons           -> list enabled addons
+  addons           -> list addons, install status, helper commands
   addons add-omc   -> install Oh My Claudecode
   addons boost-cli -> install optional CLI boost tools (fd/rg/bat/tree/eza/micro)
+  addons add-postgres -> install local PostgreSQL + pg-local helper
+  addons add-redis -> install local Redis + redis-local helper
 EOF
   fi
 }

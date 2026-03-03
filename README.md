@@ -87,11 +87,23 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
 - Runtime location in container: `/usr/local/lib/sand/addons` (root-owned and immutable to `node`)
 - Command: `addons`
 - Example:
-  - `addons` or `addons list` -> list enabled addons for the current mode
+  - `addons` / `addons list` / `addons help` -> same output: addon status + helper commands
   - `addons add-omc`
   - `addons boost-cli`
+  - `addons add-postgres`
+  - `addons add-redis`
 - `strict` mode disables addons and omits addon hints from startup messaging.
 - Addons are whitelist-only from the manifest; arbitrary scripts are not runnable through `addons`.
+- Addon install state is tracked per profile under `/persist/agent/addons/*.installed`.
+- Helper commands are installed only when their addon is installed.
+
+*LOCAL DATASTORE HELPERS*
+- `pg-local` (installed by `addons add-postgres`):
+  - `pg-local start|stop|restart|status|logs|shell|url`
+  - defaults: `PGHOST=127.0.0.1`, `PGPORT=5432`, `PGUSER=node`, `PGDATABASE=app`
+- `redis-local` (installed by `addons add-redis`):
+  - `redis-local start|stop|restart|status|logs|shell|url`
+  - defaults: `redis://127.0.0.1:6379`
 
 *TOOL INSTALL SCRIPTS*
 - Build-time core project tools: `updated/install-project-tools.sh`

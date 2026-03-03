@@ -168,6 +168,8 @@ add_optional_domain "accounts.exa.ai" "Exa account endpoints"
 add_optional_domain "raw.githubusercontent.com" "beads/beads_viewer installer scripts"
 add_optional_domain "mise.run" "mise bootstrap install script"
 add_optional_domain "getmic.ro" "micro editor installer script"
+add_optional_domain "deb.debian.org" "Debian apt repositories for optional addon installs"
+add_optional_domain "security.debian.org" "Debian security apt repository for optional addon installs"
 
 # mise-managed runtime/tool domains.
 add_optional_domain "nodejs.org" "mise node backend official Node.js binary downloads"
