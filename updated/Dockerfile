@@ -98,11 +98,22 @@ RUN npm i -g @openai/codex
 # Install Gemini CLI
 RUN npm install -g @google/gemini-cli
 
+# Install core project tools (beads, mise, etc.)
+COPY --chown=node:node install-project-tools.sh /tmp/install-project-tools.sh
+USER root
+RUN chmod +x /tmp/install-project-tools.sh && \
+  INSTALL_USER_TOOLS=0 /tmp/install-project-tools.sh && \
+  su - node -c 'INSTALL_SYSTEM_TOOLS=0 /tmp/install-project-tools.sh' && \
+  rm -f /tmp/install-project-tools.sh
+USER node
+
 # Copy user home config scaffold from updated/home into /home/node
 COPY --chown=node:node home/ /home/node/
 COPY --chown=node:node add-omc.sh /home/node/add-omc.sh
+COPY --chown=node:node boost-cli.sh /home/node/boost-cli.sh
 COPY --chown=node:node setup-agent-persist.sh /usr/local/bin/setup-agent-persist.sh
 RUN chmod +x /home/node/add-omc.sh && \
+  chmod +x /home/node/boost-cli.sh && \
   chmod +x /usr/local/bin/setup-agent-persist.sh && \
   mkdir -p /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defaults/gemini /opt/agent-defaults/gh/config /opt/agent-defaults/git && \
   cp -a /home/node/.claude/. /opt/agent-defaults/claude/ && \
