@@ -89,6 +89,7 @@ allow_domain() {
     local domain="$1"
     local requirement="$2"
     local reason="$3"
+    local cidr_bits="${4:-32}"
     local ips=""
 
     echo "Resolving $domain (${reason})..."
@@ -109,7 +110,13 @@ allow_domain() {
             echo "WARNING: Invalid IP from DNS for $domain: $ip, skipping..."
             continue
         fi
-        ipset add --exist allowed-domains "$ip"
+        if [ "$cidr_bits" = "32" ]; then
+            ipset add --exist allowed-domains "$ip"
+        else
+            local cidr
+            cidr="$(echo "$ip" | awk -F. -v bits="$cidr_bits" '{print $1 "." $2 "." $3 ".0/" bits}')"
+            ipset add --exist allowed-domains "$cidr"
+        fi
     done < <(echo "$ips")
 }
 
@@ -119,6 +126,12 @@ add_required_domain() {
 }
 add_optional_domain() {
     DOMAIN_SPECS+=("$1|optional|$2")
+}
+add_required_domain_with_cidr() {
+    DOMAIN_SPECS+=("$1|required|$2|$3")
+}
+add_optional_domain_with_cidr() {
+    DOMAIN_SPECS+=("$1|optional|$2|$3")
 }
 
 # GitHub CLI tooling.
@@ -157,10 +170,10 @@ add_optional_domain "cloudcode-pa.googleapis.com" "Google developer tooling back
 add_optional_domain "iamcredentials.googleapis.com" "GCP service-account token exchange"
 
 # MCP servers configured in this image.
-add_required_domain "mcp.grep.app" "grep MCP server"
-add_required_domain "mcp.context7.com" "Context7 MCP server"
+add_required_domain_with_cidr "mcp.grep.app" "grep MCP server (allow /24 due edge IP churn)" "24"
+add_required_domain_with_cidr "mcp.context7.com" "Context7 MCP server (allow /24 due edge IP churn)" "24"
 add_optional_domain "accounts.context7.com" "Context7 auth/session endpoints"
-add_required_domain "mcp.exa.ai" "Exa MCP server"
+add_required_domain_with_cidr "mcp.exa.ai" "Exa MCP server (allow /24 due edge IP churn)" "24"
 add_optional_domain "auth.exa.ai" "Exa auth endpoints"
 add_optional_domain "accounts.exa.ai" "Exa account endpoints"
 
@@ -189,8 +202,8 @@ add_optional_domain "index.crates.io" "Rust sparse index"
 add_optional_domain "static.crates.io" "Rust crate tarball downloads"
 
 for spec in "${DOMAIN_SPECS[@]}"; do
-    IFS='|' read -r domain requirement reason <<<"$spec"
-    allow_domain "$domain" "$requirement" "$reason"
+    IFS='|' read -r domain requirement reason cidr_bits <<<"$spec"
+    allow_domain "$domain" "$requirement" "$reason" "${cidr_bits:-32}"
 done
 
 # Allow host-network communication (docker bridge gateway).
