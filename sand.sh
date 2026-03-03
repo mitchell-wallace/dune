@@ -244,6 +244,8 @@ else
       npx @devcontainers/cli up \
         --workspace-folder "$WORKSPACE_DIR" \
         --config "$CONFIG_FILE" \
+        --id-label "devcontainer.local_folder=$WORKSPACE_DIR" \
+        --id-label "devcontainer.config_file=$CONFIG_FILE" \
         --id-label "sand.profile=$profile"
   )
 
