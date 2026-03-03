@@ -2,6 +2,7 @@
 set -euo pipefail
 
 MANIFEST_PATH="/usr/local/lib/sand/addons/manifest.tsv"
+ADDON_STATE_DIR="/persist/agent/addons"
 
 canonicalize_mode() {
   local raw="${1:-std}"
@@ -44,8 +45,21 @@ get_mode() {
   canonicalize_mode "${SAND_SECURITY_MODE:-std}"
 }
 
-list_addons() {
-  local mode
+addon_state_path() {
+  local addon_name="$1"
+  printf '%s/%s.installed\n' "$ADDON_STATE_DIR" "$addon_name"
+}
+
+addon_installed() {
+  local addon_name="$1"
+  [ -f "$(addon_state_path "$addon_name")" ]
+}
+
+print_addons_overview() {
+  local mode name script description enabled_modes run_as helper_commands status
+  local -a helper_lines helpers existing_helpers
+  helper_lines=()
+
   mode="$(get_mode)"
 
   if [ "$mode" = "strict" ]; then
@@ -53,20 +67,50 @@ list_addons() {
     exit 1
   fi
 
-  echo "Enabled addons for mode '$mode':"
-  awk -F'\t' -v mode="$mode" '
-    NR == 1 { next }
-    NF < 5 { next }
-    {
-      split($4, modes, ",")
-      for (i in modes) {
-        if (modes[i] == mode) {
-          printf "  %-16s %s\n", $1, $3
-          break
-        }
-      }
-    }
-  ' "$MANIFEST_PATH"
+  echo "addons: run curated optional extras (no arbitrary scripts)."
+  echo
+  echo "Available addons for mode '$mode':"
+  printf "  %-16s %-13s %s\n" "NAME" "STATUS" "DESCRIPTION"
+
+  while IFS=$'\t' read -r name script description enabled_modes run_as helper_commands; do
+    [ -z "$name" ] && continue
+    [ "$name" = "name" ] && continue
+
+    if ! mode_enabled "$mode" "$enabled_modes"; then
+      continue
+    fi
+
+    helper_commands="${helper_commands:--}"
+    status="not-installed"
+
+    if addon_installed "$name"; then
+      status="installed"
+
+      if [ "$helper_commands" != "-" ] && [ -n "$helper_commands" ]; then
+        IFS=',' read -r -a helpers <<<"$helper_commands"
+        existing_helpers=()
+        for helper in "${helpers[@]}"; do
+          if command -v "$helper" >/dev/null 2>&1; then
+            existing_helpers+=("$helper")
+          fi
+        done
+
+        if [ "${#existing_helpers[@]}" -gt 0 ]; then
+          helper_lines+=("  ${name}: ${existing_helpers[*]}")
+        fi
+      fi
+    fi
+
+    printf "  %-16s %-13s %s\n" "$name" "$status" "$description"
+  done < "$MANIFEST_PATH"
+
+  echo
+  echo "Available helper commands:"
+  if [ "${#helper_lines[@]}" -eq 0 ]; then
+    echo "  (none; install addons that provide helper commands)"
+  else
+    printf '%s\n' "${helper_lines[@]}"
+  fi
 }
 
 run_addon() {
@@ -84,20 +128,8 @@ run_addon() {
 
 cmd="${1:-list}"
 case "$cmd" in
-  list)
-    list_addons
-    ;;
-  -h|--help|help)
-    cat <<'EOF_HELP'
-Usage:
-  addons list
-  addons <addon-name>
-
-Examples:
-  addons
-  addons add-omc
-  addons boost-cli
-EOF_HELP
+  list|help|-h|--help)
+    print_addons_overview
     ;;
   *)
     run_addon "$cmd"
