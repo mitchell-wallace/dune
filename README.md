@@ -18,7 +18,25 @@ Changes:
 
 How to use:
 
-Run `install-sand-alias.sh`, then from any folder run `sand` to (if needed) create a new container for that folder, and then start an interactive session
+Run `install-sand-alias.sh`, then from any folder run `sand` to (if needed) create a new container for that folder, and then start an interactive session.
+
+`sand` supports profile + security mode selection:
+
+```sh
+sand                        # profile 0, mode std, current directory
+sand 1                      # profile 1, mode std
+sand strict                 # profile 0, mode strict
+sand 1 std                  # profile 1, mode std
+sand -d ./repo -p a -m lax  # explicit flags
+```
+
+Security modes:
+- `std` / `standard` (default): firewall enabled, curated addons available
+- `lax`: firewall enabled, passwordless sudo
+- `yolo`: passwordless sudo, firewall disabled
+- `strict`: firewall enabled, addons disabled
+
+Container security mode is immutable after creation for a workspace+profile combo. If you request a different mode later, `sand` warns and reuses the existing mode.
 
 Build with:
 ```sh
@@ -54,14 +72,31 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
 - Claude auth path: ~/.claude/.credentials.json
 - GitHub CLI auth path: ~/.config/gh/hosts.yml
 - Git globals for HTTPS auth: ~/.gitconfig ~/.git-credentials
-- Persisted volume path: /persist/agent/{gemini,codex,claude,gh,git}
+- Persisted volume path in-container: /persist/agent/{gemini,codex,claude,gh,git}
+- Docker volume per profile: agent-persist-<profile>
 - Note: ~/.gemini ~/.codex ~/.claude ~/.config/gh ~/.gitconfig ~/.git-credentials are symlinked to /persist/agent/* by /usr/local/bin/setup-agent-persist.sh
 
 *SHELL ALIASES*
 - cc -> claude --dangerously-skip-permissions
 - cx -> codex --dangerously-bypass-approvals-and-sandbox
 - ge -> gemini --model gemini-3.1-pro-preview --yolo
-- add-omc ~> run add-omc.sh
+
+*ADDONS*
+- Source of predefined addons in repo: `updated/addons/`
+- Manifest: `updated/addons/manifest.tsv`
+- Runtime location in container: `/usr/local/lib/sand/addons` (root-owned and immutable to `node`)
+- Command: `addons`
+- Example:
+  - `addons` or `addons list` -> list enabled addons for the current mode
+  - `addons add-omc`
+  - `addons boost-cli`
+- `strict` mode disables addons and omits addon hints from startup messaging.
+- Addons are whitelist-only from the manifest; arbitrary scripts are not runnable through `addons`.
+
+*TOOL INSTALL SCRIPTS*
+- Build-time core project tools: `updated/install-project-tools.sh`
+- Post-start mode/profile setup: `/usr/local/bin/sand-poststart.sh`
+- Privileged runner: `/usr/local/bin/sand-privileged`
 
 ## one-time github setup
 
@@ -74,8 +109,18 @@ gh auth setup-git
 
 ## startup message
 
-- describe shell aliases
-- describe command to set up oh-my-claudecode
+- Shows active profile and security mode
+- Shows shell aliases (`cc`, `cx`, `ge`)
+- Shows addon command help when mode is not `strict`
+
+## recommendation: profile isolation by security mode
+
+Use different profiles for different security modes to avoid cross-contamination of auth/config state through shared persisted credentials.
+
+Example:
+- `sand 0 std` for normal work
+- `sand 1 strict` for locked-down sessions
+- `sand 2 lax` or `sand 3 yolo` for experimental tooling installs
 
 ## user notes
 
