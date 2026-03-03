@@ -14,6 +14,7 @@ Changes:
 - add oh-my-claudecode
 - add codex installer
 - add gemini-cli installer
+- add opencode installer
 - switch devcontainer vscode to biome
 
 How to use:
@@ -70,16 +71,18 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
 - Gemini auth path: ~/.gemini/google_accounts.json ~/.gemini/oauth_creds.json
 - Codex auth path: ~/.codex/auth.json
 - Claude auth path: ~/.claude/.credentials.json
+- OpenCode auth/data path: ~/.local/share/opencode/auth.json ~/.config/opencode/opencode.json
 - GitHub CLI auth path: ~/.config/gh/hosts.yml
 - Git globals for HTTPS auth: ~/.gitconfig ~/.git-credentials
-- Persisted volume path in-container: /persist/agent/{gemini,codex,claude,gh,git}
+- Persisted volume path in-container: /persist/agent/{gemini,codex,claude,opencode,gh,git}
 - Docker volume per profile: agent-persist-<profile>
-- Note: ~/.gemini ~/.codex ~/.claude ~/.config/gh ~/.gitconfig ~/.git-credentials are symlinked to /persist/agent/* by /usr/local/bin/setup-agent-persist.sh
+- Note: ~/.gemini ~/.codex ~/.claude ~/.config/opencode ~/.local/share/opencode ~/.config/gh ~/.gitconfig ~/.git-credentials are symlinked to /persist/agent/* by /usr/local/bin/setup-agent-persist.sh
 
 *SHELL ALIASES*
 - cc -> claude --dangerously-skip-permissions
 - cx -> codex --dangerously-bypass-approvals-and-sandbox
 - ge -> gemini --model gemini-3.1-pro-preview --yolo
+- op -> opencode --yolo
 
 *ADDONS*
 - Source of predefined addons in repo: `updated/addons/`
@@ -122,7 +125,7 @@ gh auth setup-git
 ## startup message
 
 - Shows active profile and security mode
-- Shows shell aliases (`cc`, `cx`, `ge`)
+- Shows shell aliases (`cc`, `cx`, `ge`, `op`)
 - Shows addon command help when mode is not `strict`
 
 ## recommendation: profile isolation by security mode

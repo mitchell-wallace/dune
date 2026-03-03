@@ -27,6 +27,7 @@ link_home_path() {
     fi
   fi
 
+  mkdir -p "$(dirname "$home_path")"
   rm -rf "$home_path"
   ln -s "$persist_path" "$home_path"
 }
@@ -102,6 +103,8 @@ persist_file_mapping() {
 persist_dir_mapping "claude" "${HOME_DIR}/.claude" "${PERSIST_BASE}/claude"
 persist_dir_mapping "codex" "${HOME_DIR}/.codex" "${PERSIST_BASE}/codex"
 persist_dir_mapping "gemini" "${HOME_DIR}/.gemini" "${PERSIST_BASE}/gemini"
+persist_dir_mapping "opencode/config" "${HOME_DIR}/.config/opencode" "${PERSIST_BASE}/opencode/config"
+persist_dir_mapping "opencode/data" "${HOME_DIR}/.local/share/opencode" "${PERSIST_BASE}/opencode/data"
 persist_dir_mapping "gh/config" "${HOME_DIR}/.config/gh" "${PERSIST_BASE}/gh/config"
 
 persist_file_mapping "git/.gitconfig" "${HOME_DIR}/.gitconfig" "${PERSIST_BASE}/git/.gitconfig"

@@ -160,6 +160,11 @@ add_required_domain "chatgpt.com" "Codex responses endpoint under chatgpt.com/ba
 add_optional_domain "chat.openai.com" "legacy ChatGPT host used by some auth/browser flows"
 add_optional_domain "openai.com" "OpenAI web redirects and auth support"
 
+# OpenCode provider endpoints.
+add_required_domain_with_cidr "opencode.ai" "OpenCode Zen API/auth endpoint (allow /24 due edge IP churn)" "24"
+add_required_domain_with_cidr "api.z.ai" "Z.AI Coding Plan provider API endpoint (allow /24 due edge IP churn)" "24"
+add_optional_domain "z.ai" "Z.AI API console and account management"
+
 # Gemini and Google auth endpoints.
 add_required_domain "generativelanguage.googleapis.com" "Gemini API"
 add_required_domain "accounts.google.com" "Google account auth"
@@ -250,5 +255,7 @@ fi
 verify_url_reachable "https://api.github.com/zen"
 verify_url_reachable "https://chatgpt.com/"
 verify_url_reachable "https://api.openai.com/"
+verify_url_reachable "https://opencode.ai/zen"
+verify_url_reachable "https://api.z.ai/"
 verify_url_reachable "https://mcp.grep.app/"
 verify_url_reachable "https://oauth2.googleapis.com/token"

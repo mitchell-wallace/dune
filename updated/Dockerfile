@@ -43,8 +43,8 @@ RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhisto
 ENV DEVCONTAINER=true
 
 # Create workspace, config directories, and persisted agent storage
-RUN mkdir -p /workspace /home/node/.claude /home/node/.codex /home/node/.gemini /home/node/.config/gh /persist/agent /opt/agent-defaults && \
-  chown -R node:node /workspace /home/node/.claude /home/node/.codex /home/node/.gemini /home/node/.config /persist/agent /opt/agent-defaults
+RUN mkdir -p /workspace /home/node/.claude /home/node/.codex /home/node/.gemini /home/node/.config/gh /home/node/.config/opencode /home/node/.local/share/opencode /persist/agent /opt/agent-defaults && \
+  chown -R node:node /workspace /home/node/.claude /home/node/.codex /home/node/.gemini /home/node/.config /home/node/.local /persist/agent /opt/agent-defaults
 
 WORKDIR /workspace
 
@@ -98,6 +98,9 @@ RUN npm i -g @openai/codex
 # Install Gemini CLI
 RUN npm install -g @google/gemini-cli
 
+# Install OpenCode
+RUN npm i -g opencode-ai@latest
+
 # Install core project tools (beads, mise, etc.)
 COPY --chown=node:node install-project-tools.sh /tmp/install-project-tools.sh
 USER root
@@ -123,10 +126,12 @@ RUN chmod 0755 /usr/local/bin/setup-agent-persist.sh /usr/local/bin/sand-privile
   find /usr/local/lib/sand/addons -mindepth 1 -maxdepth 1 -type f ! -name manifest.tsv -exec chmod 0555 {} \;
 USER node
 RUN \
-  mkdir -p /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defaults/gemini /opt/agent-defaults/gh/config /opt/agent-defaults/git && \
+  mkdir -p /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defaults/gemini /opt/agent-defaults/opencode/config /opt/agent-defaults/opencode/data /opt/agent-defaults/gh/config /opt/agent-defaults/git && \
   cp -a /home/node/.claude/. /opt/agent-defaults/claude/ && \
   cp -a /home/node/.codex/. /opt/agent-defaults/codex/ && \
   cp -a /home/node/.gemini/. /opt/agent-defaults/gemini/ && \
+  cp -a /home/node/.config/opencode/. /opt/agent-defaults/opencode/config/ && \
+  cp -a /home/node/.local/share/opencode/. /opt/agent-defaults/opencode/data/ && \
   if [ -d /home/node/.config/gh ] && [ -n "$(find /home/node/.config/gh -mindepth 1 -print -quit 2>/dev/null)" ]; then cp -a /home/node/.config/gh/. /opt/agent-defaults/gh/config/; fi && \
   if [ -f /home/node/.gitconfig ] && [ -s /home/node/.gitconfig ]; then cp -a /home/node/.gitconfig /opt/agent-defaults/git/.gitconfig; fi && \
   if [ -f /home/node/.git-credentials ] && [ -s /home/node/.git-credentials ]; then cp -a /home/node/.git-credentials /opt/agent-defaults/git/.git-credentials; fi && \
@@ -152,11 +157,13 @@ RUN chmod +x /tmp/configure-claude.sh /tmp/configure-codex.sh /tmp/configure-gem
   rm -f /tmp/configure-claude.sh /tmp/configure-codex.sh /tmp/configure-gemini.sh /tmp/configure-git-gh.sh
 
 # Refresh defaults after setup scripts so empty persisted volumes can be re-seeded.
-RUN rm -rf /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defaults/gemini /opt/agent-defaults/gh /opt/agent-defaults/git && \
-  mkdir -p /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defaults/gemini /opt/agent-defaults/gh/config /opt/agent-defaults/git && \
+RUN rm -rf /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defaults/gemini /opt/agent-defaults/opencode /opt/agent-defaults/gh /opt/agent-defaults/git && \
+  mkdir -p /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defaults/gemini /opt/agent-defaults/opencode/config /opt/agent-defaults/opencode/data /opt/agent-defaults/gh/config /opt/agent-defaults/git && \
   cp -a /persist/agent/claude/. /opt/agent-defaults/claude/ && \
   cp -a /persist/agent/codex/. /opt/agent-defaults/codex/ && \
   cp -a /persist/agent/gemini/. /opt/agent-defaults/gemini/ && \
+  cp -a /persist/agent/opencode/config/. /opt/agent-defaults/opencode/config/ && \
+  cp -a /persist/agent/opencode/data/. /opt/agent-defaults/opencode/data/ && \
   cp -a /persist/agent/gh/config/. /opt/agent-defaults/gh/config/ && \
   if [ -f /persist/agent/git/.gitconfig ] && [ -s /persist/agent/git/.gitconfig ]; then cp -a /persist/agent/git/.gitconfig /opt/agent-defaults/git/.gitconfig; fi && \
   if [ -f /persist/agent/git/.git-credentials ] && [ -s /persist/agent/git/.git-credentials ]; then cp -a /persist/agent/git/.git-credentials /opt/agent-defaults/git/.git-credentials; fi
