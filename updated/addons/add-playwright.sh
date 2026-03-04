@@ -10,6 +10,10 @@ TARGET_USER="${SAND_TARGET_USER:-node}"
 TARGET_HOME="${SAND_TARGET_HOME:-/home/${TARGET_USER}}"
 NPM_PREFIX="${NPM_CONFIG_PREFIX:-/usr/local/share/npm-global}"
 NPM_GLOBAL_BIN="${NPM_PREFIX}/bin"
+PLAYWRIGHT_BROWSERS="${SAND_PLAYWRIGHT_BROWSERS:-chromium firefox webkit}"
+PLAYWRIGHT_INSTALL_ATTEMPTS="${SAND_PLAYWRIGHT_INSTALL_ATTEMPTS:-5}"
+PLAYWRIGHT_RETRY_DELAY_SECONDS="${SAND_PLAYWRIGHT_RETRY_DELAY_SECONDS:-5}"
+PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT="${SAND_PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT:-120000}"
 
 log() {
   echo "[add-playwright] $*"
@@ -122,6 +126,53 @@ run_as_target_user() {
     "$@"
 }
 
+run_with_retry() {
+  local attempts="$1"
+  local delay_seconds="$2"
+  local description="$3"
+  shift 3
+
+  local attempt=1
+  local rc=0
+
+  while true; do
+    if "$@"; then
+      return 0
+    fi
+
+    rc=$?
+    if [ "$attempt" -ge "$attempts" ]; then
+      echo "[add-playwright] ${description} failed after ${attempts} attempts" >&2
+      return "$rc"
+    fi
+
+    log "Attempt ${attempt}/${attempts} failed for ${description}; retrying in ${delay_seconds}s"
+    attempt=$((attempt + 1))
+    sleep "$delay_seconds"
+  done
+}
+
+if [[ ! "$PLAYWRIGHT_INSTALL_ATTEMPTS" =~ ^[1-9][0-9]*$ ]]; then
+  echo "[add-playwright] Invalid SAND_PLAYWRIGHT_INSTALL_ATTEMPTS='${PLAYWRIGHT_INSTALL_ATTEMPTS}'" >&2
+  exit 1
+fi
+
+if [[ ! "$PLAYWRIGHT_RETRY_DELAY_SECONDS" =~ ^[0-9]+$ ]]; then
+  echo "[add-playwright] Invalid SAND_PLAYWRIGHT_RETRY_DELAY_SECONDS='${PLAYWRIGHT_RETRY_DELAY_SECONDS}'" >&2
+  exit 1
+fi
+
+if [[ ! "$PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT" =~ ^[1-9][0-9]*$ ]]; then
+  echo "[add-playwright] Invalid SAND_PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT='${PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT}'" >&2
+  exit 1
+fi
+
+read -r -a PLAYWRIGHT_BROWSER_LIST <<<"$PLAYWRIGHT_BROWSERS"
+if [ "${#PLAYWRIGHT_BROWSER_LIST[@]}" -eq 0 ]; then
+  echo "[add-playwright] No browsers specified via SAND_PLAYWRIGHT_BROWSERS" >&2
+  exit 1
+fi
+
 log "Ensuring target user cache/config directories exist"
 mkdir -p "${TARGET_HOME}/.cache" "${TARGET_HOME}/.config"
 chown -R "${TARGET_USER}:${TARGET_USER}" "${TARGET_HOME}/.cache" "${TARGET_HOME}/.config"
@@ -141,10 +192,16 @@ fi
 
 refresh_playwright_firewall_allowlist
 
-log "Installing Playwright system dependencies"
-"$PLAYWRIGHT_BIN" install-deps chromium firefox webkit
+log "Installing Playwright system dependencies (${PLAYWRIGHT_BROWSER_LIST[*]})"
+run_with_retry 3 5 "playwright install-deps ${PLAYWRIGHT_BROWSER_LIST[*]}" \
+  "$PLAYWRIGHT_BIN" install-deps "${PLAYWRIGHT_BROWSER_LIST[@]}"
 
-log "Installing Playwright browser binaries for ${TARGET_USER}"
-run_as_target_user "$PLAYWRIGHT_BIN" install chromium firefox webkit
+log "Installing Playwright browser binaries for ${TARGET_USER} (${PLAYWRIGHT_BROWSER_LIST[*]})"
+for browser in "${PLAYWRIGHT_BROWSER_LIST[@]}"; do
+  run_with_retry "$PLAYWRIGHT_INSTALL_ATTEMPTS" "$PLAYWRIGHT_RETRY_DELAY_SECONDS" "playwright install ${browser}" \
+    run_as_target_user env \
+      PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT="$PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT" \
+      "$PLAYWRIGHT_BIN" install "$browser"
+done
 
 log "Done. Verify with 'playwright --version' and run your e2e suite."

@@ -100,6 +100,18 @@ persist_file_mapping() {
   link_home_path "$home_file" "$persist_file"
 }
 
+seed_persist_data_dir_if_empty() {
+  local key="$1"
+  local persist_dir="$2"
+  local default_dir="${DEFAULT_BASE}/${key}"
+
+  mkdir -p "$persist_dir"
+
+  if ! dir_has_entries "$persist_dir" && dir_has_entries "$default_dir"; then
+    cp -a "$default_dir/." "$persist_dir/"
+  fi
+}
+
 persist_dir_mapping "claude" "${HOME_DIR}/.claude" "${PERSIST_BASE}/claude"
 persist_dir_mapping "codex" "${HOME_DIR}/.codex" "${PERSIST_BASE}/codex"
 persist_dir_mapping "gemini" "${HOME_DIR}/.gemini" "${PERSIST_BASE}/gemini"
@@ -109,3 +121,6 @@ persist_dir_mapping "gh/config" "${HOME_DIR}/.config/gh" "${PERSIST_BASE}/gh/con
 
 persist_file_mapping "git/.gitconfig" "${HOME_DIR}/.gitconfig" "${PERSIST_BASE}/git/.gitconfig"
 persist_file_mapping "git/.git-credentials" "${HOME_DIR}/.git-credentials" "${PERSIST_BASE}/git/.git-credentials"
+
+# Addon install state is not linked into HOME, but still needs default seeding.
+seed_persist_data_dir_if_empty "addons" "${PERSIST_BASE}/addons"

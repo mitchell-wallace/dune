@@ -6,7 +6,19 @@
       "TZ": "${localEnv:TZ:America/Los_Angeles}",
       "CLAUDE_CODE_VERSION": "latest",
       "GIT_DELTA_VERSION": "0.18.2",
-      "ZSH_IN_DOCKER_VERSION": "1.2.0"
+      "ZSH_IN_DOCKER_VERSION": "1.2.0",
+      "SAND_BUILD_MODE": "${localEnv:SAND_BUILD_MODE:std}",
+      "SAND_BUILD_ADDONS": "${localEnv:SAND_BUILD_ADDONS:}",
+      "SAND_PYTHON_VERSION": "${localEnv:SAND_PYTHON_VERSION:}",
+      "SAND_UV_VERSION": "${localEnv:SAND_UV_VERSION:}",
+      "SAND_GO_VERSION": "${localEnv:SAND_GO_VERSION:}",
+      "SAND_RUST_VERSION": "${localEnv:SAND_RUST_VERSION:}",
+      "SAND_DOTNET_VERSION": "${localEnv:SAND_DOTNET_VERSION:}",
+      "SAND_JAVA_VERSION": "${localEnv:SAND_JAVA_VERSION:}",
+      "SAND_MAVEN_VERSION": "${localEnv:SAND_MAVEN_VERSION:}",
+      "SAND_GRADLE_VERSION": "${localEnv:SAND_GRADLE_VERSION:}",
+      "SAND_BUN_VERSION": "${localEnv:SAND_BUN_VERSION:}",
+      "SAND_DENO_VERSION": "${localEnv:SAND_DENO_VERSION:}"
     }
   },
   "runArgs": [

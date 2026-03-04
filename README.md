@@ -39,7 +39,7 @@ sand config -d ./repo       # run wizard for a specific workspace
 - addon toggles with manifest descriptions
 - optional advanced version pins
 
-If a `sand.toml` is found for the workspace, `sand` can read defaults for profile/mode/addons and apply missing addons on startup.
+If a `sand.toml` is found for the workspace, `sand` reads defaults for profile/mode/addons and pre-installs configured addons during image build (before firewall init), with a post-start install-missing fallback.
 CLI flags still override file values.
 
 Security modes:
@@ -89,7 +89,7 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
 - OpenCode auth/data path: ~/.local/share/opencode/auth.json ~/.config/opencode/opencode.json
 - GitHub CLI auth path: ~/.config/gh/hosts.yml
 - Git globals for HTTPS auth: ~/.gitconfig ~/.git-credentials
-- Persisted volume path in-container: /persist/agent/{gemini,codex,claude,opencode,gh,git}
+- Persisted volume path in-container: /persist/agent/{gemini,codex,claude,opencode,gh,git,addons}
 - Docker volume per profile: agent-persist-<profile>
 - Note: ~/.gemini ~/.codex ~/.claude ~/.config/opencode ~/.local/share/opencode ~/.config/gh ~/.gitconfig ~/.git-credentials are symlinked to /persist/agent/* by /usr/local/bin/setup-agent-persist.sh
 
@@ -145,6 +145,7 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
   - CLI flags override `sand.toml`
   - `sand.toml` overrides defaults
 - `sand.toml` addons are install-missing-only:
+  - preferred path: build-time install before runtime firewall init
   - already-installed addons are skipped
   - unknown addon names are warned and skipped
   - addon failures are fatal

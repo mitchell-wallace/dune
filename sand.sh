@@ -381,6 +381,35 @@ build_addon_env_args() {
   [ -n "$CONFIG_DENO_VERSION" ] && out_ref+=("-e" "SAND_DENO_VERSION=$CONFIG_DENO_VERSION")
 }
 
+build_addon_build_arg() {
+  local -n out_ref="$1"
+  local addon
+  local seen=","
+  local joined=""
+  out_ref=""
+
+  for addon in "${CONFIG_ADDONS[@]}"; do
+    if [[ ! "$addon" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
+      warn "Invalid addon name in sand.toml skipped for build-time install: $addon"
+      continue
+    fi
+
+    if [[ "$seen" == *",$addon,"* ]]; then
+      continue
+    fi
+
+    seen="${seen}${addon},"
+
+    if [ -n "$joined" ]; then
+      joined="${joined},${addon}"
+    else
+      joined="$addon"
+    fi
+  done
+
+  out_ref="$joined"
+}
+
 apply_configured_addons() {
   local container_name="$1"
   local effective_mode="$2"
@@ -553,6 +582,7 @@ done
 workspace_input="${workspace_input:-$PWD}"
 profile="${profile:-0}"
 mode="${mode:-std}"
+build_addons_arg=""
 
 if [ ! -d "$workspace_input" ]; then
   echo "Workspace directory does not exist: $workspace_input" >&2
@@ -580,6 +610,8 @@ if [ "$mode_explicit" -eq 0 ] && [ -n "$CONFIG_MODE" ]; then
   }
 fi
 
+build_addon_build_arg build_addons_arg
+
 PROJECT_BASENAME="$(basename "$WORKSPACE_DIR")"
 PROJECT_SLUG="$(printf '%s' "$PROJECT_BASENAME" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-')"
 PROJECT_HASH="$(printf '%s' "$WORKSPACE_DIR" | sha1sum | awk '{print substr($1,1,8)}')"
@@ -604,10 +636,25 @@ WARN_MSG
   mode="$existing_mode"
 else
   echo "Provisioning dev container via devcontainers CLI (profile=$profile mode=$mode)"
+  if [ -n "$build_addons_arg" ]; then
+    echo "Build-time addons requested from sand.toml: $build_addons_arg"
+  fi
   (
     cd "$SCRIPT_DIR"
     SAND_PROFILE="$profile" \
       SAND_SECURITY_MODE="$mode" \
+      SAND_BUILD_MODE="$mode" \
+      SAND_BUILD_ADDONS="$build_addons_arg" \
+      SAND_PYTHON_VERSION="$CONFIG_PYTHON_VERSION" \
+      SAND_UV_VERSION="$CONFIG_UV_VERSION" \
+      SAND_GO_VERSION="$CONFIG_GO_VERSION" \
+      SAND_RUST_VERSION="$CONFIG_RUST_VERSION" \
+      SAND_DOTNET_VERSION="$CONFIG_DOTNET_VERSION" \
+      SAND_JAVA_VERSION="$CONFIG_JAVA_VERSION" \
+      SAND_MAVEN_VERSION="$CONFIG_MAVEN_VERSION" \
+      SAND_GRADLE_VERSION="$CONFIG_GRADLE_VERSION" \
+      SAND_BUN_VERSION="$CONFIG_BUN_VERSION" \
+      SAND_DENO_VERSION="$CONFIG_DENO_VERSION" \
       npx @devcontainers/cli up \
         --workspace-folder "$WORKSPACE_DIR" \
         --config "$CONFIG_FILE" \
