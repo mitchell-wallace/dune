@@ -172,6 +172,11 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
 *FIREWALL LOGGING*
 - Default firewall init output is concise.
 - Set `SAND_FIREWALL_DEBUG=1` to enable detailed per-domain/CIDR diagnostics.
+- Google/Gemini auth/API allowlist entries are refreshed in the background every `10s` by default to handle DNS/IP rotation.
+- Optional tuning:
+  - `SAND_FIREWALL_REFRESH_INTERVAL_SECONDS` (default `10`, set `0` to disable refresh loop)
+  - `SAND_FIREWALL_REFRESH_ATTEMPTS` (default `3`)
+  - `SAND_FIREWALL_REFRESH_RETRY_DELAY_SECONDS` (default `1`)
 
 ## one-time github setup
 
