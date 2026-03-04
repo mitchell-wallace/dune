@@ -45,6 +45,81 @@ normalize_profile() {
   return 1
 }
 
+normalize_locale_name() {
+  local raw="${1:-}"
+  local normalized
+  normalized="$(printf '%s' "$raw" | tr '[:upper:]' '[:lower:]')"
+  normalized="${normalized/.utf-8/.utf8}"
+  printf '%s\n' "$normalized"
+}
+
+locale_exists() {
+  local requested="$1"
+  local normalized_requested normalized_available
+  normalized_requested="$(normalize_locale_name "$requested")"
+
+  while IFS= read -r normalized_available; do
+    if [ "$normalized_available" = "$normalized_requested" ]; then
+      return 0
+    fi
+  done < <(locale -a 2>/dev/null | while IFS= read -r locale_name; do normalize_locale_name "$locale_name"; done)
+
+  return 1
+}
+
+ensure_locale() {
+  local requested locale_base charset normalized
+  requested="${1:-${LC_ALL:-${LANG:-}}}"
+  requested="$(printf '%s' "$requested" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+
+  if [ -z "$requested" ]; then
+    return 0
+  fi
+
+  requested="$(printf '%s' "$requested" | sed -E 's/\.utf8$/.UTF-8/I')"
+  normalized="$(normalize_locale_name "$requested")"
+
+  case "$normalized" in
+    c|posix|c.utf8)
+      return 0
+      ;;
+  esac
+
+  if locale_exists "$requested"; then
+    return 0
+  fi
+
+  if ! command -v localedef >/dev/null 2>&1; then
+    echo "Unable to generate locale '$requested': localedef is not available" >&2
+    return 1
+  fi
+
+  if [[ "$requested" == *.* ]]; then
+    locale_base="${requested%%.*}"
+    charset="${requested#*.}"
+  else
+    locale_base="$requested"
+    charset="UTF-8"
+    requested="${requested}.${charset}"
+  fi
+
+  case "$(printf '%s' "$charset" | tr '[:upper:]' '[:lower:]')" in
+    utf8|utf-8)
+      charset="UTF-8"
+      ;;
+  esac
+
+  if ! localedef -i "$locale_base" -f "$charset" "$requested" >/dev/null 2>&1; then
+    echo "Failed to generate locale '$requested' (source='$locale_base' charmap='$charset')" >&2
+    return 1
+  fi
+
+  if ! locale_exists "$requested"; then
+    echo "Locale '$requested' was generated but is still unavailable in locale -a" >&2
+    return 1
+  fi
+}
+
 get_effective_mode() {
   if [ -f "$MODE_FILE" ]; then
     cat "$MODE_FILE"
@@ -402,8 +477,11 @@ case "$cmd" in
   redis-local)
     redis_local_cmd "${2:-help}"
     ;;
+  ensure-locale)
+    ensure_locale "${2:-}"
+    ;;
   *)
-    echo "Usage: sand-privileged <init-firewall|configure-mode|run-addon|pg-local|redis-local>" >&2
+    echo "Usage: sand-privileged <init-firewall|configure-mode|run-addon|pg-local|redis-local|ensure-locale>" >&2
     exit 1
     ;;
 esac

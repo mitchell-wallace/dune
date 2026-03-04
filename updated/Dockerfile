@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   fzf \
   zsh \
   man-db \
+  locales \
   unzip \
   gnupg2 \
   gh \

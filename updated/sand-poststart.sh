@@ -42,6 +42,13 @@ PROFILE="$(normalize_profile "${SAND_PROFILE:-0}")" || {
   exit 1
 }
 
+REQUESTED_LOCALE="${LC_ALL:-${LANG:-}}"
+if [ -n "$REQUESTED_LOCALE" ]; then
+  if ! sudo /usr/local/bin/sand-privileged ensure-locale "$REQUESTED_LOCALE"; then
+    echo "WARNING: failed to ensure locale '$REQUESTED_LOCALE'" >&2
+  fi
+fi
+
 /usr/local/bin/setup-agent-persist.sh
 sudo /usr/local/bin/sand-privileged configure-mode "$MODE" "$PROFILE"
 

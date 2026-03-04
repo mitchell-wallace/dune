@@ -47,6 +47,9 @@
     "NODE_OPTIONS": "--max-old-space-size=4096",
     "CLAUDE_CONFIG_DIR": "/home/node/.claude",
     "POWERLEVEL9K_DISABLE_GITSTATUS": "true",
+    "LANG": "${localEnv:LANG:C.UTF-8}",
+    "LC_ALL": "${localEnv:LC_ALL:}",
+    "LANGUAGE": "${localEnv:LANGUAGE:}",
     "SAND_PROFILE": "${localEnv:SAND_PROFILE:0}",
     "SAND_SECURITY_MODE": "${localEnv:SAND_SECURITY_MODE:std}"
   },

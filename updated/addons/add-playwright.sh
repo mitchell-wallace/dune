@@ -9,6 +9,7 @@ fi
 TARGET_USER="${SAND_TARGET_USER:-node}"
 TARGET_HOME="${SAND_TARGET_HOME:-/home/${TARGET_USER}}"
 NPM_PREFIX="${NPM_CONFIG_PREFIX:-/usr/local/share/npm-global}"
+NPM_GLOBAL_BIN="${NPM_PREFIX}/bin"
 
 log() {
   echo "[add-playwright] $*"
@@ -21,7 +22,8 @@ run_as_target_user() {
     LOGNAME="$TARGET_USER" \
     XDG_CACHE_HOME="${TARGET_HOME}/.cache" \
     XDG_CONFIG_HOME="${TARGET_HOME}/.config" \
-    PATH="$PATH" \
+    NPM_CONFIG_PREFIX="$NPM_PREFIX" \
+    PATH="${NPM_GLOBAL_BIN}:$PATH" \
     "$@"
 }
 
