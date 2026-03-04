@@ -379,6 +379,8 @@ build_addon_env_args() {
   [ -n "$CONFIG_GRADLE_VERSION" ] && out_ref+=("-e" "SAND_GRADLE_VERSION=$CONFIG_GRADLE_VERSION")
   [ -n "$CONFIG_BUN_VERSION" ] && out_ref+=("-e" "SAND_BUN_VERSION=$CONFIG_BUN_VERSION")
   [ -n "$CONFIG_DENO_VERSION" ] && out_ref+=("-e" "SAND_DENO_VERSION=$CONFIG_DENO_VERSION")
+
+  return 0
 }
 
 build_addon_build_arg() {
