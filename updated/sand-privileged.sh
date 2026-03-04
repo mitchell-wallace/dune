@@ -375,6 +375,121 @@ redis_local_cmd() {
   esac
 }
 
+mp_local_usage() {
+  cat <<'EOF_MAILPIT_USAGE'
+Usage: mp-local <start|stop|restart|status|logs|url>
+EOF_MAILPIT_USAGE
+}
+
+mp_local_running() {
+  local pid_file pid
+  pid_file="/var/run/mailpit-local.pid"
+
+  if [ ! -f "$pid_file" ]; then
+    return 1
+  fi
+
+  pid="$(cat "$pid_file" 2>/dev/null || true)"
+  if [[ ! "$pid" =~ ^[0-9]+$ ]]; then
+    rm -f "$pid_file"
+    return 1
+  fi
+
+  if kill -0 "$pid" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  rm -f "$pid_file"
+  return 1
+}
+
+mp_local_cmd() {
+  local cmd log_dir log_file pid_file ui_addr smtp_addr pid
+  cmd="${1:-help}"
+  log_dir="/var/log/mailpit"
+  log_file="${log_dir}/mailpit-local.log"
+  pid_file="/var/run/mailpit-local.pid"
+  ui_addr="127.0.0.1:8025"
+  smtp_addr="127.0.0.1:1025"
+
+  if ! command -v mailpit >/dev/null 2>&1; then
+    echo "Mailpit is not installed. Run: addons add-mailpit" >&2
+    exit 1
+  fi
+
+  case "$cmd" in
+    start)
+      if mp_local_running; then
+        echo "mailpit is already running"
+      else
+        mkdir -p "$log_dir"
+        touch "$log_file"
+        chown node:node "$log_dir" "$log_file" >/dev/null 2>&1 || true
+        nohup mailpit --listen "$ui_addr" --smtp "$smtp_addr" >>"$log_file" 2>&1 &
+        pid=$!
+        echo "$pid" > "$pid_file"
+        chmod 0644 "$pid_file"
+        sleep 1
+        if kill -0 "$pid" >/dev/null 2>&1; then
+          echo "mailpit started (ui=http://${ui_addr} smtp=${smtp_addr})"
+        else
+          rm -f "$pid_file"
+          echo "Failed to start mailpit. Check logs with: mp-local logs" >&2
+          exit 1
+        fi
+      fi
+      ;;
+    stop)
+      if mp_local_running; then
+        pid="$(cat "$pid_file")"
+        kill "$pid" >/dev/null 2>&1 || true
+        for _ in $(seq 1 10); do
+          if kill -0 "$pid" >/dev/null 2>&1; then
+            sleep 0.2
+          else
+            break
+          fi
+        done
+        if kill -0 "$pid" >/dev/null 2>&1; then
+          kill -9 "$pid" >/dev/null 2>&1 || true
+        fi
+        rm -f "$pid_file"
+      fi
+      echo "mailpit stopped"
+      ;;
+    restart)
+      "$0" mp-local stop >/dev/null 2>&1 || true
+      "$0" mp-local start
+      ;;
+    status)
+      if mp_local_running; then
+        echo "mailpit is running"
+      else
+        echo "mailpit is stopped"
+        exit 1
+      fi
+      ;;
+    logs)
+      if [ -f "$log_file" ]; then
+        tail -n 50 "$log_file"
+      else
+        echo "No Mailpit log found at $log_file"
+      fi
+      ;;
+    url)
+      echo "http://127.0.0.1:8025"
+      echo "smtp://127.0.0.1:1025"
+      ;;
+    help|-h|--help)
+      mp_local_usage
+      ;;
+    *)
+      mp_local_usage >&2
+      exit 1
+      ;;
+  esac
+}
+
 run_addon() {
   local addon_name row name script description enabled_modes run_as helper_commands script_path mode rc
   addon_name="${1:-}"
@@ -477,11 +592,14 @@ case "$cmd" in
   redis-local)
     redis_local_cmd "${2:-help}"
     ;;
+  mp-local)
+    mp_local_cmd "${2:-help}"
+    ;;
   ensure-locale)
     ensure_locale "${2:-}"
     ;;
   *)
-    echo "Usage: sand-privileged <init-firewall|configure-mode|run-addon|pg-local|redis-local|ensure-locale>" >&2
+    echo "Usage: sand-privileged <init-firewall|configure-mode|run-addon|pg-local|redis-local|mp-local|ensure-locale>" >&2
     exit 1
     ;;
 esac

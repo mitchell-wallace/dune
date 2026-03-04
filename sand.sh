@@ -17,12 +17,15 @@ CONFIG_DOTNET_VERSION=""
 CONFIG_JAVA_VERSION=""
 CONFIG_MAVEN_VERSION=""
 CONFIG_GRADLE_VERSION=""
+CONFIG_BUN_VERSION=""
+CONFIG_DENO_VERSION=""
 
 usage() {
   cat >&2 <<'USAGE'
 Usage: sand [workspace_dir] [profile] [mode]
        sand [profile] [mode]
        sand -d <workspace_dir> -p <profile> -m <mode>
+       sand config [-d <workspace_dir>]
 
 Modes:
   std | standard (default)
@@ -40,12 +43,107 @@ Examples:
   sand 1 std
   sand ./my-project a lax
   sand -d ./strict -p 0 -m std
+  sand config
+  sand config -d ./repo
+
+Notes:
+  - 'sand config' is an interactive sand.toml wizard
+  - to target a folder literally named 'config', run: sand -d ./config
 USAGE
   exit 1
 }
 
+config_usage() {
+  cat <<'USAGE'
+Usage: sand config [-d <workspace_dir>]
+
+Interactive wizard that creates/updates sand.toml at the workspace git root.
+
+Options:
+  -d, --directory  workspace directory (default: current directory)
+  -h, --help       show this help
+USAGE
+}
+
 warn() {
   echo "WARNING: $*" >&2
+}
+
+run_config_wizard() {
+  local workspace_input="${PWD}"
+  local positional_dir=""
+
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      -h|--help)
+        config_usage
+        return 0
+        ;;
+      -d|--directory)
+        if [ "$#" -lt 2 ]; then
+          echo "Missing value for $1" >&2
+          config_usage >&2
+          return 1
+        fi
+        workspace_input="$2"
+        shift 2
+        ;;
+      -*)
+        echo "Unknown option for sand config: $1" >&2
+        config_usage >&2
+        return 1
+        ;;
+      *)
+        if [ -z "$positional_dir" ]; then
+          positional_dir="$1"
+          shift
+        else
+          echo "Unexpected argument for sand config: $1" >&2
+          config_usage >&2
+          return 1
+        fi
+        ;;
+    esac
+  done
+
+  if [ -n "$positional_dir" ]; then
+    workspace_input="$positional_dir"
+  fi
+
+  if [ ! -t 0 ] || [ ! -t 1 ]; then
+    echo "'sand config' requires an interactive terminal (TTY)." >&2
+    return 1
+  fi
+
+  if ! command -v uv >/dev/null 2>&1; then
+    echo "uv is required for 'sand config' but was not found in PATH." >&2
+    echo "Install uv: https://docs.astral.sh/uv/getting-started/installation/" >&2
+    return 1
+  fi
+
+  if [ ! -d "$workspace_input" ]; then
+    echo "Workspace directory does not exist: $workspace_input" >&2
+    return 1
+  fi
+
+  local workspace_dir wizard_project manifest_path
+  workspace_dir="$(cd "$workspace_input" && pwd -P)"
+  wizard_project="$SCRIPT_DIR/tools/sand-config"
+  manifest_path="$SCRIPT_DIR/updated/addons/manifest.tsv"
+
+  if [ ! -f "$wizard_project/pyproject.toml" ]; then
+    echo "Missing sand-config project: $wizard_project/pyproject.toml" >&2
+    return 1
+  fi
+
+  if [ ! -f "$manifest_path" ]; then
+    echo "Missing addons manifest: $manifest_path" >&2
+    return 1
+  fi
+
+  exec uv run --project "$wizard_project" sand-config \
+    --directory "$workspace_dir" \
+    --manifest "$manifest_path"
 }
 
 canonicalize_mode() {
@@ -180,6 +278,8 @@ allowed = {
     "java_version",
     "maven_version",
     "gradle_version",
+    "bun_version",
+    "deno_version",
 }
 
 with open(path, "rb") as f:
@@ -204,6 +304,8 @@ for scalar_key in [
     "java_version",
     "maven_version",
     "gradle_version",
+    "bun_version",
+    "deno_version",
 ]:
     value = data.get(scalar_key)
     if value is None:
@@ -243,6 +345,8 @@ PY
           java_version) CONFIG_JAVA_VERSION="$value" ;;
           maven_version) CONFIG_MAVEN_VERSION="$value" ;;
           gradle_version) CONFIG_GRADLE_VERSION="$value" ;;
+          bun_version) CONFIG_BUN_VERSION="$value" ;;
+          deno_version) CONFIG_DENO_VERSION="$value" ;;
         esac
         ;;
       addon)
@@ -273,6 +377,8 @@ build_addon_env_args() {
   [ -n "$CONFIG_JAVA_VERSION" ] && out_ref+=("-e" "SAND_JAVA_VERSION=$CONFIG_JAVA_VERSION")
   [ -n "$CONFIG_MAVEN_VERSION" ] && out_ref+=("-e" "SAND_MAVEN_VERSION=$CONFIG_MAVEN_VERSION")
   [ -n "$CONFIG_GRADLE_VERSION" ] && out_ref+=("-e" "SAND_GRADLE_VERSION=$CONFIG_GRADLE_VERSION")
+  [ -n "$CONFIG_BUN_VERSION" ] && out_ref+=("-e" "SAND_BUN_VERSION=$CONFIG_BUN_VERSION")
+  [ -n "$CONFIG_DENO_VERSION" ] && out_ref+=("-e" "SAND_DENO_VERSION=$CONFIG_DENO_VERSION")
 }
 
 apply_configured_addons() {
@@ -333,6 +439,12 @@ apply_configured_addons() {
 
   echo "sand.toml addon summary: installed=$installed_count skipped_installed=$skipped_installed_count skipped_unknown=$skipped_unknown_count skipped_invalid=$skipped_invalid_count"
 }
+
+if [ "${1:-}" = "config" ]; then
+  shift
+  run_config_wizard "$@"
+  exit $?
+fi
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "docker is required but was not found in PATH." >&2

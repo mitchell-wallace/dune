@@ -10,6 +10,21 @@ log() {
   echo "[add-mailpit] $*"
 }
 
+install_helper() {
+  cat > /usr/local/bin/mp-local <<'EOF_HELPER'
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ "$(id -u)" -eq 0 ]; then
+  exec /usr/local/bin/sand-privileged mp-local "$@"
+fi
+
+exec sudo /usr/local/bin/sand-privileged mp-local "$@"
+EOF_HELPER
+  chmod 0755 /usr/local/bin/mp-local
+  chown root:root /usr/local/bin/mp-local
+}
+
 arch="$(uname -m)"
 case "$arch" in
   x86_64|amd64) asset_name="mailpit-linux-amd64.tar.gz" ;;
@@ -44,4 +59,5 @@ fi
 install -m 0755 "$tmp_dir/mailpit" /usr/local/bin/mailpit
 chown root:root /usr/local/bin/mailpit
 
-log "Done. Example run: mailpit --listen 127.0.0.1:8025 --smtp 127.0.0.1:1025"
+install_helper
+log "Done. Example run: mp-local start"

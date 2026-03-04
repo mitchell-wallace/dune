@@ -1,0 +1,21 @@
+[project]
+name = "sand-config"
+version = "0.1.0"
+description = "Interactive sand.toml configuration wizard"
+readme = "README.md"
+authors = [
+    { name = "Mitchell Wallace", email = "mitch.awallace@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "questionary>=2.1.1",
+    "rich>=14.3.3",
+    "tomlkit>=0.14.0",
+]
+
+[project.scripts]
+sand-config = "sand_config:main"
+
+[build-system]
+requires = ["uv_build>=0.10.5,<0.11.0"]
+build-backend = "uv_build"

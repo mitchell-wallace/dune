@@ -6,10 +6,12 @@ alias cx='codex --dangerously-bypass-approvals-and-sandbox'
 alias ge='gemini --model gemini-3.1-pro-preview --yolo'
 alias op='opencode --yolo'
 
-# Ensure mise shims are available in interactive shells.
-if [ -d "${HOME}/.local/share/mise/shims" ]; then
-  export PATH="${HOME}/.local/share/mise/shims:${PATH}"
-fi
+# Ensure mise shims are available in interactive shells. Keep this path even
+# before shims exist so newly installed runtimes work immediately.
+case ":${PATH}:" in
+  *":${HOME}/.local/share/mise/shims:"*) ;;
+  *) export PATH="${HOME}/.local/share/mise/shims:${PATH}" ;;
+esac
 
 _show_agent_startup_message() {
   [ -n "${SAND_STARTUP_MESSAGE_SHOWN:-}" ] && return 0
@@ -40,8 +42,8 @@ Addons:
   addons add-redis -> install local Redis + redis-local helper
   addons add-playwright -> install Playwright CLI + browsers for e2e tests
   addons add-pnpm/add-turbo/add-wrangler -> JS/edge CLIs
-  addons add-mailpit/add-minio/add-meilisearch -> local service binaries
-  addons add-python-uv/add-go/add-rust/add-dotnet/add-java -> language toolchains via mise
+  addons add-mailpit/add-minio/add-meilisearch -> local service binaries (mp-local helper for Mailpit)
+  addons add-python-uv/add-go/add-rust/add-dotnet/add-java/add-bun/add-deno -> language runtimes via mise
 EOF
   fi
 }

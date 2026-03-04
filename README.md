@@ -29,7 +29,15 @@ sand 1                      # profile 1, mode std
 sand strict                 # profile 0, mode strict
 sand 1 std                  # profile 1, mode std
 sand -d ./repo -p a -m lax  # explicit flags
+sand config                 # interactive wizard for sand.toml
+sand config -d ./repo       # run wizard for a specific workspace
 ```
+
+`sand config` writes/updates `sand.toml` at the workspace git root (or directory fallback if not in a git repo), with:
+- profile selection (including discovered `agent-persist-*` profile volumes)
+- security mode selection with descriptions
+- addon toggles with manifest descriptions
+- optional advanced version pins
 
 If a `sand.toml` is found for the workspace, `sand` can read defaults for profile/mode/addons and apply missing addons on startup.
 CLI flags still override file values.
@@ -110,6 +118,8 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
   - `addons add-minio`
   - `addons add-meilisearch`
   - `addons add-python-uv`
+  - `addons add-bun`
+  - `addons add-deno`
   - `addons add-go`
   - `addons add-rust`
   - `addons add-dotnet`
@@ -120,7 +130,7 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
 - Helper commands are installed only when their addon is installed.
 - `add-playwright` installs global `playwright` plus Chromium/Firefox/WebKit browsers for e2e.
 - `add-mailpit`, `add-minio`, `add-meilisearch` install local service binaries (bind to `127.0.0.1` when you run them).
-- `add-python-uv`, `add-go`, `add-rust`, `add-dotnet`, `add-java` install toolchains via `mise`.
+- `add-python-uv`, `add-bun`, `add-deno`, `add-go`, `add-rust`, `add-dotnet`, `add-java` install runtimes/toolchains via `mise`.
 
 *SAND.TOML*
 - Optional repo config file with top-level keys:
@@ -130,6 +140,7 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
   - Optional version pins:
     - `python_version`, `uv_version`, `go_version`, `rust_version`
     - `dotnet_version`, `java_version`, `maven_version`, `gradle_version`
+    - `bun_version`, `deno_version`
 - Precedence:
   - CLI flags override `sand.toml`
   - `sand.toml` overrides defaults
@@ -139,6 +150,7 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
   - addon failures are fatal
 - `strict` mode with configured addons: warns and skips addon install.
 - Parsing `sand.toml` requires `python3` on the host that runs `sand`.
+- `sand config` requires host `uv` and an interactive terminal.
 
 *LOCAL DATASTORE HELPERS*
 - `pg-local` (installed by `addons add-postgres`):
@@ -147,6 +159,9 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
 - `redis-local` (installed by `addons add-redis`):
   - `redis-local start|stop|restart|status|logs|shell|url`
   - defaults: `redis://127.0.0.1:6379`
+- `mp-local` (installed by `addons add-mailpit`):
+  - `mp-local start|stop|restart|status|logs|url`
+  - defaults: `http://127.0.0.1:8025` (UI), `smtp://127.0.0.1:1025`
 
 *TOOL INSTALL SCRIPTS*
 - Build-time core project tools: `updated/install-project-tools.sh`
