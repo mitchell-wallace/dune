@@ -71,12 +71,16 @@ resolve_ipv4s_with_retry() {
     local domain="$1"
     local attempts="${2:-5}"
     local delay_seconds="${3:-1}"
+    local dig_ips=""
+    local getent_ips=""
     local ips=""
 
     for _ in $(seq 1 "$attempts"); do
-        ips=$(dig +short A "$domain" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' || true)
+        dig_ips="$(dig +short A "$domain" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' || true)"
+        getent_ips="$(getent ahostsv4 "$domain" 2>/dev/null | awk '{print $1}' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' || true)"
+        ips="$(printf '%s\n%s\n' "$dig_ips" "$getent_ips" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | sort -u || true)"
         if [ -n "$ips" ]; then
-            printf '%s\n' "$ips" | sort -u
+            printf '%s\n' "$ips"
             return 0
         fi
         sleep "$delay_seconds"
@@ -188,6 +192,9 @@ add_optional_domain "mise.run" "mise bootstrap install script"
 add_optional_domain "getmic.ro" "micro editor installer script"
 add_optional_domain "deb.debian.org" "Debian apt repositories for optional addon installs"
 add_optional_domain "security.debian.org" "Debian security apt repository for optional addon installs"
+add_optional_domain_with_cidr "cdn.playwright.dev" "Playwright browser download CDN (allow /24 due CDN edge IP churn)" "24"
+add_optional_domain_with_cidr "playwright.download.prss.microsoft.com" "Playwright browser download fallback CDN (allow /24 due CDN edge IP churn)" "24"
+add_optional_domain "storage.googleapis.com" "Playwright Chromium CFT redirected download host"
 
 # mise-managed runtime/tool domains.
 add_optional_domain "nodejs.org" "mise node backend official Node.js binary downloads"

@@ -95,10 +95,12 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
   - `addons boost-cli`
   - `addons add-postgres`
   - `addons add-redis`
+  - `addons add-playwright`
 - `strict` mode disables addons and omits addon hints from startup messaging.
 - Addons are whitelist-only from the manifest; arbitrary scripts are not runnable through `addons`.
 - Addon install state is tracked per profile under `/persist/agent/addons/*.installed`.
 - Helper commands are installed only when their addon is installed.
+- `add-playwright` installs global `playwright` plus Chromium/Firefox/WebKit browsers for e2e.
 
 *LOCAL DATASTORE HELPERS*
 - `pg-local` (installed by `addons add-postgres`):

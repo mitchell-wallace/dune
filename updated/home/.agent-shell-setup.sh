@@ -33,6 +33,7 @@ Addons:
   addons boost-cli -> install optional CLI boost tools (fd/rg/bat/tree/eza/micro)
   addons add-postgres -> install local PostgreSQL + pg-local helper
   addons add-redis -> install local Redis + redis-local helper
+  addons add-playwright -> install Playwright CLI + browsers for e2e tests
 EOF
   fi
 }
