@@ -100,7 +100,7 @@ refresh_playwright_firewall_allowlist() {
   if add_ipset_allow_entries_for_domain "playwright.download.prss.microsoft.com" "16"; then
     refreshed=$((refreshed + 1))
   fi
-  if add_ipset_allow_entries_for_domain "storage.googleapis.com" "24"; then
+  if add_ipset_allow_entries_for_domain "storage.googleapis.com" "16"; then
     refreshed=$((refreshed + 1))
   fi
 

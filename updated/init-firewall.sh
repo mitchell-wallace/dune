@@ -249,7 +249,7 @@ add_optional_domain "deb.debian.org" "Debian apt repositories for optional addon
 add_optional_domain "security.debian.org" "Debian security apt repository for optional addon installs"
 add_optional_domain_with_cidr "cdn.playwright.dev" "Playwright browser download CDN (allow /16 due CDN edge IP churn)" "16"
 add_optional_domain_with_cidr "playwright.download.prss.microsoft.com" "Playwright browser download fallback CDN (allow /16 due CDN edge IP churn)" "16"
-add_optional_domain_with_cidr "storage.googleapis.com" "Playwright Chromium CFT redirected download host (allow /24 due Google edge IP churn)" "24"
+add_optional_domain_with_cidr "storage.googleapis.com" "Playwright Chromium CFT redirected download host (allow /16 due Google edge IP churn)" "16"
 
 # Phase 1 addon domains.
 add_optional_domain "api.cloudflare.com" "Wrangler API/auth flows"
