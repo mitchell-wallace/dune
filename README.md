@@ -31,6 +31,9 @@ sand 1 std                  # profile 1, mode std
 sand -d ./repo -p a -m lax  # explicit flags
 ```
 
+If a `sand.toml` is found for the workspace, `sand` can read defaults for profile/mode/addons and apply missing addons on startup.
+CLI flags still override file values.
+
 Security modes:
 - `std` / `standard` (default): firewall enabled, curated addons available
 - `lax`: firewall enabled, passwordless sudo
@@ -38,6 +41,10 @@ Security modes:
 - `strict`: firewall enabled, addons disabled
 
 Container security mode is immutable after creation for a workspace+profile combo. If you request a different mode later, `sand` warns and reuses the existing mode.
+
+`sand.toml` discovery order:
+- Preferred: git root `sand.toml` for the workspace
+- Fallback: nearest ancestor `sand.toml` up to 5 levels up from workspace path
 
 Build with:
 ```sh
@@ -96,11 +103,42 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
   - `addons add-postgres`
   - `addons add-redis`
   - `addons add-playwright`
+  - `addons add-pnpm`
+  - `addons add-turbo`
+  - `addons add-wrangler`
+  - `addons add-mailpit`
+  - `addons add-minio`
+  - `addons add-meilisearch`
+  - `addons add-python-uv`
+  - `addons add-go`
+  - `addons add-rust`
+  - `addons add-dotnet`
+  - `addons add-java`
 - `strict` mode disables addons and omits addon hints from startup messaging.
 - Addons are whitelist-only from the manifest; arbitrary scripts are not runnable through `addons`.
 - Addon install state is tracked per profile under `/persist/agent/addons/*.installed`.
 - Helper commands are installed only when their addon is installed.
 - `add-playwright` installs global `playwright` plus Chromium/Firefox/WebKit browsers for e2e.
+- `add-mailpit`, `add-minio`, `add-meilisearch` install local service binaries (bind to `127.0.0.1` when you run them).
+- `add-python-uv`, `add-go`, `add-rust`, `add-dotnet`, `add-java` install toolchains via `mise`.
+
+*SAND.TOML*
+- Optional repo config file with top-level keys:
+  - `profile = "0"`
+  - `mode = "std"`
+  - `addons = ["add-playwright", "add-go"]`
+  - Optional version pins:
+    - `python_version`, `uv_version`, `go_version`, `rust_version`
+    - `dotnet_version`, `java_version`, `maven_version`, `gradle_version`
+- Precedence:
+  - CLI flags override `sand.toml`
+  - `sand.toml` overrides defaults
+- `sand.toml` addons are install-missing-only:
+  - already-installed addons are skipped
+  - unknown addon names are warned and skipped
+  - addon failures are fatal
+- `strict` mode with configured addons: warns and skips addon install.
+- Parsing `sand.toml` requires `python3` on the host that runs `sand`.
 
 *LOCAL DATASTORE HELPERS*
 - `pg-local` (installed by `addons add-postgres`):
@@ -114,6 +152,10 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
 - Build-time core project tools: `updated/install-project-tools.sh`
 - Post-start mode/profile setup: `/usr/local/bin/sand-poststart.sh`
 - Privileged runner: `/usr/local/bin/sand-privileged`
+
+*FIREWALL LOGGING*
+- Default firewall init output is concise.
+- Set `SAND_FIREWALL_DEBUG=1` to enable detailed per-domain/CIDR diagnostics.
 
 ## one-time github setup
 

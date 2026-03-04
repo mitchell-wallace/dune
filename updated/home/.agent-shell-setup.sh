@@ -6,6 +6,11 @@ alias cx='codex --dangerously-bypass-approvals-and-sandbox'
 alias ge='gemini --model gemini-3.1-pro-preview --yolo'
 alias op='opencode --yolo'
 
+# Ensure mise shims are available in interactive shells.
+if [ -d "${HOME}/.local/share/mise/shims" ]; then
+  export PATH="${HOME}/.local/share/mise/shims:${PATH}"
+fi
+
 _show_agent_startup_message() {
   [ -n "${SAND_STARTUP_MESSAGE_SHOWN:-}" ] && return 0
   export SAND_STARTUP_MESSAGE_SHOWN=1
@@ -34,6 +39,9 @@ Addons:
   addons add-postgres -> install local PostgreSQL + pg-local helper
   addons add-redis -> install local Redis + redis-local helper
   addons add-playwright -> install Playwright CLI + browsers for e2e tests
+  addons add-pnpm/add-turbo/add-wrangler -> JS/edge CLIs
+  addons add-mailpit/add-minio/add-meilisearch -> local service binaries
+  addons add-python-uv/add-go/add-rust/add-dotnet/add-java -> language toolchains via mise
 EOF
   fi
 }

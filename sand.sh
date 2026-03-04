@@ -5,6 +5,19 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 CONFIG_FILE="$SCRIPT_DIR/updated/devcontainer.json"
 
+SAND_CONFIG_PATH=""
+CONFIG_PROFILE=""
+CONFIG_MODE=""
+CONFIG_ADDONS=()
+CONFIG_PYTHON_VERSION=""
+CONFIG_UV_VERSION=""
+CONFIG_GO_VERSION=""
+CONFIG_RUST_VERSION=""
+CONFIG_DOTNET_VERSION=""
+CONFIG_JAVA_VERSION=""
+CONFIG_MAVEN_VERSION=""
+CONFIG_GRADLE_VERSION=""
+
 usage() {
   cat >&2 <<'USAGE'
 Usage: sand [workspace_dir] [profile] [mode]
@@ -29,6 +42,10 @@ Examples:
   sand -d ./strict -p 0 -m std
 USAGE
   exit 1
+}
+
+warn() {
+  echo "WARNING: $*" >&2
 }
 
 canonicalize_mode() {
@@ -105,6 +122,218 @@ resolve_container_mode() {
   printf 'std\n'
 }
 
+find_sand_toml() {
+  local base_dir="$1"
+  local git_root=""
+  local search_dir="$base_dir"
+  local depth=0
+
+  if command -v git >/dev/null 2>&1; then
+    git_root="$(git -C "$base_dir" rev-parse --show-toplevel 2>/dev/null || true)"
+    if [ -n "$git_root" ] && [ -f "$git_root/sand.toml" ]; then
+      printf '%s\n' "$git_root/sand.toml"
+      return 0
+    fi
+  fi
+
+  while [ "$depth" -le 5 ]; do
+    if [ -f "$search_dir/sand.toml" ]; then
+      printf '%s\n' "$search_dir/sand.toml"
+      return 0
+    fi
+
+    if [ "$search_dir" = "/" ]; then
+      break
+    fi
+
+    search_dir="$(dirname "$search_dir")"
+    depth=$((depth + 1))
+  done
+
+  return 1
+}
+
+parse_sand_toml() {
+  local path="$1"
+  local parsed=""
+  local line_type key value
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "python3 is required to parse sand.toml: $path" >&2
+    exit 1
+  fi
+
+  parsed="$(python3 - "$path" <<'PY'
+import sys
+import tomllib
+
+path = sys.argv[1]
+allowed = {
+    "profile",
+    "mode",
+    "addons",
+    "python_version",
+    "uv_version",
+    "go_version",
+    "rust_version",
+    "dotnet_version",
+    "java_version",
+    "maven_version",
+    "gradle_version",
+}
+
+with open(path, "rb") as f:
+    data = tomllib.load(f)
+
+if not isinstance(data, dict):
+    print("error\troot\tmust be a table")
+    sys.exit(2)
+
+for k in data.keys():
+    if k not in allowed:
+        print(f"unknown\t{k}\t")
+
+for scalar_key in [
+    "profile",
+    "mode",
+    "python_version",
+    "uv_version",
+    "go_version",
+    "rust_version",
+    "dotnet_version",
+    "java_version",
+    "maven_version",
+    "gradle_version",
+]:
+    value = data.get(scalar_key)
+    if value is None:
+        continue
+    if not isinstance(value, str):
+        print(f"error\t{scalar_key}\texpected string")
+        sys.exit(2)
+    print(f"scalar\t{scalar_key}\t{value}")
+
+addons = data.get("addons")
+if addons is not None:
+    if not isinstance(addons, list) or not all(isinstance(x, str) for x in addons):
+        print("error\taddons\texpected array of strings")
+        sys.exit(2)
+    for addon in addons:
+        print(f"addon\t{addon}\t")
+PY
+)" || {
+    echo "Failed to parse sand.toml: $path" >&2
+    exit 1
+  }
+
+  while IFS=$'\t' read -r line_type key value; do
+    case "$line_type" in
+      unknown)
+        warn "Unknown key in sand.toml ignored: $key"
+        ;;
+      scalar)
+        case "$key" in
+          profile) CONFIG_PROFILE="$value" ;;
+          mode) CONFIG_MODE="$value" ;;
+          python_version) CONFIG_PYTHON_VERSION="$value" ;;
+          uv_version) CONFIG_UV_VERSION="$value" ;;
+          go_version) CONFIG_GO_VERSION="$value" ;;
+          rust_version) CONFIG_RUST_VERSION="$value" ;;
+          dotnet_version) CONFIG_DOTNET_VERSION="$value" ;;
+          java_version) CONFIG_JAVA_VERSION="$value" ;;
+          maven_version) CONFIG_MAVEN_VERSION="$value" ;;
+          gradle_version) CONFIG_GRADLE_VERSION="$value" ;;
+        esac
+        ;;
+      addon)
+        CONFIG_ADDONS+=("$key")
+        ;;
+      error)
+        echo "Invalid sand.toml ($key): $value" >&2
+        exit 1
+        ;;
+      "")
+        ;;
+      *)
+        warn "Unexpected parser output in sand.toml ignored: $line_type"
+        ;;
+    esac
+  done <<<"$parsed"
+}
+
+build_addon_env_args() {
+  local -n out_ref="$1"
+  out_ref=()
+
+  [ -n "$CONFIG_PYTHON_VERSION" ] && out_ref+=("-e" "SAND_PYTHON_VERSION=$CONFIG_PYTHON_VERSION")
+  [ -n "$CONFIG_UV_VERSION" ] && out_ref+=("-e" "SAND_UV_VERSION=$CONFIG_UV_VERSION")
+  [ -n "$CONFIG_GO_VERSION" ] && out_ref+=("-e" "SAND_GO_VERSION=$CONFIG_GO_VERSION")
+  [ -n "$CONFIG_RUST_VERSION" ] && out_ref+=("-e" "SAND_RUST_VERSION=$CONFIG_RUST_VERSION")
+  [ -n "$CONFIG_DOTNET_VERSION" ] && out_ref+=("-e" "SAND_DOTNET_VERSION=$CONFIG_DOTNET_VERSION")
+  [ -n "$CONFIG_JAVA_VERSION" ] && out_ref+=("-e" "SAND_JAVA_VERSION=$CONFIG_JAVA_VERSION")
+  [ -n "$CONFIG_MAVEN_VERSION" ] && out_ref+=("-e" "SAND_MAVEN_VERSION=$CONFIG_MAVEN_VERSION")
+  [ -n "$CONFIG_GRADLE_VERSION" ] && out_ref+=("-e" "SAND_GRADLE_VERSION=$CONFIG_GRADLE_VERSION")
+}
+
+apply_configured_addons() {
+  local container_name="$1"
+  local effective_mode="$2"
+  local known_addons=""
+  local addon=""
+  local installed_count=0
+  local skipped_installed_count=0
+  local skipped_unknown_count=0
+  local skipped_invalid_count=0
+  local -a addon_env_args
+
+  if [ "${#CONFIG_ADDONS[@]}" -eq 0 ]; then
+    return 0
+  fi
+
+  if [ "$effective_mode" = "strict" ]; then
+    warn "sand.toml lists addons but mode is strict; ignoring configured addons."
+    return 0
+  fi
+
+  known_addons="$(docker exec "$container_name" awk -F'\t' 'NR>1 && $1 != "" { print $1 }' /usr/local/lib/sand/addons/manifest.tsv 2>/dev/null || true)"
+  if [ -z "$known_addons" ]; then
+    echo "ERROR: Unable to load addon manifest from container '$container_name'." >&2
+    return 1
+  fi
+
+  build_addon_env_args addon_env_args
+
+  echo "Applying configured addons from sand.toml (${#CONFIG_ADDONS[@]} requested)..."
+  for addon in "${CONFIG_ADDONS[@]}"; do
+    if [[ ! "$addon" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
+      warn "Invalid addon name in sand.toml skipped: $addon"
+      skipped_invalid_count=$((skipped_invalid_count + 1))
+      continue
+    fi
+
+    if ! printf '%s\n' "$known_addons" | grep -Fxq "$addon"; then
+      warn "Unknown addon in sand.toml skipped: $addon"
+      skipped_unknown_count=$((skipped_unknown_count + 1))
+      continue
+    fi
+
+    if docker exec "$container_name" sh -lc "[ -f '/persist/agent/addons/${addon}.installed' ]" >/dev/null 2>&1; then
+      skipped_installed_count=$((skipped_installed_count + 1))
+      continue
+    fi
+
+    echo "Installing addon from sand.toml: $addon"
+    if ! docker exec "${addon_env_args[@]}" "$container_name" addons "$addon"; then
+      echo "ERROR: Failed to install configured addon '$addon'" >&2
+      return 1
+    fi
+
+    installed_count=$((installed_count + 1))
+  done
+
+  echo "sand.toml addon summary: installed=$installed_count skipped_installed=$skipped_installed_count skipped_unknown=$skipped_unknown_count skipped_invalid=$skipped_invalid_count"
+}
+
 if ! command -v docker >/dev/null 2>&1; then
   echo "docker is required but was not found in PATH." >&2
   exit 1
@@ -128,6 +357,8 @@ fi
 workspace_input=""
 profile=""
 mode=""
+profile_explicit=0
+mode_explicit=0
 
 positionals=()
 while [ "$#" -gt 0 ]; do
@@ -152,6 +383,7 @@ while [ "$#" -gt 0 ]; do
         echo "Invalid profile '$2' (expected one char: 0-9 or a-z)" >&2
         exit 1
       }
+      profile_explicit=1
       shift 2
       ;;
     -m|--mode)
@@ -163,6 +395,7 @@ while [ "$#" -gt 0 ]; do
         echo "Invalid mode '$2' (expected: std|standard|lax|yolo|strict)" >&2
         exit 1
       }
+      mode_explicit=1
       shift 2
       ;;
     --)
@@ -184,13 +417,15 @@ while [ "$#" -gt 0 ]; do
 done
 
 for token in "${positionals[@]}"; do
-  if [ -z "$profile" ] && is_profile_token "$token"; then
+  if [ "$profile_explicit" -eq 0 ] && [ -z "$profile" ] && is_profile_token "$token"; then
     profile="$(normalize_profile "$token")"
+    profile_explicit=1
     continue
   fi
 
   if parsed_mode="$(canonicalize_mode "$token" 2>/dev/null)"; then
     mode="$parsed_mode"
+    mode_explicit=1
     continue
   fi
 
@@ -214,6 +449,25 @@ fi
 
 WORKSPACE_DIR="$(cd "$workspace_input" && pwd -P)"
 
+if SAND_CONFIG_PATH="$(find_sand_toml "$WORKSPACE_DIR" 2>/dev/null)"; then
+  parse_sand_toml "$SAND_CONFIG_PATH"
+  echo "Using sand.toml config: $SAND_CONFIG_PATH"
+fi
+
+if [ "$profile_explicit" -eq 0 ] && [ -n "$CONFIG_PROFILE" ]; then
+  profile="$(normalize_profile "$CONFIG_PROFILE")" || {
+    echo "Invalid profile in sand.toml: '$CONFIG_PROFILE' (expected one char: 0-9 or a-z)" >&2
+    exit 1
+  }
+fi
+
+if [ "$mode_explicit" -eq 0 ] && [ -n "$CONFIG_MODE" ]; then
+  mode="$(canonicalize_mode "$CONFIG_MODE")" || {
+    echo "Invalid mode in sand.toml: '$CONFIG_MODE' (expected: std|standard|lax|yolo|strict)" >&2
+    exit 1
+  }
+fi
+
 PROJECT_BASENAME="$(basename "$WORKSPACE_DIR")"
 PROJECT_SLUG="$(printf '%s' "$PROJECT_BASENAME" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-')"
 PROJECT_HASH="$(printf '%s' "$WORKSPACE_DIR" | sha1sum | awk '{print substr($1,1,8)}')"
@@ -235,6 +489,7 @@ but you requested '$mode'. The existing container mode is immutable and will be 
 To change mode, remove/recreate this workspace+profile container.
 WARN_MSG
   fi
+  mode="$existing_mode"
 else
   echo "Provisioning dev container via devcontainers CLI (profile=$profile mode=$mode)"
   (
@@ -269,5 +524,7 @@ fi
 if ! container_running "$CONTAINER_NAME"; then
   docker start "$CONTAINER_NAME" >/dev/null
 fi
+
+apply_configured_addons "$CONTAINER_NAME" "$mode"
 
 exec docker exec -it "$CONTAINER_NAME" zsh
