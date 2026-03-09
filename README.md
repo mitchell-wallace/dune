@@ -106,26 +106,18 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
 - Command: `addons`
 - Example:
   - `addons` / `addons list` / `addons help` -> same output: addon status + helper commands
-  - `addons add-omc`
   - `addons boost-cli`
   - `addons add-postgres`
   - `addons add-redis`
   - `addons add-playwright`
   - `addons add-pnpm`
   - `addons add-turbo`
-  - `addons add-wrangler`
   - `addons add-gemini`
   - `addons add-opencode`
   - `addons add-mailpit`
-  - `addons add-minio`
-  - `addons add-meilisearch`
   - `addons add-python-uv`
-  - `addons add-bun`
-  - `addons add-deno`
   - `addons add-go`
   - `addons add-rust`
-  - `addons add-dotnet`
-  - `addons add-java`
 - `strict` mode disables addons and omits addon hints from startup messaging.
 - Addons are whitelist-only from the manifest; arbitrary scripts are not runnable through `addons`.
 - Addon install state is tracked per profile under `/persist/agent/addons/*.installed`.
@@ -134,8 +126,8 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
 - `add-opencode` installs the OpenCode CLI globally while preserving `~/.config/opencode` and `~/.local/share/opencode` through the profile volume.
 - If `add-gemini` or `add-opencode` are listed in `sand.toml`, they follow the normal configured-addon path and are installed during cold build.
 - `add-playwright` installs global `playwright` plus Chromium/Firefox/WebKit browsers for e2e.
-- `add-mailpit`, `add-minio`, `add-meilisearch` install local service binaries (bind to `127.0.0.1` when you run them).
-- `add-python-uv`, `add-bun`, `add-deno`, `add-go`, `add-rust`, `add-dotnet`, `add-java` install runtimes/toolchains via `mise`.
+- `add-postgres`, `add-redis`, and `add-mailpit` autostart on container startup when installed for the active profile.
+- `add-python-uv`, `add-go`, and `add-rust` install runtimes/toolchains via `mise`.
 
 *SAND.TOML*
 - Optional repo config file with top-level keys:
@@ -144,8 +136,6 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
   - `addons = ["add-playwright", "add-go"]`
   - Optional version pins:
     - `python_version`, `uv_version`, `go_version`, `rust_version`
-    - `dotnet_version`, `java_version`, `maven_version`, `gradle_version`
-    - `bun_version`, `deno_version`
 - Precedence:
   - CLI flags override `sand.toml`
   - `sand.toml` overrides defaults

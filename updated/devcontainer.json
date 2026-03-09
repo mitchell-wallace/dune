@@ -12,13 +12,7 @@
       "SAND_PYTHON_VERSION": "${localEnv:SAND_PYTHON_VERSION:}",
       "SAND_UV_VERSION": "${localEnv:SAND_UV_VERSION:}",
       "SAND_GO_VERSION": "${localEnv:SAND_GO_VERSION:}",
-      "SAND_RUST_VERSION": "${localEnv:SAND_RUST_VERSION:}",
-      "SAND_DOTNET_VERSION": "${localEnv:SAND_DOTNET_VERSION:}",
-      "SAND_JAVA_VERSION": "${localEnv:SAND_JAVA_VERSION:}",
-      "SAND_MAVEN_VERSION": "${localEnv:SAND_MAVEN_VERSION:}",
-      "SAND_GRADLE_VERSION": "${localEnv:SAND_GRADLE_VERSION:}",
-      "SAND_BUN_VERSION": "${localEnv:SAND_BUN_VERSION:}",
-      "SAND_DENO_VERSION": "${localEnv:SAND_DENO_VERSION:}"
+      "SAND_RUST_VERSION": "${localEnv:SAND_RUST_VERSION:}"
     }
   },
   "runArgs": [

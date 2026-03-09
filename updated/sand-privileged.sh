@@ -275,7 +275,13 @@ pg_local_cmd() {
 
   case "$cmd" in
     start)
-      pg_ctlcluster "$pg_version" main start >/dev/null 2>&1 || true
+      if ! pg_ctlcluster "$pg_version" main status >/dev/null 2>&1; then
+        pg_ctlcluster "$pg_version" main start >/dev/null 2>&1 || true
+      fi
+      if ! pg_ctlcluster "$pg_version" main status >/dev/null 2>&1; then
+        echo "Failed to start postgresql (${pg_version})" >&2
+        exit 1
+      fi
       echo "postgresql (${pg_version}) started"
       ;;
     stop)

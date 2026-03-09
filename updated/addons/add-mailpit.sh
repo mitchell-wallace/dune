@@ -60,4 +60,6 @@ install -m 0755 "$tmp_dir/mailpit" /usr/local/bin/mailpit
 chown root:root /usr/local/bin/mailpit
 
 install_helper
+log "Starting Mailpit"
+/usr/local/bin/sand-privileged mp-local start >/dev/null
 log "Done. Example run: mp-local start"

@@ -61,7 +61,10 @@ if ! grep -q "# sand-local" "$pg_hba"; then
 fi
 
 log "Starting PostgreSQL cluster"
-pg_ctlcluster "$pg_version" main start >/dev/null 2>&1 || true
+if ! /usr/local/bin/sand-privileged pg-local start >/dev/null; then
+  echo "[add-postgres] Failed to start PostgreSQL cluster ${pg_version}/main" >&2
+  exit 1
+fi
 pg_ctlcluster "$pg_version" main reload >/dev/null 2>&1 || true
 
 log "Ensuring role/database defaults exist"

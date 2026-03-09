@@ -14,12 +14,6 @@ CONFIG_PYTHON_VERSION=""
 CONFIG_UV_VERSION=""
 CONFIG_GO_VERSION=""
 CONFIG_RUST_VERSION=""
-CONFIG_DOTNET_VERSION=""
-CONFIG_JAVA_VERSION=""
-CONFIG_MAVEN_VERSION=""
-CONFIG_GRADLE_VERSION=""
-CONFIG_BUN_VERSION=""
-CONFIG_DENO_VERSION=""
 
 usage() {
   cat >&2 <<'USAGE'
@@ -312,12 +306,6 @@ parse_sand_toml() {
           uv_version) CONFIG_UV_VERSION="$value" ;;
           go_version) CONFIG_GO_VERSION="$value" ;;
           rust_version) CONFIG_RUST_VERSION="$value" ;;
-          dotnet_version) CONFIG_DOTNET_VERSION="$value" ;;
-          java_version) CONFIG_JAVA_VERSION="$value" ;;
-          maven_version) CONFIG_MAVEN_VERSION="$value" ;;
-          gradle_version) CONFIG_GRADLE_VERSION="$value" ;;
-          bun_version) CONFIG_BUN_VERSION="$value" ;;
-          deno_version) CONFIG_DENO_VERSION="$value" ;;
         esac
         ;;
       addon)
@@ -344,12 +332,6 @@ build_addon_env_args() {
   [ -n "$CONFIG_UV_VERSION" ] && out_ref+=("-e" "SAND_UV_VERSION=$CONFIG_UV_VERSION")
   [ -n "$CONFIG_GO_VERSION" ] && out_ref+=("-e" "SAND_GO_VERSION=$CONFIG_GO_VERSION")
   [ -n "$CONFIG_RUST_VERSION" ] && out_ref+=("-e" "SAND_RUST_VERSION=$CONFIG_RUST_VERSION")
-  [ -n "$CONFIG_DOTNET_VERSION" ] && out_ref+=("-e" "SAND_DOTNET_VERSION=$CONFIG_DOTNET_VERSION")
-  [ -n "$CONFIG_JAVA_VERSION" ] && out_ref+=("-e" "SAND_JAVA_VERSION=$CONFIG_JAVA_VERSION")
-  [ -n "$CONFIG_MAVEN_VERSION" ] && out_ref+=("-e" "SAND_MAVEN_VERSION=$CONFIG_MAVEN_VERSION")
-  [ -n "$CONFIG_GRADLE_VERSION" ] && out_ref+=("-e" "SAND_GRADLE_VERSION=$CONFIG_GRADLE_VERSION")
-  [ -n "$CONFIG_BUN_VERSION" ] && out_ref+=("-e" "SAND_BUN_VERSION=$CONFIG_BUN_VERSION")
-  [ -n "$CONFIG_DENO_VERSION" ] && out_ref+=("-e" "SAND_DENO_VERSION=$CONFIG_DENO_VERSION")
 
   return 0
 }

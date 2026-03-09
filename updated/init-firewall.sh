@@ -473,12 +473,6 @@ main() {
   add_optional_domain_with_cidr "playwright.download.prss.microsoft.com" "Playwright browser download fallback CDN (allow /16 due CDN edge IP churn)" "16"
   add_optional_domain_with_cidr "storage.googleapis.com" "Playwright Chromium CFT redirected download host (allow /16 due Google edge IP churn)" "16"
 
-  # Phase 1 addon domains.
-  add_optional_domain "api.cloudflare.com" "Wrangler API/auth flows"
-  add_optional_domain "dash.cloudflare.com" "Cloudflare dashboard auth handoffs"
-  add_optional_domain "install.meilisearch.com" "Meilisearch install script host"
-  add_optional_domain "dl.min.io" "MinIO binary download host"
-
   # mise-managed runtime/tool domains.
   add_optional_domain "nodejs.org" "mise node backend official Node.js binary downloads"
   add_optional_domain "unofficial-builds.nodejs.org" "optional Node unofficial builds via mise node.mirror_url"
@@ -489,9 +483,6 @@ main() {
   add_optional_domain "dl.google.com" "Go toolchain tarballs used by go/mise installs"
   add_optional_domain "proxy.golang.org" "Go module proxy used by go command"
   add_optional_domain "sum.golang.org" "Go checksum database used by go command"
-  add_optional_domain "bun.sh" "Bun install metadata and docs"
-  add_optional_domain "deno.land" "Deno release metadata and installer host"
-  add_optional_domain "dl.deno.land" "Deno release binary downloads"
   add_optional_domain "rustup.rs" "rustup installer landing host"
   add_optional_domain "sh.rustup.rs" "rustup shell installer script"
   add_optional_domain "static.rust-lang.org" "Rust toolchain/dist downloads"
@@ -499,17 +490,8 @@ main() {
   add_optional_domain "index.crates.io" "Rust sparse index"
   add_optional_domain "static.crates.io" "Rust crate tarball downloads"
 
-  # Phase 3 toolchain addon domains.
+  # Optional toolchain addon domains.
   add_optional_domain "mise-versions.jdx.dev" "mise tool version metadata"
-  add_optional_domain "mise-java.jdx.dev" "mise Java metadata"
-  add_optional_domain "builds.dotnet.microsoft.com" ".NET SDK binary downloads"
-  add_optional_domain "dot.net" ".NET download redirects"
-  add_optional_domain "api.nuget.org" "NuGet package API"
-  add_optional_domain "globalcdn.nuget.org" "NuGet package CDN"
-  add_optional_domain "nuget.org" "NuGet website and auth redirects"
-  add_optional_domain "repo.maven.apache.org" "Maven Central repository"
-  add_optional_domain "services.gradle.org" "Gradle distributions"
-  add_optional_domain "plugins.gradle.org" "Gradle plugin portal"
 
   log_info "Resolving allowlist domains (${#DOMAIN_SPECS[@]} specs)"
   for spec in "${DOMAIN_SPECS[@]}"; do

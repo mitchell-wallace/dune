@@ -22,12 +22,6 @@ var versionKeys = []string{
 	"uv_version",
 	"go_version",
 	"rust_version",
-	"dotnet_version",
-	"java_version",
-	"maven_version",
-	"gradle_version",
-	"bun_version",
-	"deno_version",
 }
 
 var scalarKeys = append([]string{"profile", "mode", "workspace_mode"}, versionKeys...)
