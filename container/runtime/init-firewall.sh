@@ -463,7 +463,7 @@ main() {
   add_optional_domain "auth.exa.ai" "Exa auth endpoints"
   add_optional_domain "accounts.exa.ai" "Exa account endpoints"
 
-  # Additional tool install scripts fetched by install scripts in updated/.
+  # Additional tool install scripts fetched by install scripts in container/setup.
   add_optional_domain "raw.githubusercontent.com" "beads/beads_viewer installer scripts"
   add_optional_domain "mise.run" "mise bootstrap install script"
   add_optional_domain "getmic.ro" "micro editor installer script"

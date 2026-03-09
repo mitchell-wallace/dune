@@ -37,6 +37,7 @@ htmlcov/
 # Go
 vendor/
 *.out
+/sand
 
 # Test/build artifacts
 test/

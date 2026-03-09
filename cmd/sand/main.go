@@ -169,6 +169,7 @@ func runSand(ctx context.Context, opts cli.Options, paths repoPaths) error {
 			"--id-label", "devcontainer.config_file="+paths.Devcontainer,
 			"--id-label", "sand.profile="+string(cfg.Profile),
 		)
+		cmd.Dir = paths.Root
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Env = append(os.Environ(),

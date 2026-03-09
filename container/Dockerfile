@@ -116,7 +116,7 @@ RUN set -eux; \
 RUN npm i -g @openai/codex
 
 # Install core project tools (beads, mise, etc.)
-COPY --chown=node:node install-project-tools.sh /tmp/install-project-tools.sh
+COPY --chown=node:node setup/install-project-tools.sh /tmp/install-project-tools.sh
 USER root
 RUN chmod +x /tmp/install-project-tools.sh && \
   INSTALL_USER_TOOLS=0 /tmp/install-project-tools.sh && \
@@ -124,14 +124,14 @@ RUN chmod +x /tmp/install-project-tools.sh && \
   rm -f /tmp/install-project-tools.sh
 USER node
 
-# Copy user home config scaffold from updated/home into /home/node
+# Copy user home config scaffold into /home/node
 COPY --chown=node:node home/ /home/node/
 USER root
-COPY setup-agent-persist.sh /usr/local/bin/setup-agent-persist.sh
-COPY sand-privileged.sh /usr/local/bin/sand-privileged
-COPY sand-entrypoint.sh /usr/local/bin/sand-entrypoint.sh
-COPY sand-poststart.sh /usr/local/bin/sand-poststart.sh
-COPY addons-cli.sh /usr/local/bin/addons
+COPY runtime/setup-agent-persist.sh /usr/local/bin/setup-agent-persist.sh
+COPY runtime/sand-privileged.sh /usr/local/bin/sand-privileged
+COPY runtime/sand-entrypoint.sh /usr/local/bin/sand-entrypoint.sh
+COPY runtime/sand-poststart.sh /usr/local/bin/sand-poststart.sh
+COPY runtime/addons-cli.sh /usr/local/bin/addons
 COPY addons/ /usr/local/lib/sand/addons/
 RUN chmod 0755 /usr/local/bin/setup-agent-persist.sh /usr/local/bin/sand-privileged /usr/local/bin/sand-entrypoint.sh /usr/local/bin/sand-poststart.sh /usr/local/bin/addons && \
   chown root:root /usr/local/bin/setup-agent-persist.sh /usr/local/bin/sand-privileged /usr/local/bin/sand-entrypoint.sh /usr/local/bin/sand-poststart.sh /usr/local/bin/addons && \
@@ -208,15 +208,11 @@ RUN \
     echo '[ -f ~/.agent-shell-setup.sh ] && source ~/.agent-shell-setup.sh' >> /home/node/.zshrc; \
   fi
 
-# Run per-agent configuration scripts after all CLIs are installed
-COPY --chown=node:node configure-claude.sh /tmp/configure-claude.sh
-COPY --chown=node:node configure-codex.sh /tmp/configure-codex.sh
-COPY --chown=node:node configure-git-gh.sh /tmp/configure-git-gh.sh
-RUN chmod +x /tmp/configure-claude.sh /tmp/configure-codex.sh /tmp/configure-git-gh.sh && \
-  /tmp/configure-claude.sh && \
-  /tmp/configure-codex.sh && \
-  /tmp/configure-git-gh.sh && \
-  rm -f /tmp/configure-claude.sh /tmp/configure-codex.sh /tmp/configure-git-gh.sh
+# Run post-install agent configuration after all CLIs are installed
+COPY --chown=node:node setup/configure-agents.sh /tmp/configure-agents.sh
+RUN chmod +x /tmp/configure-agents.sh && \
+  /tmp/configure-agents.sh && \
+  rm -f /tmp/configure-agents.sh
 
 # Refresh defaults after setup scripts so empty persisted volumes can be re-seeded.
 RUN rm -rf /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defaults/gemini /opt/agent-defaults/opencode /opt/agent-defaults/gh /opt/agent-defaults/git /opt/agent-defaults/addons && \
@@ -232,7 +228,7 @@ RUN rm -rf /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defau
   if [ -f /persist/agent/git/.git-credentials ] && [ -s /persist/agent/git/.git-credentials ]; then cp -a /persist/agent/git/.git-credentials /opt/agent-defaults/git/.git-credentials; fi
 
 # Copy and set up firewall script
-COPY init-firewall.sh /usr/local/bin/
+COPY runtime/init-firewall.sh /usr/local/bin/init-firewall.sh
 USER root
 RUN chmod 0755 /usr/local/bin/init-firewall.sh && \
   chown root:root /usr/local/bin/init-firewall.sh && \

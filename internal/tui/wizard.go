@@ -208,7 +208,9 @@ func discoverProfiles() ([]string, string) {
 	for profile := range profiles {
 		discovered = append(discovered, profile)
 	}
-	sort.Strings(discovered)
+	sort.Slice(discovered, func(i, j int) bool {
+		return profileSortKey(discovered[i]) < profileSortKey(discovered[j])
+	})
 	return discovered, ""
 }
 
@@ -681,6 +683,16 @@ func stringsJoinOrEmpty(items []string, sep, empty string) string {
 		return empty
 	}
 	return strings.Join(items, sep)
+}
+
+func profileSortKey(profile string) string {
+	if profile == "" {
+		return "2:"
+	}
+	if profile[0] >= '0' && profile[0] <= '9' {
+		return "0:" + profile
+	}
+	return "1:" + profile
 }
 
 func defaultString(value, fallback string) string {

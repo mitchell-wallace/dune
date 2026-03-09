@@ -1,14 +1,16 @@
-package main
+package config
 
 import (
 	"reflect"
 	"testing"
+
+	"claudebox/internal/domain"
 )
 
 func TestRenderParseLines(t *testing.T) {
 	t.Parallel()
 
-	lines, err := renderParseLines(map[string]any{
+	lines, err := RenderParseLines(map[string]any{
 		"profile":         "a",
 		"mode":            "strict",
 		"workspace_mode":  "copy",
@@ -18,7 +20,7 @@ func TestRenderParseLines(t *testing.T) {
 		"another_unknown": true,
 	})
 	if err != nil {
-		t.Fatalf("renderParseLines returned error: %v", err)
+		t.Fatalf("RenderParseLines returned error: %v", err)
 	}
 
 	want := []string{
@@ -36,7 +38,7 @@ func TestRenderParseLines(t *testing.T) {
 	}
 }
 
-func TestUpdateConfigDataKeepsVersionsWhenUnchanged(t *testing.T) {
+func TestUpdateDataKeepsVersionsWhenUnchanged(t *testing.T) {
 	t.Parallel()
 
 	data := map[string]any{
@@ -47,7 +49,12 @@ func TestUpdateConfigDataKeepsVersionsWhenUnchanged(t *testing.T) {
 		"custom_flag": true,
 	}
 
-	updateConfigData(data, "a", "lax", "mount", []string{"add-go"}, false, nil)
+	UpdateData(data, domain.SandConfig{
+		Profile:       domain.Profile("a"),
+		Mode:          domain.ModeLax,
+		WorkspaceMode: domain.WorkspaceModeMount,
+		Addons:        []domain.AddonName{"add-go"},
+	}, false, nil)
 
 	if got := data["go_version"]; got != "1.25.4" {
 		t.Fatalf("go_version changed unexpectedly: %v", got)
@@ -60,7 +67,7 @@ func TestUpdateConfigDataKeepsVersionsWhenUnchanged(t *testing.T) {
 	}
 }
 
-func TestUpdateConfigDataAppliesVersionEdits(t *testing.T) {
+func TestUpdateDataAppliesVersionEdits(t *testing.T) {
 	t.Parallel()
 
 	data := map[string]any{
@@ -68,7 +75,11 @@ func TestUpdateConfigDataAppliesVersionEdits(t *testing.T) {
 		"uv_version": "0.10.4",
 	}
 
-	updateConfigData(data, "b", "std", "copy", []string{}, true, map[string]string{
+	UpdateData(data, domain.SandConfig{
+		Profile:       domain.Profile("b"),
+		Mode:          domain.ModeStd,
+		WorkspaceMode: domain.WorkspaceModeCopy,
+	}, true, map[string]string{
 		"go_version": "1.26.0",
 		"uv_version": "",
 	})
@@ -78,5 +89,17 @@ func TestUpdateConfigDataAppliesVersionEdits(t *testing.T) {
 	}
 	if _, ok := data["uv_version"]; ok {
 		t.Fatalf("uv_version should have been removed")
+	}
+}
+
+func TestParseRejectsUnsupportedVersionKeyTypes(t *testing.T) {
+	t.Parallel()
+
+	_, _, err := Parse(map[string]any{
+		"bun_version": "1.0.0",
+		"go_version":  123,
+	})
+	if err == nil {
+		t.Fatal("expected parse error")
 	}
 }

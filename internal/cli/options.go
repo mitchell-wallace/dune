@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 
 	"claudebox/internal/config"
 	"claudebox/internal/domain"
@@ -40,7 +41,7 @@ func Parse(argv []string) (Options, error) {
 
 func parseConfig(argv []string) (Options, error) {
 	fs := flag.NewFlagSet("sand config", flag.ContinueOnError)
-	fs.SetOutput(nil)
+	fs.SetOutput(io.Discard)
 	var opts Options
 	opts.Command = CommandConfig
 	fs.StringVar(&opts.WorkspaceInput, "directory", "", "")
@@ -60,7 +61,7 @@ func parseConfig(argv []string) (Options, error) {
 
 func parseRebuild(argv []string) (Options, error) {
 	fs := flag.NewFlagSet("sand rebuild", flag.ContinueOnError)
-	fs.SetOutput(nil)
+	fs.SetOutput(io.Discard)
 	var opts Options
 	opts.Command = CommandRebuild
 	fs.StringVar(&opts.WorkspaceInput, "directory", "", "")
@@ -80,7 +81,7 @@ func parseRebuild(argv []string) (Options, error) {
 
 func parseRun(argv []string) (Options, error) {
 	fs := flag.NewFlagSet("sand", flag.ContinueOnError)
-	fs.SetOutput(nil)
+	fs.SetOutput(io.Discard)
 
 	var (
 		workspaceInput string
