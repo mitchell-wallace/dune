@@ -1,0 +1,47 @@
+You are working on the feat/MIT-14 branch of this project.
+
+## Context
+Read the plan files in docs/specs/todos/MIT-14/ to understand the full scope of work.
+Use the deterministic context block appended by Ralph below (recent progress + batch inbox + session inbox). Prioritise instructions in session inbox > batch inbox > notes left by previous agents in recent progress. Any files mentioned in inbox messages must be read.
+Do not re-read ralph-progress/inbox files unless you need additional detail beyond what was injected.
+
+## Your task
+1. Assess current progress by reading the plans and the codebase.
+2. Choose a next-step task that you are confident you can FULLY complete
+   within this session (ideally <= 100k tokens of context). Prefer depth over breadth - it is
+   better to fully complete one task than to leave several half-done.
+3. Implement your task thoroughly. Do NOT take shortcuts. Write proper code, tests
+   where appropriate, and follow all project conventions (see CLAUDE.md / AGENTS.md). Prioritise high-quality, clean, maintainable code.
+4. After completing each task, commit your work with a clear commit message and push.
+5. Append a concise summary of what you accomplished to
+   docs/specs/todos/MIT-14/ralph-progress.md (timestamp, tasks done, files changed).
+   Keep each session update to roughly 30-50 lines. Commit and push this update too.
+6. If all planned MIT-14 work appears to be done, switch to review mode: pick a
+   specific focus area for your review (e.g. "UX of new account registration form", "inspect settings synchronisation e2e test quality", "review architectural cleanliness of backend/app/services/auth") and note your chosen focus in the
+   progress file. Audit that area for missing / flaky / over-mocked tests, bugs or error handling issues, dead code or repeated code, inconsistencies, or
+   incomplete implementations / gaps in plan execution. Fix anything you find, commit, and log results, and leave notes in progress logs for any issues that the next agent session should follow up on. Choose
+   a scope for your work that fits comfortably in one session (ideally <= 100k tokens).
+7. When you have completed your chosen task, exit cleanly so the next agent instance can pick up where you left off.
+
+## Scoping large tasks across sessions
+Your primary goal is to complete a single task from a planning document or user message end-to-end in a single session. However,
+if the next logical task is too large for one session (e.g. a complex task that requires major changes across multiple systems),
+you MUST break it into session-sized slices along natural boundaries. Good slice boundaries:
+  - Models / schemas -> API routes / controllers -> frontend integration -> tests -> review
+  - Or by domain area within a stage (e.g. auth models, then auth middleware, then auth UI)
+When you do this, log a "Remaining slices" note in the progress file so the next agent
+knows exactly what sub-steps are left and can pick up the next task slice without re-analyzing.
+Example progress entry:
+  > **Stage 4 step 7 - sliced across sessions:**
+  > - [x] Session 7: Auth models and migrations
+  > - [ ] Session 8: Auth middleware and route guards
+  > - [ ] Session 9: Auth routing tests
+Only use this fallback when a task genuinely cannot fit in one session - do not pre-slice
+work that could be completed whole.
+
+## Important rules
+- Use pnpm (not npm/yarn).
+- Use TypeScript - no .js files, no `any` types.
+- Follow the project's component taxonomy and architecture standards.
+- Always commit and push before you exit.
+- Keep progress notes concise and scoped to roughly 30-50 lines per session update.
