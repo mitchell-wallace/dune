@@ -155,8 +155,9 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
   - unknown addon names are warned and skipped
   - addon failures are fatal
 - `strict` mode with configured addons: warns and skips addon install.
-- Parsing `sand.toml` requires `python3` on the host that runs `sand`.
-- `sand config` requires host `uv` and an interactive terminal.
+- `sand config` requires host `mise` and an interactive terminal.
+- `sand.toml` parsing for config/profile defaults is handled by the bundled Go `sand-config` tool.
+- `workspace_mode=copy` currently rewrites a temporary devcontainer config with host `python3`.
 
 *LOCAL DATASTORE HELPERS*
 - `pg-local` (installed by `addons add-postgres`):

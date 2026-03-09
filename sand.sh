@@ -70,6 +70,49 @@ warn() {
   echo "WARNING: $*" >&2
 }
 
+ensure_sand_config_binary() {
+  local wizard_project="$SCRIPT_DIR/tools/sand-config"
+  local binary_dir="$wizard_project/.bin"
+  local binary_path="$binary_dir/sand-config"
+  local source_path=""
+
+  if ! command -v mise >/dev/null 2>&1; then
+    echo "mise is required for sand config but was not found in PATH." >&2
+    echo "Install mise: https://mise.jdx.dev/getting-started.html" >&2
+    return 1
+  fi
+
+  if [ ! -f "$wizard_project/go.mod" ]; then
+    echo "Missing sand-config Go module: $wizard_project/go.mod" >&2
+    return 1
+  fi
+
+  mkdir -p "$binary_dir"
+
+  if [ ! -x "$binary_path" ]; then
+    :
+  elif [ -f "$SCRIPT_DIR/.mise.toml" ] && [ "$SCRIPT_DIR/.mise.toml" -nt "$binary_path" ]; then
+    :
+  else
+    while IFS= read -r source_path; do
+      if [ "$source_path" -nt "$binary_path" ]; then
+        break
+      fi
+      source_path=""
+    done < <(find "$wizard_project" -type f \( -name '*.go' -o -name 'go.mod' -o -name 'go.sum' \) | sort)
+  fi
+
+  if [ ! -x "$binary_path" ] || [ -n "$source_path" ] || { [ -f "$SCRIPT_DIR/.mise.toml" ] && [ "$SCRIPT_DIR/.mise.toml" -nt "$binary_path" ]; }; then
+    echo "Building sand-config..." >&2
+    if ! mise exec -C "$wizard_project" -- go build -o "$binary_path" .; then
+      echo "Failed to build sand-config." >&2
+      return 1
+    fi
+  fi
+
+  printf '%s\n' "$binary_path"
+}
+
 run_config_wizard() {
   local workspace_input="${PWD}"
   local positional_dir=""
@@ -116,33 +159,23 @@ run_config_wizard() {
     return 1
   fi
 
-  if ! command -v uv >/dev/null 2>&1; then
-    echo "uv is required for 'sand config' but was not found in PATH." >&2
-    echo "Install uv: https://docs.astral.sh/uv/getting-started/installation/" >&2
-    return 1
-  fi
-
   if [ ! -d "$workspace_input" ]; then
     echo "Workspace directory does not exist: $workspace_input" >&2
     return 1
   fi
 
-  local workspace_dir wizard_project manifest_path
+  local workspace_dir manifest_path wizard_bin
   workspace_dir="$(cd "$workspace_input" && pwd -P)"
-  wizard_project="$SCRIPT_DIR/tools/sand-config"
   manifest_path="$SCRIPT_DIR/updated/addons/manifest.tsv"
-
-  if [ ! -f "$wizard_project/pyproject.toml" ]; then
-    echo "Missing sand-config project: $wizard_project/pyproject.toml" >&2
-    return 1
-  fi
 
   if [ ! -f "$manifest_path" ]; then
     echo "Missing addons manifest: $manifest_path" >&2
     return 1
   fi
 
-  exec uv run --project "$wizard_project" sand-config \
+  wizard_bin="$(ensure_sand_config_binary)" || return 1
+
+  exec "$wizard_bin" \
     --directory "$workspace_dir" \
     --manifest "$manifest_path"
 }
@@ -256,77 +289,11 @@ parse_sand_toml() {
   local path="$1"
   local parsed=""
   local line_type key value
+  local sand_config_bin=""
 
-  if ! command -v python3 >/dev/null 2>&1; then
-    echo "python3 is required to parse sand.toml: $path" >&2
-    exit 1
-  fi
+  sand_config_bin="$(ensure_sand_config_binary)" || exit 1
 
-  parsed="$(python3 - "$path" <<'PY'
-import sys
-import tomllib
-
-path = sys.argv[1]
-allowed = {
-    "profile",
-    "mode",
-    "workspace_mode",
-    "addons",
-    "python_version",
-    "uv_version",
-    "go_version",
-    "rust_version",
-    "dotnet_version",
-    "java_version",
-    "maven_version",
-    "gradle_version",
-    "bun_version",
-    "deno_version",
-}
-
-with open(path, "rb") as f:
-    data = tomllib.load(f)
-
-if not isinstance(data, dict):
-    print("error\troot\tmust be a table")
-    sys.exit(2)
-
-for k in data.keys():
-    if k not in allowed:
-        print(f"unknown\t{k}\t")
-
-for scalar_key in [
-    "profile",
-    "mode",
-    "workspace_mode",
-    "python_version",
-    "uv_version",
-    "go_version",
-    "rust_version",
-    "dotnet_version",
-    "java_version",
-    "maven_version",
-    "gradle_version",
-    "bun_version",
-    "deno_version",
-]:
-    value = data.get(scalar_key)
-    if value is None:
-        continue
-    if not isinstance(value, str):
-        print(f"error\t{scalar_key}\texpected string")
-        sys.exit(2)
-    print(f"scalar\t{scalar_key}\t{value}")
-
-addons = data.get("addons")
-if addons is not None:
-    if not isinstance(addons, list) or not all(isinstance(x, str) for x in addons):
-        print("error\taddons\texpected array of strings")
-        sys.exit(2)
-    for addon in addons:
-        print(f"addon\t{addon}\t")
-PY
-)" || {
+  parsed="$("$sand_config_bin" parse --path "$path")" || {
     echo "Failed to parse sand.toml: $path" >&2
     exit 1
   }
