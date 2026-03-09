@@ -1,6 +1,6 @@
 FROM node:22
 
-ARG TZ
+ARG TZ=Australia/Melbourne
 ENV TZ="$TZ"
 
 ARG CLAUDE_CODE_VERSION=latest
@@ -39,6 +39,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   nano \
   vim \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+RUN printf 'en_AU.UTF-8 UTF-8\nen_US.UTF-8 UTF-8\n' > /etc/locale.gen && \
+  locale-gen && \
+  update-locale LANG=en_AU.UTF-8 LANGUAGE=en_AU:en && \
+  ln -snf "/usr/share/zoneinfo/${TZ}" /etc/localtime && \
+  printf '%s\n' "$TZ" > /etc/timezone
+
+ENV LANG=en_AU.UTF-8
+ENV LANGUAGE=en_AU:en
 
 # Ensure default node user has access to /usr/local/share
 RUN mkdir -p /usr/local/share/npm-global && \
@@ -138,11 +147,12 @@ COPY --chown=node:node home/ /home/node/
 USER root
 COPY setup-agent-persist.sh /usr/local/bin/setup-agent-persist.sh
 COPY sand-privileged.sh /usr/local/bin/sand-privileged
+COPY sand-entrypoint.sh /usr/local/bin/sand-entrypoint.sh
 COPY sand-poststart.sh /usr/local/bin/sand-poststart.sh
 COPY addons-cli.sh /usr/local/bin/addons
 COPY addons/ /usr/local/lib/sand/addons/
-RUN chmod 0755 /usr/local/bin/setup-agent-persist.sh /usr/local/bin/sand-privileged /usr/local/bin/sand-poststart.sh /usr/local/bin/addons && \
-  chown root:root /usr/local/bin/setup-agent-persist.sh /usr/local/bin/sand-privileged /usr/local/bin/sand-poststart.sh /usr/local/bin/addons && \
+RUN chmod 0755 /usr/local/bin/setup-agent-persist.sh /usr/local/bin/sand-privileged /usr/local/bin/sand-entrypoint.sh /usr/local/bin/sand-poststart.sh /usr/local/bin/addons && \
+  chown root:root /usr/local/bin/setup-agent-persist.sh /usr/local/bin/sand-privileged /usr/local/bin/sand-entrypoint.sh /usr/local/bin/sand-poststart.sh /usr/local/bin/addons && \
   chown -R root:root /usr/local/lib/sand && \
   chmod 0755 /usr/local/lib/sand /usr/local/lib/sand/addons && \
   chmod 0444 /usr/local/lib/sand/addons/manifest.tsv && \
@@ -248,4 +258,5 @@ RUN chmod 0755 /usr/local/bin/init-firewall.sh && \
   chown root:root /usr/local/bin/init-firewall.sh && \
   echo "node ALL=(root) NOPASSWD: /usr/local/bin/sand-privileged" > /etc/sudoers.d/node-sand-privileged && \
   chmod 0440 /etc/sudoers.d/node-sand-privileged
+ENTRYPOINT ["/usr/local/bin/sand-entrypoint.sh"]
 USER node

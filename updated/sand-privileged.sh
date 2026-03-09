@@ -120,6 +120,30 @@ ensure_locale() {
   fi
 }
 
+ensure_timezone() {
+  local requested zoneinfo
+  requested="${1:-${TZ:-}}"
+  requested="$(printf '%s' "$requested" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+
+  if [ -z "$requested" ]; then
+    return 0
+  fi
+
+  if [[ "$requested" == *".."* ]] || [[ "$requested" == /* ]]; then
+    echo "Invalid timezone '$requested'" >&2
+    return 1
+  fi
+
+  zoneinfo="/usr/share/zoneinfo/$requested"
+  if [ ! -f "$zoneinfo" ]; then
+    echo "Unknown timezone '$requested'" >&2
+    return 1
+  fi
+
+  ln -snf "$zoneinfo" /etc/localtime
+  printf '%s\n' "$requested" > /etc/timezone
+}
+
 get_effective_mode() {
   if [ -f "$MODE_FILE" ]; then
     cat "$MODE_FILE"
@@ -598,8 +622,11 @@ case "$cmd" in
   ensure-locale)
     ensure_locale "${2:-}"
     ;;
+  ensure-timezone)
+    ensure_timezone "${2:-}"
+    ;;
   *)
-    echo "Usage: sand-privileged <init-firewall|configure-mode|run-addon|pg-local|redis-local|mp-local|ensure-locale>" >&2
+    echo "Usage: sand-privileged <init-firewall|configure-mode|run-addon|pg-local|redis-local|mp-local|ensure-locale|ensure-timezone>" >&2
     exit 1
     ;;
 esac

@@ -3,7 +3,7 @@
   "build": {
     "dockerfile": "Dockerfile",
     "args": {
-      "TZ": "${localEnv:TZ:America/Los_Angeles}",
+      "TZ": "${localEnv:TZ:Australia/Melbourne}",
       "CLAUDE_CODE_VERSION": "latest",
       "GIT_DELTA_VERSION": "0.18.2",
       "ZSH_IN_DOCKER_VERSION": "1.2.0",
@@ -59,9 +59,9 @@
     "NODE_OPTIONS": "--max-old-space-size=4096",
     "CLAUDE_CONFIG_DIR": "/home/node/.claude",
     "POWERLEVEL9K_DISABLE_GITSTATUS": "true",
-    "LANG": "${localEnv:LANG:C.UTF-8}",
-    "LC_ALL": "${localEnv:LC_ALL:}",
-    "LANGUAGE": "${localEnv:LANGUAGE:}",
+    "TZ": "${localEnv:TZ:Australia/Melbourne}",
+    "LANG": "${localEnv:LANG:en_AU.UTF-8}",
+    "LANGUAGE": "${localEnv:LANGUAGE:en_AU:en}",
     "SAND_PROFILE": "${localEnv:SAND_PROFILE:0}",
     "SAND_SECURITY_MODE": "${localEnv:SAND_SECURITY_MODE:std}"
   },
