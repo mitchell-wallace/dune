@@ -13,8 +13,8 @@ Changes:
 - switch claude code to native installer
 - add oh-my-claudecode
 - add codex installer
-- add gemini-cli installer
-- add opencode installer
+- make gemini-cli available as addon
+- make opencode available as addon
 - switch devcontainer vscode to biome
 
 How to use:
@@ -96,8 +96,8 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
 *SHELL ALIASES*
 - cc -> claude --dangerously-skip-permissions
 - cx -> codex --dangerously-bypass-approvals-and-sandbox
-- ge -> gemini --model gemini-3.1-pro-preview --yolo
-- op -> opencode --yolo
+- ge -> gemini --model gemini-3.1-pro-preview --yolo (when `add-gemini` is installed)
+- op -> opencode --yolo (when `add-opencode` is installed)
 
 *ADDONS*
 - Source of predefined addons in repo: `updated/addons/`
@@ -114,6 +114,8 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
   - `addons add-pnpm`
   - `addons add-turbo`
   - `addons add-wrangler`
+  - `addons add-gemini`
+  - `addons add-opencode`
   - `addons add-mailpit`
   - `addons add-minio`
   - `addons add-meilisearch`
@@ -128,6 +130,9 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
 - Addons are whitelist-only from the manifest; arbitrary scripts are not runnable through `addons`.
 - Addon install state is tracked per profile under `/persist/agent/addons/*.installed`.
 - Helper commands are installed only when their addon is installed.
+- `add-gemini` installs the Gemini CLI globally while preserving `~/.gemini` auth/config through the profile volume.
+- `add-opencode` installs the OpenCode CLI globally while preserving `~/.config/opencode` and `~/.local/share/opencode` through the profile volume.
+- If `add-gemini` or `add-opencode` are listed in `sand.toml`, they follow the normal configured-addon path and are installed during cold build.
 - `add-playwright` installs global `playwright` plus Chromium/Firefox/WebKit browsers for e2e.
 - `add-mailpit`, `add-minio`, `add-meilisearch` install local service binaries (bind to `127.0.0.1` when you run them).
 - `add-python-uv`, `add-bun`, `add-deno`, `add-go`, `add-rust`, `add-dotnet`, `add-java` install runtimes/toolchains via `mise`.
@@ -190,7 +195,7 @@ gh auth setup-git
 ## startup message
 
 - Shows active profile and security mode
-- Shows shell aliases (`cc`, `cx`, `ge`, `op`)
+- Shows shell aliases (`cc`, `cx`, plus `ge`/`op` when installed)
 - Shows addon command help when mode is not `strict`
 
 ## recommendation: profile isolation by security mode

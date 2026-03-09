@@ -3,8 +3,12 @@
 # Agent CLI shortcuts
 alias cc='claude --dangerously-skip-permissions'
 alias cx='codex --dangerously-bypass-approvals-and-sandbox'
-alias ge='gemini --model gemini-3.1-pro-preview --yolo'
-alias op='opencode --yolo'
+if command -v gemini >/dev/null 2>&1; then
+  alias ge='gemini --model gemini-3.1-pro-preview --yolo'
+fi
+if command -v opencode >/dev/null 2>&1; then
+  alias op='opencode --yolo'
+fi
 
 # Ensure mise shims are available in interactive shells. Keep this path even
 # before shims exist so newly installed runtimes work immediately.
@@ -30,9 +34,14 @@ Workspace mode: ${ws_mode}
 Sandbox aliases:
   cc      -> claude --dangerously-skip-permissions
   cx      -> codex --dangerously-bypass-approvals-and-sandbox
-  ge      -> gemini --model gemini-3.1-pro-preview --yolo
-  op      -> opencode --yolo
 EOF
+
+  if command -v gemini >/dev/null 2>&1; then
+    printf '%s\n' "  ge      -> gemini --model gemini-3.1-pro-preview --yolo"
+  fi
+  if command -v opencode >/dev/null 2>&1; then
+    printf '%s\n' "  op      -> opencode --yolo"
+  fi
 
   if [ "$mode" != "strict" ]; then
     cat <<'EOF'
@@ -47,6 +56,12 @@ Addons:
   addons add-mailpit/add-minio/add-meilisearch -> local service binaries (mp-local helper for Mailpit)
   addons add-python-uv/add-go/add-rust/add-dotnet/add-java/add-bun/add-deno -> language runtimes via mise
 EOF
+    if ! command -v gemini >/dev/null 2>&1; then
+      printf '%s\n' "  addons add-gemini -> install Gemini CLI with persisted config/auth storage"
+    fi
+    if ! command -v opencode >/dev/null 2>&1; then
+      printf '%s\n' "  addons add-opencode -> install OpenCode CLI with persisted config/auth storage"
+    fi
   fi
 }
 

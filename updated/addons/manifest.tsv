@@ -7,6 +7,8 @@ add-playwright	add-playwright.sh	Install Playwright globally (CLI + browsers for
 add-pnpm	add-pnpm.sh	Install pnpm globally	std,lax,yolo	root	pnpm
 add-turbo	add-turbo.sh	Install Turborepo CLI globally	std,lax,yolo	root	turbo
 add-wrangler	add-wrangler.sh	Install Cloudflare Wrangler CLI globally	std,lax,yolo	root	wrangler
+add-gemini	add-gemini.sh	Install Gemini CLI globally with persisted config/auth storage	std,lax,yolo	root	gemini
+add-opencode	add-opencode.sh	Install OpenCode CLI globally with persisted config/auth storage	std,lax,yolo	root	opencode
 add-bun	add-bun.sh	Install Bun runtime via mise	std,lax,yolo	root	bun,bunx
 add-deno	add-deno.sh	Install Deno runtime via mise	std,lax,yolo	root	deno
 add-mailpit	add-mailpit.sh	Install Mailpit local SMTP/UI tool	std,lax,yolo	root	mailpit,mp-local

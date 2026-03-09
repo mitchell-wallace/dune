@@ -127,12 +127,6 @@ RUN set -eux; \
 # Install Codex
 RUN npm i -g @openai/codex
 
-# Install Gemini CLI
-RUN npm install -g @google/gemini-cli
-
-# Install OpenCode
-RUN npm i -g opencode-ai@latest
-
 # Install core project tools (beads, mise, etc.)
 COPY --chown=node:node install-project-tools.sh /tmp/install-project-tools.sh
 USER root
@@ -229,14 +223,12 @@ RUN \
 # Run per-agent configuration scripts after all CLIs are installed
 COPY --chown=node:node configure-claude.sh /tmp/configure-claude.sh
 COPY --chown=node:node configure-codex.sh /tmp/configure-codex.sh
-COPY --chown=node:node configure-gemini.sh /tmp/configure-gemini.sh
 COPY --chown=node:node configure-git-gh.sh /tmp/configure-git-gh.sh
-RUN chmod +x /tmp/configure-claude.sh /tmp/configure-codex.sh /tmp/configure-gemini.sh /tmp/configure-git-gh.sh && \
+RUN chmod +x /tmp/configure-claude.sh /tmp/configure-codex.sh /tmp/configure-git-gh.sh && \
   /tmp/configure-claude.sh && \
   /tmp/configure-codex.sh && \
-  /tmp/configure-gemini.sh && \
   /tmp/configure-git-gh.sh && \
-  rm -f /tmp/configure-claude.sh /tmp/configure-codex.sh /tmp/configure-gemini.sh /tmp/configure-git-gh.sh
+  rm -f /tmp/configure-claude.sh /tmp/configure-codex.sh /tmp/configure-git-gh.sh
 
 # Refresh defaults after setup scripts so empty persisted volumes can be re-seeded.
 RUN rm -rf /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defaults/gemini /opt/agent-defaults/opencode /opt/agent-defaults/gh /opt/agent-defaults/git /opt/agent-defaults/addons && \
