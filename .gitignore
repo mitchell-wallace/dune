@@ -1,5 +1,67 @@
+# Secrets
 google_accounts.json
 oauth_creds.json
 auth.json
 .credentials.json
+
+# Temporary files
+temp/
+tmp/
 scratchpad.md
+
+# Node
+node_modules/
+package-lock.json
+yarn.lock
+.npm/
+.yarn/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+*.egg
+.eggs/
+*.whl
+venv/
+.venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+.tox/
+
+# Go
+vendor/
+*.out
+go.sum
+
+# Test/build artifacts
+test/
+dist/
+build/
+*.tgz
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment / secrets
+.env
+.env.*
+*.pem
+*.key
+
+# Logs
+*.log
+npm-debug.log*
