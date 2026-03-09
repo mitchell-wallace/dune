@@ -21,6 +21,7 @@ Usage: sand [workspace_dir] [profile] [mode]
        sand [profile] [mode]
        sand -d <workspace_dir> -p <profile> -m <mode>
        sand config [-d <workspace_dir>]
+       sand rebuild [-d <workspace_dir>]
 
 Modes:
   std | standard (default)
@@ -40,9 +41,12 @@ Examples:
   sand -d ./strict -p 0 -m std
   sand config
   sand config -d ./repo
+  sand rebuild
+  sand rebuild -d ./repo
 
 Notes:
   - 'sand config' is an interactive sand.toml wizard
+  - 'sand rebuild' tears down and rebuilds the container for the workspace
   - to target a folder literally named 'config', run: sand -d ./config
 USAGE
   exit 1
@@ -428,6 +432,86 @@ if [ "${1:-}" = "config" ]; then
   shift
   run_config_wizard "$@"
   exit $?
+fi
+
+if [ "${1:-}" = "rebuild" ]; then
+  shift
+
+  # Parse rebuild-specific flags (only -d/--directory supported)
+  rebuild_workspace_input=""
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      -h|--help)
+        cat >&2 <<'REBUILD_USAGE'
+Usage: sand rebuild [-d <workspace_dir>]
+
+Tears down and rebuilds the container for the current workspace and profile.
+Settings (profile, mode, addons, etc.) are read from sand.toml.
+
+Options:
+  -d, --directory  workspace directory (default: current directory)
+  -h, --help       show this help
+REBUILD_USAGE
+        exit 0
+        ;;
+      -d|--directory)
+        if [ "$#" -lt 2 ]; then
+          echo "Missing value for $1" >&2
+          exit 1
+        fi
+        rebuild_workspace_input="$2"
+        shift 2
+        ;;
+      -*)
+        echo "Unknown option for sand rebuild: $1" >&2
+        exit 1
+        ;;
+      *)
+        if [ -z "$rebuild_workspace_input" ]; then
+          rebuild_workspace_input="$1"
+          shift
+        else
+          echo "Unexpected argument for sand rebuild: $1" >&2
+          exit 1
+        fi
+        ;;
+    esac
+  done
+
+  rebuild_workspace_input="${rebuild_workspace_input:-$PWD}"
+  if [ ! -d "$rebuild_workspace_input" ]; then
+    echo "Workspace directory does not exist: $rebuild_workspace_input" >&2
+    exit 1
+  fi
+
+  REBUILD_WORKSPACE_DIR="$(cd "$rebuild_workspace_input" && pwd -P)"
+
+  # Read sand.toml for profile
+  rebuild_profile="0"
+  if SAND_CONFIG_PATH="$(find_sand_toml "$REBUILD_WORKSPACE_DIR" 2>/dev/null)"; then
+    parse_sand_toml "$SAND_CONFIG_PATH"
+    if [ -n "$CONFIG_PROFILE" ]; then
+      rebuild_profile="$(normalize_profile "$CONFIG_PROFILE")" || {
+        echo "Invalid profile in sand.toml: '$CONFIG_PROFILE'" >&2
+        exit 1
+      }
+    fi
+  fi
+
+  REBUILD_BASENAME="$(basename "$REBUILD_WORKSPACE_DIR")"
+  REBUILD_SLUG="$(printf '%s' "$REBUILD_BASENAME" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-')"
+  REBUILD_HASH="$(printf '%s' "$REBUILD_WORKSPACE_DIR" | sha1sum | awk '{print substr($1,1,8)}')"
+  REBUILD_CONTAINER="sand-${REBUILD_SLUG}-${REBUILD_HASH}-${rebuild_profile}"
+
+  if container_exists "$REBUILD_CONTAINER"; then
+    echo "Tearing down container: $REBUILD_CONTAINER"
+    docker rm -f "$REBUILD_CONTAINER" >/dev/null
+  else
+    echo "No existing container found: $REBUILD_CONTAINER (will build fresh)"
+  fi
+
+  echo "Rebuilding container..."
+  exec "$0" -d "$REBUILD_WORKSPACE_DIR"
 fi
 
 if ! command -v docker >/dev/null 2>&1; then
