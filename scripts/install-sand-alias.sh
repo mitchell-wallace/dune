@@ -4,11 +4,19 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 SAND_SCRIPT="$REPO_ROOT/sand.sh"
+BUILD_SCRIPT="$SCRIPT_DIR/build-sand.sh"
 
 if [ ! -f "$SAND_SCRIPT" ]; then
   echo "Missing script: $SAND_SCRIPT" >&2
   exit 1
 fi
+
+if [ ! -x "$BUILD_SCRIPT" ]; then
+  echo "Missing build helper: $BUILD_SCRIPT" >&2
+  exit 1
+fi
+
+"$BUILD_SCRIPT" >/dev/null
 
 append_alias_if_missing() {
   local rc_file="$1"

@@ -19,7 +19,7 @@ Changes:
 
 How to use:
 
-Run `install-sand-alias.sh`, then from any folder run `sand` to create or reuse the workspace container and start an interactive session. The host-side `sand` control plane now lives in Go under `cmd/sand`; `sand.sh` is only a compatibility shim.
+Run `install-sand-alias.sh`, then from any folder run `sand` to create or reuse the workspace container and start an interactive session. The installer prebuilds a repo-local host binary at `.bin/sand`, and `sand.sh` rebuilds that binary only when Go sources change.
 
 `sand` supports profile + security mode selection:
 

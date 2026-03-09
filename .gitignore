@@ -38,6 +38,7 @@ htmlcov/
 vendor/
 *.out
 /sand
+/.bin/
 
 # Test/build artifacts
 test/

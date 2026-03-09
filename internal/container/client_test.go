@@ -73,3 +73,39 @@ func TestResolveWorkspaceModeFallsBackToMount(t *testing.T) {
 		t.Fatalf("unexpected workspace mode: %s", mode)
 	}
 }
+
+func TestFindCreatedContainerIDReturnsFirstMatch(t *testing.T) {
+	t.Parallel()
+
+	client := NewClient(fakeRunner{
+		output: map[string]string{
+			"docker ps -aq --filter label=devcontainer.local_folder=/tmp/demo --filter label=devcontainer.config_file=/tmp/devcontainer.json --filter label=sand.profile=0": "abc123\nxyz789",
+		},
+	})
+
+	got, err := client.FindCreatedContainerID(context.Background(), "/tmp/demo", "/tmp/devcontainer.json", "0")
+	if err != nil {
+		t.Fatalf("FindCreatedContainerID returned error: %v", err)
+	}
+	if got != "abc123" {
+		t.Fatalf("unexpected container id: %s", got)
+	}
+}
+
+func TestContainerEnvValueFindsKey(t *testing.T) {
+	t.Parallel()
+
+	client := NewClient(fakeRunner{
+		output: map[string]string{
+			"docker inspect -f {{range .Config.Env}}{{println .}}{{end}} sand-demo": "FOO=bar\nSAND_WORKSPACE_MODE=copy",
+		},
+	})
+
+	got, err := client.ContainerEnvValue(context.Background(), "sand-demo", "SAND_WORKSPACE_MODE")
+	if err != nil {
+		t.Fatalf("ContainerEnvValue returned error: %v", err)
+	}
+	if got != "copy" {
+		t.Fatalf("unexpected env value: %s", got)
+	}
+}

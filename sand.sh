@@ -3,9 +3,16 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 CALLER_PWD="${PWD}"
+BUILD_SCRIPT="$SCRIPT_DIR/scripts/build-sand.sh"
 
-cd "$SCRIPT_DIR"
+if [ ! -x "$BUILD_SCRIPT" ]; then
+  echo "Missing build helper: $BUILD_SCRIPT" >&2
+  exit 1
+fi
+
+BINARY_PATH="$("$BUILD_SCRIPT" --print-path)"
+
 exec env \
   SAND_REPO_ROOT="$SCRIPT_DIR" \
   SAND_CALLER_PWD="$CALLER_PWD" \
-  go run ./cmd/sand "$@"
+  "$BINARY_PATH" "$@"

@@ -65,7 +65,16 @@ func (c *Client) ContainerRunning(ctx context.Context, name string) bool {
 }
 
 func (c *Client) ContainerEnvValue(ctx context.Context, name, key string) (string, error) {
-	return c.Runner.Output(ctx, "docker", "inspect", "-f", fmt.Sprintf("{{range .Config.Env}}{{println .}}{{end}}"), name)
+	envValue, err := c.Runner.Output(ctx, "docker", "inspect", "-f", fmt.Sprintf("{{range .Config.Env}}{{println .}}{{end}}"), name)
+	if err != nil {
+		return "", err
+	}
+	for _, line := range strings.Split(envValue, "\n") {
+		if strings.HasPrefix(line, key+"=") {
+			return strings.TrimPrefix(line, key+"="), nil
+		}
+	}
+	return "", nil
 }
 
 func (c *Client) ResolveContainerMode(ctx context.Context, name string) (domain.Mode, error) {
@@ -121,11 +130,21 @@ func (c *Client) StartContainer(ctx context.Context, name string) error {
 }
 
 func (c *Client) FindCreatedContainerID(ctx context.Context, workspaceDir, configPath, profile string) (string, error) {
-	return c.Runner.Output(ctx, "docker", "ps", "-aq",
+	output, err := c.Runner.Output(ctx, "docker", "ps", "-aq",
 		"--filter", "label=devcontainer.local_folder="+workspaceDir,
 		"--filter", "label=devcontainer.config_file="+configPath,
 		"--filter", "label=sand.profile="+profile,
 	)
+	if err != nil {
+		return "", err
+	}
+	for _, line := range strings.Split(output, "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			return line, nil
+		}
+	}
+	return "", nil
 }
 
 func (c *Client) ContainerName(ctx context.Context, id string) (string, error) {

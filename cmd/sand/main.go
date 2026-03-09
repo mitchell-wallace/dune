@@ -27,6 +27,11 @@ type repoPaths struct {
 	Manifest     string
 }
 
+type addonContainer interface {
+	ContainerFileExists(ctx context.Context, name, path string) bool
+	ExecInContainer(ctx context.Context, name string, env map[string]string, args ...string) error
+}
+
 func main() {
 	if err := run(os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -242,7 +247,7 @@ func resolveConfig(ref domain.WorkspaceRef) (domain.SandConfig, []string, error)
 	return cfg, warnings, nil
 }
 
-func applyConfiguredAddons(ctx context.Context, docker *container.Client, cfg domain.SandConfig, containerName, manifestPath string) error {
+func applyConfiguredAddons(ctx context.Context, docker addonContainer, cfg domain.SandConfig, containerName, manifestPath string) error {
 	if len(cfg.Addons) == 0 {
 		return nil
 	}
@@ -259,19 +264,7 @@ func applyConfiguredAddons(ctx context.Context, docker *container.Client, cfg do
 	requested := addons.DedupeRequested(cfg.Addons)
 	fmt.Printf("Applying configured addons from sand.toml (%d requested)...\n", len(requested))
 
-	env := map[string]string{}
-	if cfg.PythonVersion != "" {
-		env["SAND_PYTHON_VERSION"] = cfg.PythonVersion
-	}
-	if cfg.UVVersion != "" {
-		env["SAND_UV_VERSION"] = cfg.UVVersion
-	}
-	if cfg.GoVersion != "" {
-		env["SAND_GO_VERSION"] = cfg.GoVersion
-	}
-	if cfg.RustVersion != "" {
-		env["SAND_RUST_VERSION"] = cfg.RustVersion
-	}
+	env := addonEnv(cfg)
 
 	installed := 0
 	skippedInstalled := 0
@@ -302,6 +295,23 @@ func applyConfiguredAddons(ctx context.Context, docker *container.Client, cfg do
 
 	fmt.Printf("sand.toml addon summary: installed=%d skipped_installed=%d skipped_unknown=%d skipped_invalid=%d\n", installed, skippedInstalled, skippedUnknown, skippedInvalid)
 	return nil
+}
+
+func addonEnv(cfg domain.SandConfig) map[string]string {
+	env := map[string]string{}
+	if cfg.PythonVersion != "" {
+		env["SAND_PYTHON_VERSION"] = cfg.PythonVersion
+	}
+	if cfg.UVVersion != "" {
+		env["SAND_UV_VERSION"] = cfg.UVVersion
+	}
+	if cfg.GoVersion != "" {
+		env["SAND_GO_VERSION"] = cfg.GoVersion
+	}
+	if cfg.RustVersion != "" {
+		env["SAND_RUST_VERSION"] = cfg.RustVersion
+	}
+	return env
 }
 
 func locateRepoPaths() (repoPaths, error) {
