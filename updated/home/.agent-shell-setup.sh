@@ -17,13 +17,15 @@ _show_agent_startup_message() {
   [ -n "${SAND_STARTUP_MESSAGE_SHOWN:-}" ] && return 0
   export SAND_STARTUP_MESSAGE_SHOWN=1
 
-  local mode profile
+  local mode profile ws_mode
   mode="$(printf '%s' "${SAND_SECURITY_MODE:-std}" | tr '[:upper:]' '[:lower:]')"
   profile="$(printf '%s' "${SAND_PROFILE:-0}" | tr '[:upper:]' '[:lower:]')"
+  ws_mode="$(printf '%s' "${SAND_WORKSPACE_MODE:-mount}" | tr '[:upper:]' '[:lower:]')"
 
   cat <<EOF
 Sandbox profile: ${profile}
 Security mode: ${mode}
+Workspace mode: ${ws_mode}
 
 Sandbox aliases:
   cc      -> claude --dangerously-skip-permissions

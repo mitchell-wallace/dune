@@ -23,7 +23,11 @@ MODE_HELP: dict[str, str] = {
     "std": "firewall enabled, curated addons available",
     "lax": "firewall enabled, passwordless sudo",
     "yolo": "firewall disabled, passwordless sudo",
-    "strict": "firewall enabled, addons disabled",
+    "strict": "firewall enabled, addons disabled, workspace copied (not mounted)",
+}
+WORKSPACE_MODE_HELP: dict[str, str] = {
+    "mount": "bind-mount workspace from host (read-write, default)",
+    "copy": "copy workspace into container (host filesystem unchanged, use git to sync)",
 }
 VERSION_KEYS = [
     "python_version",
@@ -226,6 +230,27 @@ def prompt_mode(default_mode: str) -> str:
     return selected
 
 
+def prompt_workspace_mode(mode: str, default_ws_mode: str, console: Console) -> str:
+    if mode == "strict":
+        console.print(
+            "[yellow]strict mode enforces workspace_mode=copy (host filesystem is never modified).[/yellow]"
+        )
+        return "copy"
+
+    choices: list[Choice] = []
+    for ws_mode, description in WORKSPACE_MODE_HELP.items():
+        choices.append(Choice(title=f"{ws_mode:6} {description}", value=ws_mode))
+
+    selected = questionary.select(
+        "Select workspace mode:",
+        choices=choices,
+        default=default_ws_mode,
+    ).ask()
+    if selected is None:
+        raise KeyboardInterrupt
+    return selected
+
+
 def prompt_addons(
     mode: str,
     addons: list[Addon],
@@ -311,11 +336,13 @@ def update_doc(
     doc: TOMLDocument,
     profile: str,
     mode: str,
+    workspace_mode: str,
     addons: list[str],
     version_updates: dict[str, str | None] | None,
 ) -> None:
     doc["profile"] = profile
     doc["mode"] = mode
+    doc["workspace_mode"] = workspace_mode
     addon_array = array()
     addon_array.multiline(False)
     for addon in addons:
@@ -339,6 +366,7 @@ def print_summary(
     target_path: Path,
     profile: str,
     mode: str,
+    workspace_mode: str,
     addons: list[str],
     version_updates: dict[str, str | None] | None,
     existing_versions: dict[str, str],
@@ -350,6 +378,7 @@ def print_summary(
     table.add_row("target", str(target_path))
     table.add_row("profile", profile)
     table.add_row("mode", mode)
+    table.add_row("workspace_mode", workspace_mode)
     table.add_row("addons", ", ".join(addons) if addons else "(none)")
 
     if version_updates is None:
@@ -414,6 +443,9 @@ def main() -> None:
 
     existing_profile = normalize_profile(get_existing_scalar(doc, "profile") or "") or "0"
     existing_mode = canonicalize_mode(get_existing_scalar(doc, "mode"))
+    existing_ws_mode = get_existing_scalar(doc, "workspace_mode") or "mount"
+    if existing_ws_mode not in WORKSPACE_MODE_HELP:
+        existing_ws_mode = "mount"
     existing_addons = get_existing_addons(doc)
     existing_versions = {
         key: get_existing_scalar(doc, key)
@@ -450,6 +482,7 @@ def main() -> None:
     try:
         profile = prompt_profile(console, discovered_profiles, existing_profile)
         mode = prompt_mode(existing_mode)
+        workspace_mode = prompt_workspace_mode(mode, existing_ws_mode, console)
         selected_addons = prompt_addons(mode, addons, existing_addons, console)
         version_updates = prompt_versions(existing_versions, console)
     except KeyboardInterrupt:
@@ -462,6 +495,7 @@ def main() -> None:
         target_path=target_path,
         profile=profile,
         mode=mode,
+        workspace_mode=workspace_mode,
         addons=selected_addons,
         version_updates=version_updates,
         existing_versions=existing_versions,
@@ -479,6 +513,7 @@ def main() -> None:
         doc=doc,
         profile=profile,
         mode=mode,
+        workspace_mode=workspace_mode,
         addons=selected_addons,
         version_updates=version_updates,
     )

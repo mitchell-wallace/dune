@@ -8,6 +8,7 @@ CONFIG_FILE="$SCRIPT_DIR/updated/devcontainer.json"
 SAND_CONFIG_PATH=""
 CONFIG_PROFILE=""
 CONFIG_MODE=""
+CONFIG_WORKSPACE_MODE=""
 CONFIG_ADDONS=()
 CONFIG_PYTHON_VERSION=""
 CONFIG_UV_VERSION=""
@@ -269,6 +270,7 @@ path = sys.argv[1]
 allowed = {
     "profile",
     "mode",
+    "workspace_mode",
     "addons",
     "python_version",
     "uv_version",
@@ -296,6 +298,7 @@ for k in data.keys():
 for scalar_key in [
     "profile",
     "mode",
+    "workspace_mode",
     "python_version",
     "uv_version",
     "go_version",
@@ -337,6 +340,7 @@ PY
         case "$key" in
           profile) CONFIG_PROFILE="$value" ;;
           mode) CONFIG_MODE="$value" ;;
+          workspace_mode) CONFIG_WORKSPACE_MODE="$value" ;;
           python_version) CONFIG_PYTHON_VERSION="$value" ;;
           uv_version) CONFIG_UV_VERSION="$value" ;;
           go_version) CONFIG_GO_VERSION="$value" ;;
@@ -614,6 +618,53 @@ fi
 
 build_addon_build_arg build_addons_arg
 
+# Resolve workspace_mode (mount or copy)
+workspace_mode="${CONFIG_WORKSPACE_MODE:-mount}"
+case "$workspace_mode" in
+  mount|copy) ;;
+  *)
+    echo "Invalid workspace_mode in sand.toml: '$workspace_mode' (expected: mount|copy)" >&2
+    exit 1
+    ;;
+esac
+if [ "$mode" = "strict" ]; then
+  if [ "$workspace_mode" = "mount" ] && [ -n "$CONFIG_WORKSPACE_MODE" ] && [ "$CONFIG_WORKSPACE_MODE" = "mount" ]; then
+    warn "strict mode enforces workspace_mode=copy; overriding configured 'mount'."
+  fi
+  workspace_mode="copy"
+fi
+
+# Generate effective devcontainer config (disables bind mount in copy mode)
+EFFECTIVE_CONFIG="$CONFIG_FILE"
+COPY_MODE_TMP_DIR=""
+if [ "$workspace_mode" = "copy" ]; then
+  COPY_MODE_TMP_DIR="$(mktemp -d /tmp/sand-devcontainer-XXXXXX)"
+  EFFECTIVE_CONFIG="$COPY_MODE_TMP_DIR/devcontainer.json"
+  python3 -c '
+import json, os, sys
+original_path = sys.argv[1]
+original_dir = os.path.dirname(os.path.abspath(original_path))
+with open(original_path) as f:
+    config = json.load(f)
+config["workspaceMount"] = ""
+config.setdefault("containerEnv", {})["SAND_WORKSPACE_MODE"] = "copy"
+# Resolve relative dockerfile path so devcontainers CLI can find it from the temp dir
+if "build" in config and "dockerfile" in config["build"]:
+    df = config["build"]["dockerfile"]
+    if not os.path.isabs(df):
+        config["build"]["dockerfile"] = os.path.join(original_dir, df)
+# Resolve context if present
+if "build" in config and "context" in config["build"]:
+    ctx = config["build"]["context"]
+    if not os.path.isabs(ctx):
+        config["build"]["context"] = os.path.join(original_dir, ctx)
+elif "build" in config:
+    config["build"]["context"] = original_dir
+with open(sys.argv[2], "w") as f:
+    json.dump(config, f, indent=2)
+' "$CONFIG_FILE" "$EFFECTIVE_CONFIG"
+fi
+
 PROJECT_BASENAME="$(basename "$WORKSPACE_DIR")"
 PROJECT_SLUG="$(printf '%s' "$PROJECT_BASENAME" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-')"
 PROJECT_HASH="$(printf '%s' "$WORKSPACE_DIR" | sha1sum | awk '{print substr($1,1,8)}')"
@@ -636,8 +687,19 @@ To change mode, remove/recreate this workspace+profile container.
 WARN_MSG
   fi
   mode="$existing_mode"
+
+  existing_ws_mode="$(container_env_value "$CONTAINER_NAME" "SAND_WORKSPACE_MODE" || true)"
+  existing_ws_mode="${existing_ws_mode:-mount}"
+  if [ "$workspace_mode" != "$existing_ws_mode" ]; then
+    cat >&2 <<WARN_MSG
+WARNING: Container '$CONTAINER_NAME' already exists with workspace_mode '$existing_ws_mode',
+but you requested '$workspace_mode'. The existing workspace_mode is immutable and will be used.
+To change workspace_mode, remove/recreate this workspace+profile container.
+WARN_MSG
+  fi
+  workspace_mode="$existing_ws_mode"
 else
-  echo "Provisioning dev container via devcontainers CLI (profile=$profile mode=$mode)"
+  echo "Provisioning dev container via devcontainers CLI (profile=$profile mode=$mode workspace_mode=$workspace_mode)"
   if [ -n "$build_addons_arg" ]; then
     echo "Build-time addons requested from sand.toml: $build_addons_arg"
   fi
@@ -645,6 +707,7 @@ else
     cd "$SCRIPT_DIR"
     SAND_PROFILE="$profile" \
       SAND_SECURITY_MODE="$mode" \
+      SAND_WORKSPACE_MODE="$workspace_mode" \
       SAND_BUILD_MODE="$mode" \
       SAND_BUILD_ADDONS="$build_addons_arg" \
       SAND_PYTHON_VERSION="$CONFIG_PYTHON_VERSION" \
@@ -659,11 +722,16 @@ else
       SAND_DENO_VERSION="$CONFIG_DENO_VERSION" \
       npx @devcontainers/cli up \
         --workspace-folder "$WORKSPACE_DIR" \
-        --config "$CONFIG_FILE" \
+        --config "$EFFECTIVE_CONFIG" \
         --id-label "devcontainer.local_folder=$WORKSPACE_DIR" \
         --id-label "devcontainer.config_file=$CONFIG_FILE" \
         --id-label "sand.profile=$profile"
   )
+
+  # Clean up temp config dir now that provisioning is done
+  if [ -n "$COPY_MODE_TMP_DIR" ] && [ -d "$COPY_MODE_TMP_DIR" ]; then
+    rm -rf "$COPY_MODE_TMP_DIR"
+  fi
 
   CREATED_ID="$(docker ps -aq \
     --filter "label=devcontainer.local_folder=$WORKSPACE_DIR" \
@@ -679,6 +747,17 @@ else
   CREATED_NAME="$(docker inspect -f '{{.Name}}' "$CREATED_ID" | sed 's#^/##')"
   if [ "$CREATED_NAME" != "$CONTAINER_NAME" ]; then
     docker rename "$CREATED_ID" "$CONTAINER_NAME" >/dev/null
+  fi
+
+  # In copy mode, copy the workspace into the container instead of bind-mounting
+  if [ "$workspace_mode" = "copy" ]; then
+    echo "Copying workspace into container (workspace_mode=copy)..."
+    if ! container_running "$CONTAINER_NAME"; then
+      docker start "$CONTAINER_NAME" >/dev/null
+    fi
+    docker cp "$WORKSPACE_DIR/." "$CONTAINER_NAME:/workspace/"
+    docker exec --user root "$CONTAINER_NAME" chown -R node:node /workspace
+    echo "Workspace copied. Host filesystem will not be modified."
   fi
 fi
 

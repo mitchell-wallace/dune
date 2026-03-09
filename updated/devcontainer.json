@@ -63,7 +63,8 @@
     "LANG": "${localEnv:LANG:en_AU.UTF-8}",
     "LANGUAGE": "${localEnv:LANGUAGE:en_AU:en}",
     "SAND_PROFILE": "${localEnv:SAND_PROFILE:0}",
-    "SAND_SECURITY_MODE": "${localEnv:SAND_SECURITY_MODE:std}"
+    "SAND_SECURITY_MODE": "${localEnv:SAND_SECURITY_MODE:std}",
+    "SAND_WORKSPACE_MODE": "${localEnv:SAND_WORKSPACE_MODE:mount}"
   },
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
   "workspaceFolder": "/workspace",
