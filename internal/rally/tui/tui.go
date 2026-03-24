@@ -24,6 +24,10 @@ type Config struct {
 	AutoStart        bool
 	ExitWhenIdle     bool
 	BeadsMode        string
+	ClaudeModel      string
+	CodexModel       string
+	GeminiModel      string
+	OpenCodeModel    string
 }
 
 type model struct {
@@ -54,6 +58,10 @@ func Run(cfg Config) error {
 		Stdout:           os.Stdout,
 		Stderr:           os.Stderr,
 		BeadsMode:        cfg.BeadsMode,
+		ClaudeModel:      cfg.ClaudeModel,
+		CodexModel:       cfg.CodexModel,
+		GeminiModel:      cfg.GeminiModel,
+		OpenCodeModel:    cfg.OpenCodeModel,
 	})
 	if err := r.EnsureInitialized(); err != nil {
 		return err

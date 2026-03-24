@@ -35,6 +35,11 @@ type DuneConfig struct {
 	WorkspaceMode WorkspaceMode
 	Gear          []GearName
 
+	ClaudeModel   string
+	CodexModel    string
+	GeminiModel   string
+	OpenCodeModel string
+
 	PythonVersion string
 	UVVersion     string
 	GoVersion     string

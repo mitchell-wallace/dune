@@ -37,6 +37,10 @@ type Config struct {
 	InlinePrompt     string
 	ScoutMode        bool
 	ScoutFocus       string
+	ClaudeModel      string
+	CodexModel       string
+	GeminiModel      string
+	OpenCodeModel    string
 }
 
 const defaultScoutIterations = 5
@@ -131,16 +135,36 @@ func AgentForSession(sessionID int, mix AgentMix) string {
 	return mix.Cycle[(sessionID-1)%len(mix.Cycle)]
 }
 
-func BuildAgentCommand(agentName, prompt string) ([]string, bool, error) {
+func BuildAgentCommand(cfg Config, agentName, prompt string) ([]string, bool, error) {
 	switch agentName {
 	case "claude":
-		return []string{"claude", "-p", "--dangerously-skip-permissions", "--output-format", "text", prompt}, false, nil
+		command := []string{"claude", "-p", "--dangerously-skip-permissions"}
+		if cfg.ClaudeModel != "" {
+			command = append(command, "--model", cfg.ClaudeModel)
+		}
+		command = append(command, "--output-format", "text", prompt)
+		return command, false, nil
 	case "codex":
-		return []string{"codex", "exec", "--dangerously-bypass-approvals-and-sandbox", prompt}, true, nil
+		command := []string{"codex", "exec", "--dangerously-bypass-approvals-and-sandbox"}
+		if cfg.CodexModel != "" {
+			command = append(command, "--model", cfg.CodexModel)
+		}
+		command = append(command, prompt)
+		return command, true, nil
 	case "gemini":
-		return []string{"gemini", "--prompt", prompt, "--yolo", "--output-format", "text"}, false, nil
+		command := []string{"gemini"}
+		if cfg.GeminiModel != "" {
+			command = append(command, "--model", cfg.GeminiModel)
+		}
+		command = append(command, "--prompt", prompt, "--yolo", "--output-format", "text")
+		return command, false, nil
 	case "opencode":
-		return []string{"opencode", "run", prompt}, false, nil
+		command := []string{"opencode", "run"}
+		if cfg.OpenCodeModel != "" {
+			command = append(command, "--model", cfg.OpenCodeModel)
+		}
+		command = append(command, prompt)
+		return command, false, nil
 	default:
 		return nil, false, fmt.Errorf("unsupported agent %q", agentName)
 	}
@@ -301,7 +325,7 @@ func (r *Runner) runOne(ctx context.Context, st *state.State, mix AgentMix) (Ses
 		return SessionResult{}, err
 	}
 
-	cmdArgs, suppressStderr, err := BuildAgentCommand(agent, promptBody)
+	cmdArgs, suppressStderr, err := BuildAgentCommand(r.cfg, agent, promptBody)
 	if err != nil {
 		return SessionResult{}, err
 	}

@@ -30,6 +30,7 @@ dune config -d ./repo       # run wizard for a specific workspace
 - profile selection (including discovered `agent-persist-*` profile volumes)
 - security mode selection with descriptions
 - gear toggles with manifest descriptions
+- per-harness default model prompts for Claude Code, Codex, Gemini, and OpenCode
 - optional advanced version pins
 
 If a `dune.toml` is found for the workspace, `dune` reads defaults for profile/mode/gear and pre-installs configured gear during image build (before firewall init), with a post-start install-missing fallback.
@@ -127,6 +128,12 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
   - `profile = "0"`
   - `mode = "std"`
   - `gear = ["add-playwright", "add-go"]`
+  - model defaults:
+    - `claude_model = "sonnet"` -> passed as `claude --model`
+    - `codex_model = "o3"` -> passed as `codex exec --model`
+    - `gemini_model = "gemini-2.5-pro"` -> passed as `gemini --model`
+    - `opencode_model = "anthropic/claude-sonnet-4"` -> passed as `opencode run --model`
+  - `dune config` always writes these four keys, even when blank, so the file shows users how to configure them
   - Optional version pins:
     - `python_version`, `uv_version`, `go_version`, `rust_version`
 - Precedence:

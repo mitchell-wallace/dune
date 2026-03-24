@@ -19,7 +19,14 @@ var VersionKeys = []string{
 	"rust_version",
 }
 
-var ScalarKeys = append([]string{"profile", "mode", "workspace_mode"}, VersionKeys...)
+var ModelKeys = []string{
+	"claude_model",
+	"codex_model",
+	"gemini_model",
+	"opencode_model",
+}
+
+var ScalarKeys = append(append([]string{"profile", "mode", "workspace_mode"}, ModelKeys...), VersionKeys...)
 
 var allowedKeys = func() map[string]struct{} {
 	keys := make(map[string]struct{}, len(ScalarKeys)+1)
@@ -169,6 +176,14 @@ func Parse(data map[string]any) (domain.DuneConfig, []string, error) {
 			cfg.GoVersion = strings.TrimSpace(strValue)
 		case "rust_version":
 			cfg.RustVersion = strings.TrimSpace(strValue)
+		case "claude_model":
+			cfg.ClaudeModel = strings.TrimSpace(strValue)
+		case "codex_model":
+			cfg.CodexModel = strings.TrimSpace(strValue)
+		case "gemini_model":
+			cfg.GeminiModel = strings.TrimSpace(strValue)
+		case "opencode_model":
+			cfg.OpenCodeModel = strings.TrimSpace(strValue)
 		}
 	}
 
@@ -242,11 +257,32 @@ func ExistingVersions(data map[string]any) map[string]string {
 	return result
 }
 
+func ExistingModels(data map[string]any) map[string]string {
+	result := map[string]string{}
+	for _, key := range ModelKeys {
+		value, ok := data[key]
+		if !ok || value == nil {
+			result[key] = ""
+			continue
+		}
+		if strValue, ok := value.(string); ok {
+			result[key] = strings.TrimSpace(strValue)
+			continue
+		}
+		result[key] = ""
+	}
+	return result
+}
+
 func UpdateData(data map[string]any, cfg domain.DuneConfig, configureVersions bool, versionUpdates map[string]string) {
 	data["profile"] = string(cfg.Profile)
 	data["mode"] = string(cfg.Mode)
 	data["workspace_mode"] = string(cfg.WorkspaceMode)
 	data["gear"] = gearStrings(cfg.Gear)
+	data["claude_model"] = strings.TrimSpace(cfg.ClaudeModel)
+	data["codex_model"] = strings.TrimSpace(cfg.CodexModel)
+	data["gemini_model"] = strings.TrimSpace(cfg.GeminiModel)
+	data["opencode_model"] = strings.TrimSpace(cfg.OpenCodeModel)
 	if cfg.Beads != "" {
 		data["beads"] = cfg.Beads
 	}

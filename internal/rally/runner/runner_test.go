@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -101,3 +102,68 @@ func TestRunnerAppliesBatchMessageAcrossRemainingSessions(t *testing.T) {
 type ioDiscard struct{}
 
 func (ioDiscard) Write(p []byte) (int, error) { return len(p), nil }
+
+func TestBuildAgentCommandUsesConfiguredModels(t *testing.T) {
+	t.Parallel()
+
+	cfg := Config{
+		ClaudeModel:   "sonnet",
+		CodexModel:    "o3",
+		GeminiModel:   "gemini-2.5-pro",
+		OpenCodeModel: "anthropic/claude-sonnet-4",
+	}
+
+	tests := []struct {
+		agent  string
+		want   []string
+		stderr bool
+	}{
+		{
+			agent:  "claude",
+			want:   []string{"claude", "-p", "--dangerously-skip-permissions", "--model", "sonnet", "--output-format", "text", "prompt"},
+			stderr: false,
+		},
+		{
+			agent:  "codex",
+			want:   []string{"codex", "exec", "--dangerously-bypass-approvals-and-sandbox", "--model", "o3", "prompt"},
+			stderr: true,
+		},
+		{
+			agent:  "gemini",
+			want:   []string{"gemini", "--model", "gemini-2.5-pro", "--prompt", "prompt", "--yolo", "--output-format", "text"},
+			stderr: false,
+		},
+		{
+			agent:  "opencode",
+			want:   []string{"opencode", "run", "--model", "anthropic/claude-sonnet-4", "prompt"},
+			stderr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		got, suppressStderr, err := BuildAgentCommand(cfg, tt.agent, "prompt")
+		if err != nil {
+			t.Fatalf("%s returned error: %v", tt.agent, err)
+		}
+		if !reflect.DeepEqual(got, tt.want) {
+			t.Fatalf("%s command mismatch:\n got %#v\nwant %#v", tt.agent, got, tt.want)
+		}
+		if suppressStderr != tt.stderr {
+			t.Fatalf("%s suppressStderr mismatch: got %v want %v", tt.agent, suppressStderr, tt.stderr)
+		}
+	}
+}
+
+func TestBuildAgentCommandOmitsEmptyModelFlags(t *testing.T) {
+	t.Parallel()
+
+	got, _, err := BuildAgentCommand(Config{}, "opencode", "prompt")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	want := []string{"opencode", "run", "prompt"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("command mismatch:\n got %#v\nwant %#v", got, want)
+	}
+}

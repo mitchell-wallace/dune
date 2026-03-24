@@ -30,6 +30,17 @@ var workspaceModeOptions = []option{
 	{Value: string(domain.WorkspaceModeCopy), Description: "copy workspace into container (host filesystem unchanged, use git to sync)"},
 }
 
+var modelPrompts = []struct {
+	Key         string
+	Label       string
+	Description string
+}{
+	{Key: "claude_model", Label: "Claude Code", Description: "passed as claude --model"},
+	{Key: "codex_model", Label: "Codex", Description: "passed as codex exec --model"},
+	{Key: "gemini_model", Label: "Gemini", Description: "passed as gemini --model"},
+	{Key: "opencode_model", Label: "OpenCode", Description: "passed as opencode run --model provider/model"},
+}
+
 var (
 	titleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("6"))
 	boxStyle   = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("6")).Padding(1, 2)
@@ -55,6 +66,7 @@ type wizardConfig struct {
 	ExistingMode     string
 	ExistingWSMode   string
 	ExistingGear     map[string]bool
+	ExistingModels   map[string]string
 	ExistingVersions map[string]string
 }
 
@@ -70,6 +82,7 @@ const (
 	stepStrictGear
 	stepVersionConfirm
 	stepVersionInput
+	stepModelInput
 	stepReview
 )
 
@@ -81,6 +94,7 @@ type wizardModel struct {
 	cursor     int
 	gearCursor int
 	versionIdx int
+	modelIdx   int
 
 	textInput textinput.Model
 	message   string
@@ -90,6 +104,7 @@ type wizardModel struct {
 	workspaceMode     string
 	selectedGear      map[string]bool
 	configureVersions bool
+	modelUpdates      map[string]string
 	versionUpdates    map[string]string
 
 	cancelled    bool
@@ -143,6 +158,7 @@ func RunConfigWizard(directory, manifestPath string) error {
 		ExistingMode:     defaultString(string(parsed.Mode), "std"),
 		ExistingWSMode:   defaultString(string(parsed.WorkspaceMode), "mount"),
 		ExistingGear:     config.ExistingGear(data),
+		ExistingModels:   config.ExistingModels(data),
 		ExistingVersions: config.ExistingVersions(data),
 	})
 
@@ -167,6 +183,10 @@ func RunConfigWizard(directory, manifestPath string) error {
 	for _, gearName := range finished.selectedGearOrdered() {
 		finalConfig.Gear = append(finalConfig.Gear, domain.GearName(gearName))
 	}
+	finalConfig.ClaudeModel = strings.TrimSpace(finished.modelUpdates["claude_model"])
+	finalConfig.CodexModel = strings.TrimSpace(finished.modelUpdates["codex_model"])
+	finalConfig.GeminiModel = strings.TrimSpace(finished.modelUpdates["gemini_model"])
+	finalConfig.OpenCodeModel = strings.TrimSpace(finished.modelUpdates["opencode_model"])
 
 	config.UpdateData(data, finalConfig, finished.configureVersions, finished.versionUpdates)
 	if err := config.Write(targetPath, data); err != nil {
@@ -222,8 +242,12 @@ func newWizardModel(cfg wizardConfig) wizardModel {
 		mode:              cfg.ExistingMode,
 		workspaceMode:     cfg.ExistingWSMode,
 		selectedGear:      map[string]bool{},
+		modelUpdates:      map[string]string{},
 		versionUpdates:    map[string]string{},
 		configureVersions: false,
+	}
+	for _, prompt := range modelPrompts {
+		model.modelUpdates[prompt.Key] = cfg.ExistingModels[prompt.Key]
 	}
 	model.syncSelectedGear()
 	return model
@@ -261,6 +285,8 @@ func (m wizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateVersionConfirm(msg)
 	case stepVersionInput:
 		return m.updateVersionInput(msg)
+	case stepModelInput:
+		return m.updateModelInput(msg)
 	case stepReview:
 		return m.updateReview(msg)
 	default:
@@ -288,6 +314,8 @@ func (m wizardModel) View() string {
 		return m.viewVersionConfirm()
 	case stepVersionInput:
 		return m.viewVersionInput()
+	case stepModelInput:
+		return m.viewModelInput()
 	case stepReview:
 		return m.viewReview()
 	default:
@@ -427,7 +455,10 @@ func (m wizardModel) updateVersionConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.step = stepVersionInput
 				return m, textinput.Blink
 			}
-			m.step = stepReview
+			m.modelIdx = 0
+			m.textInput = newTextInput(m.modelUpdates[modelPrompts[m.modelIdx].Key])
+			m.step = stepModelInput
+			return m, textinput.Blink
 		}
 	}
 	return m, nil
@@ -438,10 +469,30 @@ func (m wizardModel) updateVersionInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.versionUpdates[config.VersionKeys[m.versionIdx]] = strings.TrimSpace(m.textInput.Value())
 		m.versionIdx++
 		if m.versionIdx >= len(config.VersionKeys) {
+			m.modelIdx = 0
+			m.textInput = newTextInput(m.modelUpdates[modelPrompts[m.modelIdx].Key])
+			m.step = stepModelInput
+			return m, textinput.Blink
+		}
+		m.textInput = newTextInput(m.cfg.ExistingVersions[config.VersionKeys[m.versionIdx]])
+		return m, textinput.Blink
+	}
+	var cmd tea.Cmd
+	m.textInput, cmd = m.textInput.Update(msg)
+	return m, cmd
+}
+
+func (m wizardModel) updateModelInput(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if key, ok := msg.(tea.KeyMsg); ok && key.String() == "enter" {
+		current := modelPrompts[m.modelIdx]
+		m.modelUpdates[current.Key] = strings.TrimSpace(m.textInput.Value())
+		m.modelIdx++
+		if m.modelIdx >= len(modelPrompts) {
 			m.step = stepReview
 			return m, nil
 		}
-		m.textInput = newTextInput(m.cfg.ExistingVersions[config.VersionKeys[m.versionIdx]])
+		next := modelPrompts[m.modelIdx]
+		m.textInput = newTextInput(m.modelUpdates[next.Key])
 		return m, textinput.Blink
 	}
 	var cmd tea.Cmd
@@ -579,6 +630,21 @@ func (m wizardModel) viewVersionInput() string {
 	return strings.Join(lines, "\n") + "\n"
 }
 
+func (m wizardModel) viewModelInput() string {
+	current := modelPrompts[m.modelIdx]
+	lines := []string{
+		titleStyle.Render("Default coding models"),
+		fmt.Sprintf("%d/%d  %s", m.modelIdx+1, len(modelPrompts), current.Label),
+		muted.Render(current.Description),
+		muted.Render("Leave blank to keep the key present with an empty value in dune.toml."),
+		"",
+		m.textInput.View(),
+		"",
+		muted.Render("Press Enter to continue."),
+	}
+	return strings.Join(lines, "\n") + "\n"
+}
+
 func (m wizardModel) viewReview() string {
 	lines := []string{
 		titleStyle.Render("Review"),
@@ -588,6 +654,10 @@ func (m wizardModel) viewReview() string {
 		fmt.Sprintf("mode           %s", m.mode),
 		fmt.Sprintf("workspace_mode %s", m.workspaceMode),
 		fmt.Sprintf("gear           %s", stringsJoinOrEmpty(m.selectedGearOrdered(), ", ", "(none)")),
+		fmt.Sprintf("claude_model   %s", emptyIfBlank(m.modelUpdates["claude_model"])),
+		fmt.Sprintf("codex_model    %s", emptyIfBlank(m.modelUpdates["codex_model"])),
+		fmt.Sprintf("gemini_model   %s", emptyIfBlank(m.modelUpdates["gemini_model"])),
+		fmt.Sprintf("opencode_model %s", emptyIfBlank(m.modelUpdates["opencode_model"])),
 	}
 	if m.configureVersions {
 		for _, key := range config.VersionKeys {
@@ -698,6 +768,13 @@ func profileSortKey(profile string) string {
 func defaultString(value, fallback string) string {
 	if value == "" {
 		return fallback
+	}
+	return value
+}
+
+func emptyIfBlank(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return `""`
 	}
 	return value
 }

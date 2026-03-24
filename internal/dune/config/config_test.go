@@ -14,6 +14,8 @@ func TestRenderParseLines(t *testing.T) {
 		"profile":         "a",
 		"mode":            "strict",
 		"workspace_mode":  "copy",
+		"claude_model":    "sonnet",
+		"opencode_model":  "anthropic/claude-sonnet-4",
 		"go_version":      "1.26.0",
 		"gear":            []any{"add-go", "add-postgres"},
 		"unexpected_key":  42,
@@ -29,6 +31,8 @@ func TestRenderParseLines(t *testing.T) {
 		"scalar\tprofile\ta",
 		"scalar\tmode\tstrict",
 		"scalar\tworkspace_mode\tcopy",
+		"scalar\tclaude_model\tsonnet",
+		"scalar\topencode_model\tanthropic/claude-sonnet-4",
 		"scalar\tgo_version\t1.26.0",
 		"gear\tadd-go\t",
 		"gear\tadd-postgres\t",
@@ -54,6 +58,7 @@ func TestUpdateDataKeepsVersionsWhenUnchanged(t *testing.T) {
 		Mode:          domain.ModeLax,
 		WorkspaceMode: domain.WorkspaceModeMount,
 		Gear:          []domain.GearName{"add-go"},
+		ClaudeModel:   "sonnet",
 	}, false, nil)
 
 	if got := data["go_version"]; got != "1.25.4" {
@@ -67,6 +72,12 @@ func TestUpdateDataKeepsVersionsWhenUnchanged(t *testing.T) {
 	}
 	if got := data["gear"]; !reflect.DeepEqual(got, []string{"add-go"}) {
 		t.Fatalf("gear not written correctly: %#v", got)
+	}
+	if got := data["claude_model"]; got != "sonnet" {
+		t.Fatalf("claude_model not written correctly: %#v", got)
+	}
+	if got := data["codex_model"]; got != "" {
+		t.Fatalf("codex_model should be written as empty string: %#v", got)
 	}
 }
 
@@ -160,6 +171,33 @@ func TestUpdateDataOmitsEmptyBeads(t *testing.T) {
 	}, false, nil)
 	if _, ok := data["beads"]; ok {
 		t.Fatal("expected beads absent from data when empty")
+	}
+}
+
+func TestParseModelDefaults(t *testing.T) {
+	t.Parallel()
+
+	cfg, _, err := Parse(map[string]any{
+		"claude_model":   " sonnet ",
+		"codex_model":    "o3",
+		"gemini_model":   "gemini-2.5-pro",
+		"opencode_model": "anthropic/claude-sonnet-4",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if cfg.ClaudeModel != "sonnet" {
+		t.Fatalf("expected claude model to be trimmed, got %q", cfg.ClaudeModel)
+	}
+	if cfg.CodexModel != "o3" {
+		t.Fatalf("expected codex model, got %q", cfg.CodexModel)
+	}
+	if cfg.GeminiModel != "gemini-2.5-pro" {
+		t.Fatalf("expected gemini model, got %q", cfg.GeminiModel)
+	}
+	if cfg.OpenCodeModel != "anthropic/claude-sonnet-4" {
+		t.Fatalf("expected opencode model, got %q", cfg.OpenCodeModel)
 	}
 }
 

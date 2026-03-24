@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	contract "claudebox/internal/contracts/rally"
+	duneconfig "claudebox/internal/dune/config"
+	duneworkspace "claudebox/internal/dune/workspace"
 	"claudebox/internal/rally/progress"
 	"claudebox/internal/rally/runner"
 	"claudebox/internal/rally/state"
@@ -211,6 +213,10 @@ func runBatch(argv []string) error {
 		InlinePrompt:     inlinePrompt,
 		ScoutMode:        scoutMode,
 		ScoutFocus:       scoutFocus,
+		ClaudeModel:      cfg.ClaudeModel,
+		CodexModel:       cfg.CodexModel,
+		GeminiModel:      cfg.GeminiModel,
+		OpenCodeModel:    cfg.OpenCodeModel,
 	})
 	if err := r.EnsureInitialized(); err != nil {
 		return err
@@ -448,12 +454,17 @@ func defaultConfig() orchtui.Config {
 	repoPath := getenvOr(contract.EnvRepoProgressPath, env[contract.EnvRepoProgressPath])
 	workspaceDir := getenvOr(contract.EnvWorkspaceDir, "/workspace")
 	beadsMode := os.Getenv(contract.EnvBeads)
+	modelDefaults := loadModelDefaults(workspaceDir)
 	return orchtui.Config{
 		WorkspaceDir:     workspaceDir,
 		DataDir:          dataDir,
 		RepoProgressPath: repoPath,
 		Iterations:       1,
 		BeadsMode:        beadsMode,
+		ClaudeModel:      modelDefaults.ClaudeModel,
+		CodexModel:       modelDefaults.CodexModel,
+		GeminiModel:      modelDefaults.GeminiModel,
+		OpenCodeModel:    modelDefaults.OpenCodeModel,
 	}
 }
 
@@ -475,5 +486,28 @@ func activeBatchMap(batch *state.BatchState) map[string]any {
 		"agent_mix":            batch.AgentMix,
 		"started_at":           batch.StartedAt,
 		"ended_at":             batch.EndedAt,
+	}
+}
+
+func loadModelDefaults(workspaceDir string) runner.Config {
+	configPath, err := duneworkspace.FindDuneToml(workspaceDir)
+	if err != nil || configPath == "" {
+		return runner.Config{}
+	}
+
+	data, err := duneconfig.Load(configPath)
+	if err != nil {
+		return runner.Config{}
+	}
+	parsed, _, err := duneconfig.Parse(data)
+	if err != nil {
+		return runner.Config{}
+	}
+
+	return runner.Config{
+		ClaudeModel:   parsed.ClaudeModel,
+		CodexModel:    parsed.CodexModel,
+		GeminiModel:   parsed.GeminiModel,
+		OpenCodeModel: parsed.OpenCodeModel,
 	}
 }
