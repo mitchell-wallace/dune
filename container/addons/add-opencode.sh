@@ -10,31 +10,22 @@ TARGET_USER="${SAND_TARGET_USER:-node}"
 TARGET_HOME="${SAND_TARGET_HOME:-/home/${TARGET_USER}}"
 OPENCODE_VERSION="${SAND_OPENCODE_VERSION:-latest}"
 NPM_PREFIX="${NPM_CONFIG_PREFIX:-/usr/local/share/npm-global}"
-NPM_GLOBAL_BIN="${NPM_PREFIX}/bin"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+UTILS_PATH="${SAND_UTILS_PATH:-/usr/local/lib/sand/lib/utils.sh}"
+
+if [ ! -f "$UTILS_PATH" ]; then
+  UTILS_PATH="${SCRIPT_DIR}/../lib/utils.sh"
+fi
+. "$UTILS_PATH"
 
 log() {
   echo "[add-opencode] $*"
 }
 
-run_as_target_user() {
-  runuser -u "$TARGET_USER" -- env \
-    HOME="$TARGET_HOME" \
-    USER="$TARGET_USER" \
-    LOGNAME="$TARGET_USER" \
-    NPM_CONFIG_PREFIX="$NPM_PREFIX" \
-    PATH="${NPM_GLOBAL_BIN}:$PATH" \
-    "$@"
-}
-
 mkdir -p "${TARGET_HOME}/.config/opencode" "${TARGET_HOME}/.local/share/opencode"
 chown -R "${TARGET_USER}:${TARGET_USER}" "${TARGET_HOME}/.config/opencode" "${TARGET_HOME}/.local/share/opencode"
 
-if [ "$OPENCODE_VERSION" = "latest" ]; then
-  log "Installing opencode-ai globally"
-  run_as_target_user npm install -g opencode-ai@latest
-else
-  log "Installing opencode-ai@${OPENCODE_VERSION} globally"
-  run_as_target_user npm install -g "opencode-ai@${OPENCODE_VERSION}"
-fi
+log "Installing opencode-ai@${OPENCODE_VERSION} globally"
+install_npm_global_package opencode-ai "$OPENCODE_VERSION"
 
 log "Done. Verify with 'opencode --version'."

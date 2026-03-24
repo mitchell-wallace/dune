@@ -1,40 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+UTILS_PATH="${SAND_UTILS_PATH:-/usr/local/lib/sand/lib/utils.sh}"
+if [ ! -f "$UTILS_PATH" ]; then
+  UTILS_PATH="${SCRIPT_DIR}/../lib/utils.sh"
+fi
+. "$UTILS_PATH"
+
 MANIFEST_PATH="/usr/local/lib/sand/addons/manifest.tsv"
 ADDON_STATE_DIR="/persist/agent/addons"
-
-canonicalize_mode() {
-  local raw="${1:-std}"
-  local mode
-  mode="$(printf '%s' "$raw" | tr '[:upper:]' '[:lower:]')"
-
-  case "$mode" in
-    std|standard)
-      printf 'std\n'
-      ;;
-    lax|yolo|strict)
-      printf '%s\n' "$mode"
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-}
-
-mode_enabled() {
-  local mode="$1"
-  local mode_list="$2"
-
-  IFS=',' read -r -a items <<<"$mode_list"
-  for item in "${items[@]}"; do
-    if [ "$item" = "$mode" ]; then
-      return 0
-    fi
-  done
-
-  return 1
-}
 
 get_mode() {
   if [ -f /etc/sand/security-mode ]; then

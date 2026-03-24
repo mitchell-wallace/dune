@@ -1,23 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-canonicalize_mode() {
-  local raw="${1:-std}"
-  local mode
-  mode="$(printf '%s' "$raw" | tr '[:upper:]' '[:lower:]')"
-
-  case "$mode" in
-    std|standard)
-      printf 'std\n'
-      ;;
-    lax|yolo|strict)
-      printf '%s\n' "$mode"
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-}
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+UTILS_PATH="${SAND_UTILS_PATH:-/usr/local/lib/sand/lib/utils.sh}"
+if [ ! -f "$UTILS_PATH" ]; then
+  UTILS_PATH="${SCRIPT_DIR}/../lib/utils.sh"
+fi
+. "$UTILS_PATH"
 
 autostart_addon_service() {
   local addon_name="$1"
@@ -58,19 +47,6 @@ autostart_installed_services() {
   autostart_addon_service "add-mailpit" "mp-local" "Mailpit" "mp-local" || failed=1
 
   return "$failed"
-}
-
-normalize_profile() {
-  local raw="${1:-0}"
-  local profile
-  profile="$(printf '%s' "$raw" | tr '[:upper:]' '[:lower:]')"
-
-  if [[ "$profile" =~ ^[0-9a-z]$ ]]; then
-    printf '%s\n' "$profile"
-    return 0
-  fi
-
-  return 1
 }
 
 MODE="$(canonicalize_mode "${SAND_SECURITY_MODE:-std}")" || {

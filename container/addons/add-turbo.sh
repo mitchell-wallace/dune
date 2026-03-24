@@ -10,23 +10,19 @@ TARGET_USER="${SAND_TARGET_USER:-node}"
 TARGET_HOME="${SAND_TARGET_HOME:-/home/${TARGET_USER}}"
 TURBO_VERSION="${SAND_TURBO_VERSION:-latest}"
 NPM_PREFIX="${NPM_CONFIG_PREFIX:-/usr/local/share/npm-global}"
-NPM_GLOBAL_BIN="${NPM_PREFIX}/bin"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+UTILS_PATH="${SAND_UTILS_PATH:-/usr/local/lib/sand/lib/utils.sh}"
+
+if [ ! -f "$UTILS_PATH" ]; then
+  UTILS_PATH="${SCRIPT_DIR}/../lib/utils.sh"
+fi
+. "$UTILS_PATH"
 
 log() {
   echo "[add-turbo] $*"
 }
 
-run_as_target_user() {
-  runuser -u "$TARGET_USER" -- env \
-    HOME="$TARGET_HOME" \
-    USER="$TARGET_USER" \
-    LOGNAME="$TARGET_USER" \
-    NPM_CONFIG_PREFIX="$NPM_PREFIX" \
-    PATH="${NPM_GLOBAL_BIN}:$PATH" \
-    "$@"
-}
-
 log "Installing turbo@${TURBO_VERSION} globally"
-run_as_target_user npm install -g "turbo@${TURBO_VERSION}"
+install_npm_global_package turbo "$TURBO_VERSION"
 
 log "Done. Verify with 'turbo --version'."

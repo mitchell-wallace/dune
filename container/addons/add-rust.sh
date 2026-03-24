@@ -9,32 +9,28 @@ fi
 TARGET_USER="${SAND_TARGET_USER:-node}"
 TARGET_HOME="${SAND_TARGET_HOME:-/home/${TARGET_USER}}"
 RUST_VERSION="${SAND_RUST_VERSION:-stable}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+UTILS_PATH="${SAND_UTILS_PATH:-/usr/local/lib/sand/lib/utils.sh}"
+SAND_TARGET_EXTRA_PATH="${TARGET_HOME}/.local/bin:${TARGET_HOME}/.local/share/mise/shims"
+
+if [ ! -f "$UTILS_PATH" ]; then
+  UTILS_PATH="${SCRIPT_DIR}/../lib/utils.sh"
+fi
+. "$UTILS_PATH"
 
 log() {
   echo "[add-rust] $*"
 }
 
-run_as_target_user() {
-  runuser -u "$TARGET_USER" -- env \
-    HOME="$TARGET_HOME" \
-    USER="$TARGET_USER" \
-    LOGNAME="$TARGET_USER" \
-    PATH="${TARGET_HOME}/.local/bin:${TARGET_HOME}/.local/share/mise/shims:${PATH}" \
-    "$@"
-}
+export SAND_TARGET_EXTRA_PATH
 
-if ! run_as_target_user command -v mise >/dev/null 2>&1; then
+ensure_mise_available || {
   echo "[add-rust] mise is required but not found for ${TARGET_USER}" >&2
   exit 1
-fi
+}
 
 log "Installing rust via mise (${RUST_VERSION})"
-if [ "$RUST_VERSION" = "latest" ]; then
-  run_as_target_user mise use -g rust@latest
-else
-  run_as_target_user mise use -g "rust@${RUST_VERSION}"
-fi
-
+install_mise_tool rust "$RUST_VERSION"
 run_as_target_user mise reshim
 
 log "Done. Verify with 'rustc --version' and 'cargo --version'."
