@@ -17,7 +17,7 @@ func TestPrepareConfigCopyModeRewritesMountAndBuildPaths(t *testing.T) {
 	content := map[string]any{
 		"workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
 		"containerEnv": map[string]any{
-			"SAND_WORKSPACE_MODE": "mount",
+			"DUNE_WORKSPACE_MODE": "mount",
 		},
 		"build": map[string]any{
 			"dockerfile": "Dockerfile",

@@ -10,7 +10,7 @@ ensure_timezone() {
     return 0
   fi
 
-  if ! LC_ALL=C LANG=C LANGUAGE= sudo /usr/local/bin/sand-privileged ensure-timezone "$TZ"; then
+  if ! LC_ALL=C LANG=C LANGUAGE= sudo /usr/local/bin/dune-privileged ensure-timezone "$TZ"; then
     warn "WARNING: failed to ensure timezone '$TZ'"
   fi
 }
@@ -21,7 +21,7 @@ ensure_locale() {
     return 0
   fi
 
-  if LC_ALL=C LANG=C LANGUAGE= sudo /usr/local/bin/sand-privileged ensure-locale "$requested_locale"; then
+  if LC_ALL=C LANG=C LANGUAGE= sudo /usr/local/bin/dune-privileged ensure-locale "$requested_locale"; then
     return 0
   fi
 

@@ -41,11 +41,11 @@ func PrepareConfig(baseConfigPath string, workspaceMode domain.WorkspaceMode) (s
 	if workspaceMode == domain.WorkspaceModeCopy {
 		config["workspaceMount"] = ""
 		containerEnv := asMap(config["containerEnv"])
-		containerEnv["SAND_WORKSPACE_MODE"] = "copy"
+		containerEnv["DUNE_WORKSPACE_MODE"] = "copy"
 		config["containerEnv"] = containerEnv
 	}
 
-	tempDir, err := os.MkdirTemp("", "sand-devcontainer-")
+	tempDir, err := os.MkdirTemp("", "dune-devcontainer-")
 	if err != nil {
 		return "", nil, err
 	}

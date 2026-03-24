@@ -5,7 +5,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 BIN_DIR="$REPO_ROOT/.bin"
 DUNE_BIN_PATH="$BIN_DIR/dune"
-LEGACY_SAND_BIN_PATH="$BIN_DIR/sand"
 FORCE=0
 PRINT_PATH=0
 
@@ -52,8 +51,6 @@ if needs_rebuild; then
     go build -o "$DUNE_BIN_PATH" ./cmd/dune
   )
 fi
-
-ln -sf "$DUNE_BIN_PATH" "$LEGACY_SAND_BIN_PATH"
 
 if [ "$PRINT_PATH" -eq 1 ]; then
   printf '%s\n' "$DUNE_BIN_PATH"

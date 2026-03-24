@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TARGET_USER="${SAND_TARGET_USER:-node}"
-TARGET_HOME="${SAND_TARGET_HOME:-/home/${TARGET_USER}}"
+TARGET_USER="${DUNE_TARGET_USER:-node}"
+TARGET_HOME="${DUNE_TARGET_HOME:-/home/${TARGET_USER}}"
 
 log() {
   echo "[boost-cli] $*"

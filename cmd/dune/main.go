@@ -160,7 +160,7 @@ func runDune(ctx context.Context, opts cli.Options, paths repoPaths) error {
 	} else {
 		fmt.Printf("Provisioning dev container via devcontainers CLI (profile=%s mode=%s workspace_mode=%s)\n", cfg.Profile, cfg.Mode, cfg.WorkspaceMode)
 		if buildGearArg != "" {
-			fmt.Printf("Build-time gear requested from sand.toml: %s\n", buildGearArg)
+			fmt.Printf("Build-time gear requested from dune.toml: %s\n", buildGearArg)
 		}
 
 		effectiveConfig, cleanup, err := devcontainer.PrepareConfig(paths.Devcontainer, cfg.WorkspaceMode)
@@ -187,15 +187,15 @@ func runDune(ctx context.Context, opts cli.Options, paths repoPaths) error {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Env = append(os.Environ(),
-			"SAND_PROFILE="+string(cfg.Profile),
-			"SAND_SECURITY_MODE="+string(cfg.Mode),
-			"SAND_WORKSPACE_MODE="+string(cfg.WorkspaceMode),
-			"SAND_BUILD_MODE="+string(cfg.Mode),
-			"SAND_BUILD_GEAR="+buildGearArg,
-			"SAND_PYTHON_VERSION="+cfg.PythonVersion,
-			"SAND_UV_VERSION="+cfg.UVVersion,
-			"SAND_GO_VERSION="+cfg.GoVersion,
-			"SAND_RUST_VERSION="+cfg.RustVersion,
+			"DUNE_PROFILE="+string(cfg.Profile),
+			"DUNE_SECURITY_MODE="+string(cfg.Mode),
+			"DUNE_WORKSPACE_MODE="+string(cfg.WorkspaceMode),
+			"DUNE_BUILD_MODE="+string(cfg.Mode),
+			"DUNE_BUILD_GEAR="+buildGearArg,
+			"DUNE_PYTHON_VERSION="+cfg.PythonVersion,
+			"DUNE_UV_VERSION="+cfg.UVVersion,
+			"DUNE_GO_VERSION="+cfg.GoVersion,
+			"DUNE_RUST_VERSION="+cfg.RustVersion,
 		)
 		if err := cmd.Run(); err != nil {
 			return err
@@ -311,28 +311,28 @@ func asMapAny(value any) map[string]any {
 	return map[string]any{}
 }
 
-func resolveConfig(ref domain.WorkspaceRef) (domain.SandConfig, []string, error) {
+func resolveConfig(ref domain.WorkspaceRef) (domain.DuneConfig, []string, error) {
 	if ref.ConfigPath == "" {
 		return config.DefaultConfig(), nil, nil
 	}
 	data, err := config.Load(ref.ConfigPath)
 	if err != nil {
-		return domain.SandConfig{}, nil, err
+		return domain.DuneConfig{}, nil, err
 	}
 	cfg, warnings, err := config.Parse(data)
 	if err != nil {
-		return domain.SandConfig{}, nil, err
+		return domain.DuneConfig{}, nil, err
 	}
-	fmt.Printf("Using sand.toml config: %s\n", ref.ConfigPath)
+	fmt.Printf("Using dune.toml config: %s\n", ref.ConfigPath)
 	return cfg, warnings, nil
 }
 
-func applyConfiguredGear(ctx context.Context, docker gearContainer, cfg domain.SandConfig, containerName, manifestPath string) error {
+func applyConfiguredGear(ctx context.Context, docker gearContainer, cfg domain.DuneConfig, containerName, manifestPath string) error {
 	if len(cfg.Addons) == 0 {
 		return nil
 	}
 	if cfg.Mode == domain.ModeStrict {
-		fmt.Fprintln(os.Stderr, "WARNING: sand.toml lists gear but mode is strict; ignoring configured gear.")
+		fmt.Fprintln(os.Stderr, "WARNING: dune.toml lists gear but mode is strict; ignoring configured gear.")
 		return nil
 	}
 
@@ -342,7 +342,7 @@ func applyConfiguredGear(ctx context.Context, docker gearContainer, cfg domain.S
 	}
 	known := gear.IndexByName(specs)
 	requested := gear.DedupeRequested(cfg.Addons)
-	fmt.Printf("Applying configured gear from sand.toml (%d requested)...\n", len(requested))
+	fmt.Printf("Applying configured gear from dune.toml (%d requested)...\n", len(requested))
 
 	env := gearEnv(cfg)
 
@@ -353,12 +353,12 @@ func applyConfiguredGear(ctx context.Context, docker gearContainer, cfg domain.S
 	for _, item := range requested {
 		name := string(item)
 		if !gear.IsValidName(name) {
-			fmt.Fprintf(os.Stderr, "WARNING: Invalid gear name in sand.toml skipped: %s\n", name)
+			fmt.Fprintf(os.Stderr, "WARNING: Invalid gear name in dune.toml skipped: %s\n", name)
 			skippedInvalid++
 			continue
 		}
 		if _, ok := known[name]; !ok {
-			fmt.Fprintf(os.Stderr, "WARNING: Unknown gear entry in sand.toml skipped: %s\n", name)
+			fmt.Fprintf(os.Stderr, "WARNING: Unknown gear entry in dune.toml skipped: %s\n", name)
 			skippedUnknown++
 			continue
 		}
@@ -367,36 +367,36 @@ func applyConfiguredGear(ctx context.Context, docker gearContainer, cfg domain.S
 			skippedInstalled++
 			continue
 		}
-		fmt.Printf("Installing gear from sand.toml: %s\n", name)
+		fmt.Printf("Installing gear from dune.toml: %s\n", name)
 		if err := docker.ExecInContainer(ctx, containerName, env, "gear", "install", name); err != nil {
 			return fmt.Errorf("failed to install configured gear %q: %w", name, err)
 		}
 		installed++
 	}
 
-	fmt.Printf("sand.toml gear summary: installed=%d skipped_installed=%d skipped_unknown=%d skipped_invalid=%d\n", installed, skippedInstalled, skippedUnknown, skippedInvalid)
+	fmt.Printf("dune.toml gear summary: installed=%d skipped_installed=%d skipped_unknown=%d skipped_invalid=%d\n", installed, skippedInstalled, skippedUnknown, skippedInvalid)
 	return nil
 }
 
-func gearEnv(cfg domain.SandConfig) map[string]string {
+func gearEnv(cfg domain.DuneConfig) map[string]string {
 	env := map[string]string{}
 	if cfg.PythonVersion != "" {
-		env["SAND_PYTHON_VERSION"] = cfg.PythonVersion
+		env["DUNE_PYTHON_VERSION"] = cfg.PythonVersion
 	}
 	if cfg.UVVersion != "" {
-		env["SAND_UV_VERSION"] = cfg.UVVersion
+		env["DUNE_UV_VERSION"] = cfg.UVVersion
 	}
 	if cfg.GoVersion != "" {
-		env["SAND_GO_VERSION"] = cfg.GoVersion
+		env["DUNE_GO_VERSION"] = cfg.GoVersion
 	}
 	if cfg.RustVersion != "" {
-		env["SAND_RUST_VERSION"] = cfg.RustVersion
+		env["DUNE_RUST_VERSION"] = cfg.RustVersion
 	}
 	return env
 }
 
 func locateRepoPaths() (repoPaths, error) {
-	root := strings.TrimSpace(os.Getenv("SAND_REPO_ROOT"))
+	root := strings.TrimSpace(os.Getenv("DUNE_REPO_ROOT"))
 	if root == "" {
 		_, file, _, ok := runtime.Caller(0)
 		if !ok {
@@ -423,7 +423,7 @@ func defaultWorkspaceInput(value string) string {
 	if value != "" {
 		return value
 	}
-	if caller := strings.TrimSpace(os.Getenv("SAND_CALLER_PWD")); caller != "" {
+	if caller := strings.TrimSpace(os.Getenv("DUNE_CALLER_PWD")); caller != "" {
 		return caller
 	}
 	cwd, err := os.Getwd()

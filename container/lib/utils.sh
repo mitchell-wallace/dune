@@ -77,8 +77,8 @@ run_as_target_user() {
     path_value="${npm_prefix}/bin:${path_value}"
   fi
 
-  if [ -n "${SAND_TARGET_EXTRA_PATH:-}" ]; then
-    path_value="${SAND_TARGET_EXTRA_PATH}:${path_value}"
+  if [ -n "${DUNE_TARGET_EXTRA_PATH:-}" ]; then
+    path_value="${DUNE_TARGET_EXTRA_PATH}:${path_value}"
   fi
 
   runuser -u "$target_user" -- env \

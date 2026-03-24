@@ -4,12 +4,12 @@ ARG TZ=Australia/Melbourne
 ENV TZ="$TZ"
 
 ARG CLAUDE_CODE_VERSION=latest
-ARG SAND_BUILD_MODE=std
-ARG SAND_BUILD_GEAR=
-ARG SAND_PYTHON_VERSION=
-ARG SAND_UV_VERSION=
-ARG SAND_GO_VERSION=
-ARG SAND_RUST_VERSION=
+ARG DUNE_BUILD_MODE=std
+ARG DUNE_BUILD_GEAR=
+ARG DUNE_PYTHON_VERSION=
+ARG DUNE_UV_VERSION=
+ARG DUNE_GO_VERSION=
+ARG DUNE_RUST_VERSION=
 
 # Install basic development tools and iptables/ipset
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -77,10 +77,10 @@ USER node
 ENV NPM_CONFIG_PREFIX=/usr/local/share/npm-global
 ENV PATH=$PATH:/usr/local/share/npm-global/bin
 ENV PATH=/home/node/.local/bin:$PATH
-ENV SAND_PYTHON_VERSION="${SAND_PYTHON_VERSION}"
-ENV SAND_UV_VERSION="${SAND_UV_VERSION}"
-ENV SAND_GO_VERSION="${SAND_GO_VERSION}"
-ENV SAND_RUST_VERSION="${SAND_RUST_VERSION}"
+ENV DUNE_PYTHON_VERSION="${DUNE_PYTHON_VERSION}"
+ENV DUNE_UV_VERSION="${DUNE_UV_VERSION}"
+ENV DUNE_GO_VERSION="${DUNE_GO_VERSION}"
+ENV DUNE_RUST_VERSION="${DUNE_RUST_VERSION}"
 
 # Set the default shell to zsh rather than sh
 ENV SHELL=/bin/zsh
@@ -128,34 +128,33 @@ USER node
 COPY --chown=node:node home/ /home/node/
 USER root
 COPY runtime/setup-agent-persist.sh /usr/local/bin/setup-agent-persist.sh
-COPY runtime/sand-privileged.sh /usr/local/bin/sand-privileged
-COPY runtime/sand-entrypoint.sh /usr/local/bin/sand-entrypoint.sh
-COPY runtime/sand-poststart.sh /usr/local/bin/sand-poststart.sh
+COPY runtime/dune-privileged.sh /usr/local/bin/dune-privileged
+COPY runtime/dune-entrypoint.sh /usr/local/bin/dune-entrypoint.sh
+COPY runtime/dune-poststart.sh /usr/local/bin/dune-poststart.sh
 COPY runtime/init-firewall.sh /usr/local/bin/init-firewall.sh
 COPY runtime/gear-cli.sh /usr/local/bin/gear
-COPY runtime/addons-cli.sh /usr/local/bin/addons
-COPY lib/ /usr/local/lib/sand/lib/
-COPY runtime/sand-privileged/ /usr/local/lib/sand/runtime/sand-privileged/
-COPY runtime/firewall-domains.tsv /usr/local/lib/sand/runtime/firewall-domains.tsv
-COPY gear/ /usr/local/lib/sand/gear/
-RUN chmod 0755 /usr/local/bin/setup-agent-persist.sh /usr/local/bin/sand-privileged /usr/local/bin/sand-entrypoint.sh /usr/local/bin/sand-poststart.sh /usr/local/bin/init-firewall.sh /usr/local/bin/gear /usr/local/bin/addons && \
-  chown root:root /usr/local/bin/setup-agent-persist.sh /usr/local/bin/sand-privileged /usr/local/bin/sand-entrypoint.sh /usr/local/bin/sand-poststart.sh /usr/local/bin/init-firewall.sh /usr/local/bin/gear /usr/local/bin/addons && \
-  chown -R root:root /usr/local/lib/sand && \
-  chmod 0755 /usr/local/lib/sand /usr/local/lib/sand/lib /usr/local/lib/sand/runtime /usr/local/lib/sand/runtime/sand-privileged /usr/local/lib/sand/gear && \
-  chmod 0444 /usr/local/lib/sand/lib/utils.sh /usr/local/lib/sand/runtime/firewall-domains.tsv && \
-  find /usr/local/lib/sand/runtime/sand-privileged -mindepth 1 -maxdepth 1 -type f -exec chmod 0444 {} \; && \
-  chmod 0444 /usr/local/lib/sand/gear/manifest.tsv && \
-  find /usr/local/lib/sand/gear -mindepth 1 -maxdepth 1 -type f ! -name manifest.tsv -exec chmod 0555 {} \;
+COPY lib/ /usr/local/lib/dune/lib/
+COPY runtime/dune-privileged/ /usr/local/lib/dune/runtime/dune-privileged/
+COPY runtime/firewall-domains.tsv /usr/local/lib/dune/runtime/firewall-domains.tsv
+COPY gear/ /usr/local/lib/dune/gear/
+RUN chmod 0755 /usr/local/bin/setup-agent-persist.sh /usr/local/bin/dune-privileged /usr/local/bin/dune-entrypoint.sh /usr/local/bin/dune-poststart.sh /usr/local/bin/init-firewall.sh /usr/local/bin/gear && \
+  chown root:root /usr/local/bin/setup-agent-persist.sh /usr/local/bin/dune-privileged /usr/local/bin/dune-entrypoint.sh /usr/local/bin/dune-poststart.sh /usr/local/bin/init-firewall.sh /usr/local/bin/gear && \
+  chown -R root:root /usr/local/lib/dune && \
+  chmod 0755 /usr/local/lib/dune /usr/local/lib/dune/lib /usr/local/lib/dune/runtime /usr/local/lib/dune/runtime/dune-privileged /usr/local/lib/dune/gear && \
+  chmod 0444 /usr/local/lib/dune/lib/utils.sh /usr/local/lib/dune/runtime/firewall-domains.tsv && \
+  find /usr/local/lib/dune/runtime/dune-privileged -mindepth 1 -maxdepth 1 -type f -exec chmod 0444 {} \; && \
+  chmod 0444 /usr/local/lib/dune/gear/manifest.tsv && \
+  find /usr/local/lib/dune/gear -mindepth 1 -maxdepth 1 -type f ! -name manifest.tsv -exec chmod 0555 {} \;
 
 # Install configured gear at build time so network-heavy gear completes before runtime firewall setup.
 RUN /bin/bash -lc 'set -euo pipefail; \
-  mode="$(printf "%s" "${SAND_BUILD_MODE:-std}" | tr "[:upper:]" "[:lower:]")"; \
+  mode="$(printf "%s" "${DUNE_BUILD_MODE:-std}" | tr "[:upper:]" "[:lower:]")"; \
   case "$mode" in \
     std|standard) mode="std" ;; \
     lax|yolo|strict) ;; \
-    *) echo "Invalid SAND_BUILD_MODE='\''$mode'\''" >&2; exit 1 ;; \
+    *) echo "Invalid DUNE_BUILD_MODE='\''$mode'\''" >&2; exit 1 ;; \
   esac; \
-  gear_csv="$(printf "%s" "${SAND_BUILD_GEAR:-${SAND_BUILD_ADDONS:-}}" | tr "[:upper:]" "[:lower:]" | tr -d "[:space:]")"; \
+  gear_csv="$(printf "%s" "${DUNE_BUILD_GEAR:-${DUNE_BUILD_ADDONS:-}}" | tr "[:upper:]" "[:lower:]" | tr -d "[:space:]")"; \
   if [ -z "$gear_csv" ]; then \
     echo "No build-time gear requested."; \
     exit 0; \
@@ -164,7 +163,7 @@ RUN /bin/bash -lc 'set -euo pipefail; \
     echo "Skipping build-time gear install because mode is strict."; \
     exit 0; \
   fi; \
-  known_gear="$(tail -n +2 /usr/local/lib/sand/gear/manifest.tsv | cut -f1 | sed "/^$/d")"; \
+  known_gear="$(tail -n +2 /usr/local/lib/dune/gear/manifest.tsv | cut -f1 | sed "/^$/d")"; \
   installed_count=0; \
   skipped_unknown_count=0; \
   skipped_invalid_count=0; \
@@ -189,7 +188,7 @@ RUN /bin/bash -lc 'set -euo pipefail; \
       continue; \
     fi; \
     echo "Installing build-time gear: $item"; \
-    /usr/local/bin/sand-privileged run-gear "$item"; \
+    /usr/local/bin/dune-privileged run-gear "$item"; \
     installed_count=$((installed_count + 1)); \
   done; \
   echo "Build-time gear summary: installed=${installed_count} skipped_unknown=${skipped_unknown_count} skipped_invalid=${skipped_invalid_count} skipped_duplicate=${skipped_duplicate_count}"'
@@ -237,7 +236,7 @@ RUN rm -rf /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defau
   if [ -f /persist/agent/git/.git-credentials ] && [ -s /persist/agent/git/.git-credentials ]; then cp -a /persist/agent/git/.git-credentials /opt/agent-defaults/git/.git-credentials; fi
 
 USER root
-RUN echo "node ALL=(root) NOPASSWD: /usr/local/bin/sand-privileged" > /etc/sudoers.d/node-sand-privileged && \
-  chmod 0440 /etc/sudoers.d/node-sand-privileged
-ENTRYPOINT ["/usr/local/bin/sand-entrypoint.sh"]
+RUN echo "node ALL=(root) NOPASSWD: /usr/local/bin/dune-privileged" > /etc/sudoers.d/node-dune-privileged && \
+  chmod 0440 /etc/sudoers.d/node-dune-privileged
+ENTRYPOINT ["/usr/local/bin/dune-entrypoint.sh"]
 USER node

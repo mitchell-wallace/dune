@@ -11,19 +11,19 @@ Three functions are copy-pasted across multiple files:
 
 | Function | Files |
 |---|---|
-| `canonicalize_mode()` | `sand-privileged.sh`, `gear-cli.sh`, `sand-poststart.sh` |
-| `resolve_ipv4s_with_retry()` | `sand-privileged.sh`, `add-playwright.sh`, `init-firewall.sh` |
+| `canonicalize_mode()` | `dune-privileged.sh`, `gear-cli.sh`, `dune-poststart.sh` |
+| `resolve_ipv4s_with_retry()` | `dune-privileged.sh`, `add-playwright.sh`, `init-firewall.sh` |
 | `run_as_target_user()` | Every gear install script (~6 copies) |
 
 A `lib/utils.sh` sourced by these scripts eliminates the most pervasive duplication.
 Low risk to introduce, high payoff. Also candidates for the shared lib:
-- `mode_enabled()` — `sand-privileged.sh`, `gear-cli.sh`
+- `mode_enabled()` — `dune-privileged.sh`, `gear-cli.sh`
 - `run_as_root()` — `install-project-tools.sh`, `boost-cli.sh`
 - `log()` — different implementations in nearly every file
 
 ---
 
-## Priority 2: Break up `sand-privileged.sh` (639 lines)
+## Priority 2: Break up `dune-privileged.sh` (639 lines)
 
 Monolithic dispatcher for three unrelated concerns:
 
@@ -37,9 +37,9 @@ service-specific details. They could be split into separate files or driven by a
 service template function.
 
 Proposed split:
-- `sand-privileged-config.sh` — locale, timezone, mode/profile normalization
-- `sand-privileged-services.sh` — pg/redis/mailpit service management (or per-service files)
-- `sand-privileged-gear.sh` — gear execution and manifest ops
+- `dune-privileged-config.sh` — locale, timezone, mode/profile normalization
+- `dune-privileged-services.sh` — pg/redis/mailpit service management (or per-service files)
+- `dune-privileged-gear.sh` — gear execution and manifest ops
 
 ---
 
@@ -102,13 +102,13 @@ log()                         # ~10 different implementations
 
 | Script | Lines | Complexity |
 |---|---|---|
-| `runtime/sand-privileged.sh` | 639 | Very High |
+| `runtime/dune-privileged.sh` | 639 | Very High |
 | `runtime/init-firewall.sh` | 553 | Very High |
 | `gear/add-playwright.sh` | 208 | High |
 | `gear/boost-cli.sh` | 152 | Medium |
 | `runtime/gear-cli.sh` | 138 | Medium |
 | `runtime/setup-agent-persist.sh` | 127 | Medium |
-| `runtime/sand-poststart.sh` | 103 | Medium |
+| `runtime/dune-poststart.sh` | 103 | Medium |
 | `setup/install-project-tools.sh` | 86 | Low-Medium |
 | `gear/add-postgres.sh` | 81 | Medium |
 | `home/.agent-shell-setup.sh` | 71 | Low |
@@ -118,7 +118,7 @@ log()                         # ~10 different implementations
 | `gear/add-go.sh` / `add-rust.sh` | 41 each | Low |
 | `gear/add-gemini.sh` / `add-opencode.sh` | 41 each | Low |
 | `gear/add-pnpm.sh` / `add-turbo.sh` | 33 each | Low |
-| `runtime/sand-entrypoint.sh` | 38 | Minimal |
+| `runtime/dune-entrypoint.sh` | 38 | Minimal |
 | `setup/configure-agents.sh` | 13 | Minimal |
 
 ---

@@ -42,12 +42,12 @@ func TestResolveContainerModePrefersFile(t *testing.T) {
 
 	client := NewClient(fakeRunner{
 		output: map[string]string{
-			"docker inspect -f {{.State.Running}} sand-demo":                               "true",
-			"docker exec sand-demo sh -lc cat /etc/sand/security-mode 2>/dev/null || true": "lax",
+			"docker inspect -f {{.State.Running}} dune-demo":                               "true",
+			"docker exec dune-demo sh -lc cat /etc/dune/security-mode 2>/dev/null || true": "lax",
 		},
 	})
 
-	mode, err := client.ResolveContainerMode(context.Background(), "sand-demo")
+	mode, err := client.ResolveContainerMode(context.Background(), "dune-demo")
 	if err != nil {
 		t.Fatalf("ResolveContainerMode returned error: %v", err)
 	}
@@ -61,11 +61,11 @@ func TestResolveWorkspaceModeFallsBackToMount(t *testing.T) {
 
 	client := NewClient(fakeRunner{
 		outputErr: map[string]error{
-			"docker inspect -f {{range .Config.Env}}{{println .}}{{end}} sand-demo": errors.New("missing"),
+			"docker inspect -f {{range .Config.Env}}{{println .}}{{end}} dune-demo": errors.New("missing"),
 		},
 	})
 
-	mode, err := client.ResolveWorkspaceMode(context.Background(), "sand-demo")
+	mode, err := client.ResolveWorkspaceMode(context.Background(), "dune-demo")
 	if err != nil {
 		t.Fatalf("ResolveWorkspaceMode returned error: %v", err)
 	}
@@ -97,11 +97,11 @@ func TestContainerEnvValueFindsKey(t *testing.T) {
 
 	client := NewClient(fakeRunner{
 		output: map[string]string{
-			"docker inspect -f {{range .Config.Env}}{{println .}}{{end}} sand-demo": "FOO=bar\nSAND_WORKSPACE_MODE=copy",
+			"docker inspect -f {{range .Config.Env}}{{println .}}{{end}} dune-demo": "FOO=bar\nDUNE_WORKSPACE_MODE=copy",
 		},
 	})
 
-	got, err := client.ContainerEnvValue(context.Background(), "sand-demo", "SAND_WORKSPACE_MODE")
+	got, err := client.ContainerEnvValue(context.Background(), "dune-demo", "DUNE_WORKSPACE_MODE")
 	if err != nil {
 		t.Fatalf("ContainerEnvValue returned error: %v", err)
 	}

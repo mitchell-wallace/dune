@@ -49,7 +49,7 @@ func TestUpdateDataKeepsVersionsWhenUnchanged(t *testing.T) {
 		"custom_flag": true,
 	}
 
-	UpdateData(data, domain.SandConfig{
+	UpdateData(data, domain.DuneConfig{
 		Profile:       domain.Profile("a"),
 		Mode:          domain.ModeLax,
 		WorkspaceMode: domain.WorkspaceModeMount,
@@ -81,7 +81,7 @@ func TestUpdateDataAppliesVersionEdits(t *testing.T) {
 		"uv_version": "0.10.4",
 	}
 
-	UpdateData(data, domain.SandConfig{
+	UpdateData(data, domain.DuneConfig{
 		Profile:       domain.Profile("b"),
 		Mode:          domain.ModeStd,
 		WorkspaceMode: domain.WorkspaceModeCopy,

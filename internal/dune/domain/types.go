@@ -29,7 +29,7 @@ type WorkspaceRef struct {
 	Hash       string
 }
 
-type SandConfig struct {
+type DuneConfig struct {
 	Profile       Profile
 	Mode          Mode
 	WorkspaceMode WorkspaceMode
@@ -45,7 +45,7 @@ type SandConfig struct {
 
 type ResolvedConfig struct {
 	Workspace       WorkspaceRef
-	Config          SandConfig
+	Config          DuneConfig
 	Warnings        []string
 	ProfileExplicit bool
 	ModeExplicit    bool

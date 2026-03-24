@@ -2,23 +2,23 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-UTILS_PATH="${SAND_UTILS_PATH:-/usr/local/lib/sand/lib/utils.sh}"
+UTILS_PATH="${DUNE_UTILS_PATH:-/usr/local/lib/dune/lib/utils.sh}"
 if [ ! -f "$UTILS_PATH" ]; then
   UTILS_PATH="${SCRIPT_DIR}/../lib/utils.sh"
 fi
 . "$UTILS_PATH"
 
-GEAR_MANIFEST_PATH="/usr/local/lib/sand/gear/manifest.tsv"
+GEAR_MANIFEST_PATH="/usr/local/lib/dune/gear/manifest.tsv"
 GEAR_STATE_DIR="/persist/agent/gear"
 LEGACY_ADDON_STATE_DIR="/persist/agent/addons"
 
 get_mode() {
-  if [ -f /etc/sand/security-mode ]; then
-    canonicalize_mode "$(cat /etc/sand/security-mode)"
+  if [ -f /etc/dune/security-mode ]; then
+    canonicalize_mode "$(cat /etc/dune/security-mode)"
     return 0
   fi
 
-  canonicalize_mode "${SAND_SECURITY_MODE:-std}"
+  canonicalize_mode "${DUNE_SECURITY_MODE:-std}"
 }
 
 gear_state_path() {
@@ -99,7 +99,7 @@ install_gear() {
     exit 1
   fi
 
-  sudo /usr/local/bin/sand-privileged run-gear "$gear_name"
+  sudo /usr/local/bin/dune-privileged run-gear "$gear_name"
 }
 
 cmd="${1:-list}"

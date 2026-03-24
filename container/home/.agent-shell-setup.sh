@@ -18,13 +18,13 @@ case ":${PATH}:" in
 esac
 
 _show_agent_startup_message() {
-  [ -n "${SAND_STARTUP_MESSAGE_SHOWN:-}" ] && return 0
-  export SAND_STARTUP_MESSAGE_SHOWN=1
+  [ -n "${DUNE_STARTUP_MESSAGE_SHOWN:-}" ] && return 0
+  export DUNE_STARTUP_MESSAGE_SHOWN=1
 
   local mode profile ws_mode
-  mode="$(printf '%s' "${SAND_SECURITY_MODE:-std}" | tr '[:upper:]' '[:lower:]')"
-  profile="$(printf '%s' "${SAND_PROFILE:-0}" | tr '[:upper:]' '[:lower:]')"
-  ws_mode="$(printf '%s' "${SAND_WORKSPACE_MODE:-mount}" | tr '[:upper:]' '[:lower:]')"
+  mode="$(printf '%s' "${DUNE_SECURITY_MODE:-std}" | tr '[:upper:]' '[:lower:]')"
+  profile="$(printf '%s' "${DUNE_PROFILE:-0}" | tr '[:upper:]' '[:lower:]')"
+  ws_mode="$(printf '%s' "${DUNE_WORKSPACE_MODE:-mount}" | tr '[:upper:]' '[:lower:]')"
 
   cat <<EOF
 Sandbox profile: ${profile}
@@ -45,22 +45,22 @@ EOF
 
   if [ "$mode" != "strict" ]; then
     cat <<'EOF'
-Addons:
-  addons           -> list addons, install status, helper commands
-  addons add-omc   -> install Oh My Claudecode
-  addons boost-cli -> install optional CLI boost tools (fd/rg/bat/tree/eza/micro)
-  addons add-postgres -> install local PostgreSQL + pg-local helper
-  addons add-redis -> install local Redis + redis-local helper
-  addons add-playwright -> install Playwright CLI + browsers for e2e tests
-  addons add-pnpm/add-turbo/add-wrangler -> JS/edge CLIs
-  addons add-mailpit/add-minio/add-meilisearch -> local service binaries (mp-local helper for Mailpit)
-  addons add-python-uv/add-go/add-rust/add-dotnet/add-java/add-bun/add-deno -> language runtimes via mise
+Gear:
+  gear                   -> list installed gear, available gear, and helper commands
+  gear install add-omc   -> install Oh My Claudecode
+  gear install boost-cli -> install optional CLI boost tools (fd/rg/bat/tree/eza/micro)
+  gear install add-postgres -> install local PostgreSQL + pg-local helper
+  gear install add-redis -> install local Redis + redis-local helper
+  gear install add-playwright -> install Playwright CLI + browsers for e2e tests
+  gear install add-pnpm/add-turbo/add-wrangler -> JS/edge CLIs
+  gear install add-mailpit/add-minio/add-meilisearch -> local service binaries (mp-local helper for Mailpit)
+  gear install add-python-uv/add-go/add-rust/add-dotnet/add-java/add-bun/add-deno -> language runtimes via mise
 EOF
     if ! command -v gemini >/dev/null 2>&1; then
-      printf '%s\n' "  addons add-gemini -> install Gemini CLI with persisted config/auth storage"
+      printf '%s\n' "  gear install add-gemini -> install Gemini CLI with persisted config/auth storage"
     fi
     if ! command -v opencode >/dev/null 2>&1; then
-      printf '%s\n' "  addons add-opencode -> install OpenCode CLI with persisted config/auth storage"
+      printf '%s\n' "  gear install add-opencode -> install OpenCode CLI with persisted config/auth storage"
     fi
   fi
 }

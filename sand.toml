@@ -1,3 +1,0 @@
-profile = "0"
-mode = "std"
-addons = ["add-postgres", "add-mailpit"]

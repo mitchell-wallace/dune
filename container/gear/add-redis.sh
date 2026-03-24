@@ -16,10 +16,10 @@ install_helper() {
 set -euo pipefail
 
 if [ "$(id -u)" -eq 0 ]; then
-  exec /usr/local/bin/sand-privileged redis-local "$@"
+  exec /usr/local/bin/dune-privileged redis-local "$@"
 fi
 
-exec sudo /usr/local/bin/sand-privileged redis-local "$@"
+exec sudo /usr/local/bin/dune-privileged redis-local "$@"
 EOF_HELPER
   chmod 0755 /usr/local/bin/redis-local
   chown root:root /usr/local/bin/redis-local

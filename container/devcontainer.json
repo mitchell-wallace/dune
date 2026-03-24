@@ -7,12 +7,12 @@
       "CLAUDE_CODE_VERSION": "latest",
       "GIT_DELTA_VERSION": "0.18.2",
       "ZSH_IN_DOCKER_VERSION": "1.2.0",
-      "SAND_BUILD_MODE": "${localEnv:SAND_BUILD_MODE:std}",
-      "SAND_BUILD_GEAR": "${localEnv:SAND_BUILD_GEAR:}",
-      "SAND_PYTHON_VERSION": "${localEnv:SAND_PYTHON_VERSION:}",
-      "SAND_UV_VERSION": "${localEnv:SAND_UV_VERSION:}",
-      "SAND_GO_VERSION": "${localEnv:SAND_GO_VERSION:}",
-      "SAND_RUST_VERSION": "${localEnv:SAND_RUST_VERSION:}"
+      "DUNE_BUILD_MODE": "${localEnv:DUNE_BUILD_MODE:std}",
+      "DUNE_BUILD_GEAR": "${localEnv:DUNE_BUILD_GEAR:}",
+      "DUNE_PYTHON_VERSION": "${localEnv:DUNE_PYTHON_VERSION:}",
+      "DUNE_UV_VERSION": "${localEnv:DUNE_UV_VERSION:}",
+      "DUNE_GO_VERSION": "${localEnv:DUNE_GO_VERSION:}",
+      "DUNE_RUST_VERSION": "${localEnv:DUNE_RUST_VERSION:}"
     }
   },
   "runArgs": [
@@ -47,7 +47,7 @@
   "remoteUser": "node",
   "mounts": [
     "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
-    "source=agent-persist-${localEnv:SAND_PROFILE:0},target=/persist/agent,type=volume"
+    "source=agent-persist-${localEnv:DUNE_PROFILE:0},target=/persist/agent,type=volume"
   ],
   "containerEnv": {
     "NODE_OPTIONS": "--max-old-space-size=4096",
@@ -56,12 +56,12 @@
     "TZ": "${localEnv:TZ:Australia/Melbourne}",
     "LANG": "${localEnv:LANG:en_AU.UTF-8}",
     "LANGUAGE": "${localEnv:LANGUAGE:en_AU:en}",
-    "SAND_PROFILE": "${localEnv:SAND_PROFILE:0}",
-    "SAND_SECURITY_MODE": "${localEnv:SAND_SECURITY_MODE:std}",
-    "SAND_WORKSPACE_MODE": "${localEnv:SAND_WORKSPACE_MODE:mount}"
+    "DUNE_PROFILE": "${localEnv:DUNE_PROFILE:0}",
+    "DUNE_SECURITY_MODE": "${localEnv:DUNE_SECURITY_MODE:std}",
+    "DUNE_WORKSPACE_MODE": "${localEnv:DUNE_WORKSPACE_MODE:mount}"
   },
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
   "workspaceFolder": "/workspace",
-  "postStartCommand": "/usr/local/bin/sand-poststart.sh",
+  "postStartCommand": "/usr/local/bin/dune-poststart.sh",
   "waitFor": "postStartCommand"
 }

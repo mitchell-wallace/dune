@@ -30,7 +30,7 @@ func Resolve(input string) (domain.WorkspaceRef, error) {
 		return domain.WorkspaceRef{}, err
 	}
 
-	configPath, _ := FindSandToml(dir)
+	configPath, _ := FindDuneToml(dir)
 	if configPath != "" {
 		configPath, err = filepath.Abs(configPath)
 		if err != nil {
@@ -61,9 +61,9 @@ func ResolveRepoRoot(directory string) (string, error) {
 	return filepath.Abs(root)
 }
 
-func FindSandToml(baseDir string) (string, error) {
+func FindDuneToml(baseDir string) (string, error) {
 	if gitRoot, err := ResolveRepoRoot(baseDir); err == nil {
-		candidate := filepath.Join(gitRoot, "sand.toml")
+		candidate := filepath.Join(gitRoot, "dune.toml")
 		if stat, err := os.Stat(candidate); err == nil && !stat.IsDir() {
 			return candidate, nil
 		}
@@ -71,7 +71,7 @@ func FindSandToml(baseDir string) (string, error) {
 
 	searchDir := baseDir
 	for depth := 0; depth <= 5; depth++ {
-		candidate := filepath.Join(searchDir, "sand.toml")
+		candidate := filepath.Join(searchDir, "dune.toml")
 		if stat, err := os.Stat(candidate); err == nil && !stat.IsDir() {
 			return candidate, nil
 		}
@@ -86,7 +86,7 @@ func FindSandToml(baseDir string) (string, error) {
 
 func ContainerIdentity(ref domain.WorkspaceRef, profile domain.Profile) domain.ContainerIdentity {
 	return domain.ContainerIdentity{
-		Name:       fmt.Sprintf("sand-%s-%s-%s", ref.Slug, ref.Hash, profile),
+		Name:       fmt.Sprintf("dune-%s-%s-%s", ref.Slug, ref.Hash, profile),
 		LegacyName: fmt.Sprintf("sand-%s-%s", ref.Slug, ref.Hash),
 	}
 }

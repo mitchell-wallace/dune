@@ -120,10 +120,10 @@ func RunConfigWizard(directory, manifestPath string) error {
 	if err != nil {
 		return err
 	}
-	targetPath := filepath.Join(repoRoot, "sand.toml")
+	targetPath := filepath.Join(repoRoot, "dune.toml")
 	data, err := config.Load(targetPath)
 	if err != nil {
-		return fmt.Errorf("failed to parse existing sand.toml: %w", err)
+		return fmt.Errorf("failed to parse existing dune.toml: %w", err)
 	}
 
 	parsed, _, err := config.Parse(data)
@@ -469,7 +469,7 @@ func (m wizardModel) viewIntro() string {
 		titleStyle.Render("dune config"),
 		"",
 		boxStyle.Render(strings.Join([]string{
-			"This wizard creates or updates sand.toml at the repo root.",
+			"This wizard creates or updates dune.toml at the repo root.",
 			"Profiles map to persisted Docker volumes so auth and tool state can be isolated by profile.",
 			fmt.Sprintf("Repo root: %s", m.cfg.RepoRoot),
 			fmt.Sprintf("Target: %s", m.cfg.TargetPath),
@@ -570,7 +570,7 @@ func (m wizardModel) viewVersionInput() string {
 	lines := []string{
 		titleStyle.Render("Advanced runtime version pins"),
 		fmt.Sprintf("%d/%d  %s", m.versionIdx+1, len(config.VersionKeys), key),
-		muted.Render("Leave blank to remove this key from sand.toml."),
+		muted.Render("Leave blank to remove this key from dune.toml."),
 		"",
 		m.textInput.View(),
 		"",

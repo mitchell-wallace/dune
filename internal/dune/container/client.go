@@ -79,7 +79,7 @@ func (c *Client) ContainerEnvValue(ctx context.Context, name, key string) (strin
 
 func (c *Client) ResolveContainerMode(ctx context.Context, name string) (domain.Mode, error) {
 	if c.ContainerRunning(ctx, name) {
-		output, err := c.Runner.Output(ctx, "docker", "exec", name, "sh", "-lc", "cat /etc/sand/security-mode 2>/dev/null || true")
+		output, err := c.Runner.Output(ctx, "docker", "exec", name, "sh", "-lc", "cat /etc/dune/security-mode 2>/dev/null || true")
 		if err == nil {
 			if mode, ok := config.CanonicalizeMode(strings.TrimSpace(output)); ok {
 				return mode, nil
@@ -92,8 +92,8 @@ func (c *Client) ResolveContainerMode(ctx context.Context, name string) (domain.
 		return domain.ModeStd, nil
 	}
 	for _, line := range strings.Split(envValue, "\n") {
-		if strings.HasPrefix(line, "SAND_SECURITY_MODE=") {
-			if mode, ok := config.CanonicalizeMode(strings.TrimPrefix(line, "SAND_SECURITY_MODE=")); ok {
+		if strings.HasPrefix(line, "DUNE_SECURITY_MODE=") {
+			if mode, ok := config.CanonicalizeMode(strings.TrimPrefix(line, "DUNE_SECURITY_MODE=")); ok {
 				return mode, nil
 			}
 		}
@@ -108,8 +108,8 @@ func (c *Client) ResolveWorkspaceMode(ctx context.Context, name string) (domain.
 		return domain.WorkspaceModeMount, nil
 	}
 	for _, line := range strings.Split(envValue, "\n") {
-		if strings.HasPrefix(line, "SAND_WORKSPACE_MODE=") {
-			if mode, ok := config.NormalizeWorkspaceMode(strings.TrimPrefix(line, "SAND_WORKSPACE_MODE=")); ok {
+		if strings.HasPrefix(line, "DUNE_WORKSPACE_MODE=") {
+			if mode, ok := config.NormalizeWorkspaceMode(strings.TrimPrefix(line, "DUNE_WORKSPACE_MODE=")); ok {
 				return mode, nil
 			}
 		}

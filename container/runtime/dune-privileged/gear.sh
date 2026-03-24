@@ -54,7 +54,7 @@ run_gear() {
   gear_name="${1:-}"
 
   if [ -z "$gear_name" ]; then
-    echo "Usage: sand-privileged run-gear <name>" >&2
+    echo "Usage: dune-privileged run-gear <name>" >&2
     exit 1
   fi
 
@@ -109,14 +109,14 @@ run_gear() {
         HOME="/home/node" \
         USER="node" \
         LOGNAME="node" \
-        SAND_TARGET_HOME="/home/node" \
-        SAND_TARGET_USER="node" \
-        SAND_SECURITY_MODE="$mode" \
+        DUNE_TARGET_HOME="/home/node" \
+        DUNE_TARGET_USER="node" \
+        DUNE_SECURITY_MODE="$mode" \
         "$script_path"
       rc=$?
       ;;
     node)
-      su - node -c "SAND_SECURITY_MODE='$mode' '$script_path'"
+      su - node -c "DUNE_SECURITY_MODE='$mode' '$script_path'"
       rc=$?
       ;;
     *)

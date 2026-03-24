@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestFindSandTomlNearestAncestor(t *testing.T) {
+func TestFindDuneTomlNearestAncestor(t *testing.T) {
 	t.Parallel()
 
 	root := t.TempDir()
@@ -14,14 +14,14 @@ func TestFindSandTomlNearestAncestor(t *testing.T) {
 	if err := os.MkdirAll(deep, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	target := filepath.Join(root, "a", "sand.toml")
+	target := filepath.Join(root, "a", "dune.toml")
 	if err := os.WriteFile(target, []byte("mode = \"std\"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	got, err := FindSandToml(deep)
+	got, err := FindDuneToml(deep)
 	if err != nil {
-		t.Fatalf("FindSandToml returned error: %v", err)
+		t.Fatalf("FindDuneToml returned error: %v", err)
 	}
 	if got != target {
 		t.Fatalf("unexpected config path: got %s want %s", got, target)

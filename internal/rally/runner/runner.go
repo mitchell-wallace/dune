@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -356,9 +355,6 @@ func (r *Runner) runOne(ctx context.Context, st *state.State, mix AgentMix) (Ses
 
 func (r *Runner) buildPrompt(batchID, sessionID int) ([]int, string, error) {
 	basePrompt := "You are running inside rally. Complete one scoped task thoroughly and use `rally progress record` to update session progress before you exit."
-	if data, err := os.ReadFile(filepath.Join(r.cfg.WorkspaceDir, "scripts", "ralph", "prompt.txt")); err == nil {
-		basePrompt = strings.TrimSpace(string(data))
-	}
 
 	events, err := r.messageStore.Load()
 	if err != nil {

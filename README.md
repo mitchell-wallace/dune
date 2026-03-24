@@ -1,11 +1,4 @@
 
-
-## `./legacy/base`
-
-from https://github.com/anthropics/claude-code/tree/main/.devcontainer
-
-A container for running Claude Code in.
-
 ## `./container`
 
 Changes:
@@ -19,7 +12,7 @@ Changes:
 
 How to use:
 
-Run `install-sand-alias.sh` or `install-dune-alias.sh`, then from any folder run `dune` to create or reuse the workspace container and start an interactive session. The installer prebuilds a repo-local host binary at `.bin/dune`, and `dune.sh` rebuilds that binary only when Go sources change.
+Run `./install-dune-alias.sh`, then from any folder run `dune` to create or reuse the workspace container and start an interactive session. The installer prebuilds a repo-local host binary at `.bin/dune`, and `dune.sh` rebuilds that binary only when Go sources change.
 
 `dune` supports profile + security mode selection:
 
@@ -29,17 +22,17 @@ dune 1                      # profile 1, mode std
 dune strict                 # profile 0, mode strict
 dune 1 std                  # profile 1, mode std
 dune -d ./repo -p a -m lax  # explicit flags
-dune config                 # interactive wizard for sand.toml
+dune config                 # interactive wizard for dune.toml
 dune config -d ./repo       # run wizard for a specific workspace
 ```
 
-`dune config` writes or updates `sand.toml` at the workspace git root (or directory fallback if not in a git repo), with:
+`dune config` writes or updates `dune.toml` at the workspace git root (or directory fallback if not in a git repo), with:
 - profile selection (including discovered `agent-persist-*` profile volumes)
 - security mode selection with descriptions
 - gear toggles with manifest descriptions
 - optional advanced version pins
 
-If a `sand.toml` is found for the workspace, `dune` reads defaults for profile/mode/gear and pre-installs configured gear during image build (before firewall init), with a post-start install-missing fallback.
+If a `dune.toml` is found for the workspace, `dune` reads defaults for profile/mode/gear and pre-installs configured gear during image build (before firewall init), with a post-start install-missing fallback.
 CLI flags still override file values.
 
 Security modes:
@@ -50,9 +43,9 @@ Security modes:
 
 Container security mode is immutable after creation for a workspace+profile combo. If you request a different mode later, `dune` warns and reuses the existing mode.
 
-`sand.toml` discovery order:
-- Preferred: git root `sand.toml` for the workspace
-- Fallback: nearest ancestor `sand.toml` up to 5 levels up from workspace path
+`dune.toml` discovery order:
+- Preferred: git root `dune.toml` for the workspace
+- Fallback: nearest ancestor `dune.toml` up to 5 levels up from workspace path
 
 Build with:
 ```sh
@@ -102,7 +95,7 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
 *GEAR*
 - Source of predefined gear in repo: `container/gear/`
 - Manifest: `container/gear/manifest.tsv`
-- Runtime location in container: `/usr/local/lib/sand/gear` (root-owned and immutable to `node`)
+- Runtime location in container: `/usr/local/lib/dune/gear` (root-owned and immutable to `node`)
 - Command: `gear`
 - Example:
   - `gear` / `gear list` / `gear help` -> same output: gear status + helper commands
@@ -124,12 +117,12 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
 - Helper commands are installed only when their gear is installed.
 - `add-gemini` installs the Gemini CLI globally while preserving `~/.gemini` auth/config through the profile volume.
 - `add-opencode` installs the OpenCode CLI globally while preserving `~/.config/opencode` and `~/.local/share/opencode` through the profile volume.
-- If `add-gemini` or `add-opencode` are listed in `sand.toml`, they follow the normal configured-gear path and are installed during cold build.
+- If `add-gemini` or `add-opencode` are listed in `dune.toml`, they follow the normal configured-gear path and are installed during cold build.
 - `add-playwright` installs global `playwright` plus Chromium/Firefox/WebKit browsers for e2e.
 - `add-postgres`, `add-redis`, and `add-mailpit` autostart on container startup when installed for the active profile.
 - `add-python-uv`, `add-go`, and `add-rust` install runtimes/toolchains via `mise`.
 
-*SAND.TOML*
+*DUNE.TOML*
 - Optional repo config file with top-level keys:
   - `profile = "0"`
   - `mode = "std"`
@@ -137,16 +130,16 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
   - Optional version pins:
     - `python_version`, `uv_version`, `go_version`, `rust_version`
 - Precedence:
-  - CLI flags override `sand.toml`
-  - `sand.toml` overrides defaults
-- `sand.toml` gear is install-missing-only:
+  - CLI flags override `dune.toml`
+  - `dune.toml` overrides defaults
+- `dune.toml` gear is install-missing-only:
   - preferred path: build-time install before runtime firewall init
   - already-installed gear is skipped
   - unknown gear names are warned and skipped
   - gear install failures are fatal
 - `strict` mode with configured gear: warns and skips gear install.
 - `dune config` requires an interactive terminal.
-- `sand.toml` parsing and host-side orchestration are handled by the Go `dune` CLI.
+- `dune.toml` parsing and host-side orchestration are handled by the Go `dune` CLI.
 - `workspace_mode=copy` rewrites a temporary devcontainer config in the Go host CLI.
 
 *LOCAL DATASTORE HELPERS*
@@ -162,17 +155,17 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
 
 *TOOL INSTALL SCRIPTS*
 - Build-time core project tools: `container/setup/install-project-tools.sh`
-- Post-start mode/profile setup: `/usr/local/bin/sand-poststart.sh`
-- Privileged runner: `/usr/local/bin/sand-privileged`
+- Post-start mode/profile setup: `/usr/local/bin/dune-poststart.sh`
+- Privileged runner: `/usr/local/bin/dune-privileged`
 
 *FIREWALL LOGGING*
 - Default firewall init output is concise.
-- Set `SAND_FIREWALL_DEBUG=1` to enable detailed per-domain/CIDR diagnostics.
+- Set `DUNE_FIREWALL_DEBUG=1` to enable detailed per-domain/CIDR diagnostics.
 - Google/Gemini auth/API allowlist entries are refreshed in the background every `10s` by default to handle DNS/IP rotation.
 - Optional tuning:
-  - `SAND_FIREWALL_REFRESH_INTERVAL_SECONDS` (default `10`, set `0` to disable refresh loop)
-  - `SAND_FIREWALL_REFRESH_ATTEMPTS` (default `3`)
-  - `SAND_FIREWALL_REFRESH_RETRY_DELAY_SECONDS` (default `1`)
+  - `DUNE_FIREWALL_REFRESH_INTERVAL_SECONDS` (default `10`, set `0` to disable refresh loop)
+  - `DUNE_FIREWALL_REFRESH_ATTEMPTS` (default `3`)
+  - `DUNE_FIREWALL_REFRESH_RETRY_DELAY_SECONDS` (default `1`)
 
 ## one-time github setup
 

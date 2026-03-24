@@ -16,10 +16,10 @@ install_helper() {
 set -euo pipefail
 
 if [ "$(id -u)" -eq 0 ]; then
-  exec /usr/local/bin/sand-privileged pg-local "$@"
+  exec /usr/local/bin/dune-privileged pg-local "$@"
 fi
 
-exec sudo /usr/local/bin/sand-privileged pg-local "$@"
+exec sudo /usr/local/bin/dune-privileged pg-local "$@"
 EOF_HELPER
   chmod 0755 /usr/local/bin/pg-local
   chown root:root /usr/local/bin/pg-local
@@ -49,11 +49,11 @@ pg_hba="/etc/postgresql/${pg_version}/main/pg_hba.conf"
 log "Configuring PostgreSQL cluster ${pg_version}/main for local-only access"
 sed -ri "s/^#?listen_addresses\s*=.*/listen_addresses = '127.0.0.1'/" "$pg_conf"
 
-if ! grep -q "# sand-local" "$pg_hba"; then
+if ! grep -q "# dune-local" "$pg_hba"; then
   tmp_file="$(mktemp)"
   {
-    echo "host all all 127.0.0.1/32 trust # sand-local"
-    echo "host all all ::1/128 trust # sand-local"
+    echo "host all all 127.0.0.1/32 trust # dune-local"
+    echo "host all all ::1/128 trust # dune-local"
     cat "$pg_hba"
   } > "$tmp_file"
   install -m 0640 -o postgres -g postgres "$tmp_file" "$pg_hba"
@@ -61,7 +61,7 @@ if ! grep -q "# sand-local" "$pg_hba"; then
 fi
 
 log "Starting PostgreSQL cluster"
-if ! /usr/local/bin/sand-privileged pg-local start >/dev/null; then
+if ! /usr/local/bin/dune-privileged pg-local start >/dev/null; then
   echo "[add-postgres] Failed to start PostgreSQL cluster ${pg_version}/main" >&2
   exit 1
 fi

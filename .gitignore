@@ -37,7 +37,7 @@ htmlcov/
 # Go
 vendor/
 *.out
-/sand
+/dune
 /.bin/
 
 # Test/build artifacts

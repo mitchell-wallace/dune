@@ -3,14 +3,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
-SAND_SCRIPT="$REPO_ROOT/sand.sh"
 DUNE_SCRIPT="$REPO_ROOT/dune.sh"
-BUILD_SCRIPT="$SCRIPT_DIR/build-sand.sh"
+BUILD_SCRIPT="$SCRIPT_DIR/build-dune.sh"
 
-if [ ! -f "$SAND_SCRIPT" ]; then
-  echo "Missing script: $SAND_SCRIPT" >&2
-  exit 1
-fi
 if [ ! -f "$DUNE_SCRIPT" ]; then
   echo "Missing script: $DUNE_SCRIPT" >&2
   exit 1
@@ -38,8 +33,6 @@ append_alias_if_missing() {
 }
 
 append_alias_if_missing "$HOME/.bashrc" "alias dune='$DUNE_SCRIPT'"
-append_alias_if_missing "$HOME/.bashrc" "alias sand='$SAND_SCRIPT'"
 append_alias_if_missing "$HOME/.zshrc" "alias dune='$DUNE_SCRIPT'"
-append_alias_if_missing "$HOME/.zshrc" "alias sand='$SAND_SCRIPT'"
 
 echo "Done. Restart your shell or run: source ~/.bashrc (or source ~/.zshrc)"

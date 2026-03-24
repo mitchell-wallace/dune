@@ -31,8 +31,8 @@ var allowedKeys = func() map[string]struct{} {
 	return keys
 }()
 
-func DefaultConfig() domain.SandConfig {
-	return domain.SandConfig{
+func DefaultConfig() domain.DuneConfig {
+	return domain.DuneConfig{
 		Profile:       domain.Profile("0"),
 		Mode:          domain.ModeStd,
 		WorkspaceMode: domain.WorkspaceModeMount,
@@ -108,7 +108,7 @@ func Load(path string) (map[string]any, error) {
 func Write(path string, data map[string]any) error {
 	rendered, err := toml.Marshal(data)
 	if err != nil {
-		return fmt.Errorf("failed to render sand.toml: %w", err)
+		return fmt.Errorf("failed to render dune.toml: %w", err)
 	}
 	if len(rendered) == 0 || rendered[len(rendered)-1] != '\n' {
 		rendered = append(rendered, '\n')
@@ -116,7 +116,7 @@ func Write(path string, data map[string]any) error {
 	return os.WriteFile(path, rendered, 0o644)
 }
 
-func Parse(data map[string]any) (domain.SandConfig, []string, error) {
+func Parse(data map[string]any) (domain.DuneConfig, []string, error) {
 	cfg := DefaultConfig()
 	warnings := []string{}
 
@@ -128,7 +128,7 @@ func Parse(data map[string]any) (domain.SandConfig, []string, error) {
 	for _, key := range keys {
 		if _, ok := allowedKeys[key]; !ok {
 			cfg.UnknownKeys = append(cfg.UnknownKeys, key)
-			warnings = append(warnings, fmt.Sprintf("Unknown key in sand.toml ignored: %s", key))
+			warnings = append(warnings, fmt.Sprintf("Unknown key in dune.toml ignored: %s", key))
 		}
 	}
 
@@ -139,26 +139,26 @@ func Parse(data map[string]any) (domain.SandConfig, []string, error) {
 		}
 		strValue, ok := value.(string)
 		if !ok {
-			return cfg, warnings, fmt.Errorf("invalid sand.toml (%s): expected string", key)
+			return cfg, warnings, fmt.Errorf("invalid dune.toml (%s): expected string", key)
 		}
 
 		switch key {
 		case "profile":
 			profile, valid := NormalizeProfile(strValue)
 			if !valid {
-				return cfg, warnings, fmt.Errorf("invalid profile in sand.toml: %q", strValue)
+				return cfg, warnings, fmt.Errorf("invalid profile in dune.toml: %q", strValue)
 			}
 			cfg.Profile = profile
 		case "mode":
 			mode, valid := CanonicalizeMode(strValue)
 			if !valid {
-				return cfg, warnings, fmt.Errorf("invalid mode in sand.toml: %q", strValue)
+				return cfg, warnings, fmt.Errorf("invalid mode in dune.toml: %q", strValue)
 			}
 			cfg.Mode = mode
 		case "workspace_mode":
 			workspaceMode, valid := NormalizeWorkspaceMode(strValue)
 			if !valid {
-				return cfg, warnings, fmt.Errorf("invalid workspace_mode in sand.toml: %q", strValue)
+				return cfg, warnings, fmt.Errorf("invalid workspace_mode in dune.toml: %q", strValue)
 			}
 			cfg.WorkspaceMode = workspaceMode
 		case "python_version":
@@ -174,7 +174,7 @@ func Parse(data map[string]any) (domain.SandConfig, []string, error) {
 
 	if _, hasGear := data["gear"]; hasGear {
 		if _, hasAddons := data["addons"]; hasAddons {
-			warnings = append(warnings, "Both gear and addons are set in sand.toml; gear takes precedence.")
+			warnings = append(warnings, "Both gear and addons are set in dune.toml; gear takes precedence.")
 		}
 	}
 	items, err := gearListValue(data)
@@ -199,7 +199,7 @@ func ValidateExistingData(data map[string]any) []string {
 			continue
 		}
 		if _, ok := value.(string); !ok {
-			warnings = append(warnings, fmt.Sprintf("Existing sand.toml key %q is not a string; it will be kept until overwritten.", key))
+			warnings = append(warnings, fmt.Sprintf("Existing dune.toml key %q is not a string; it will be kept until overwritten.", key))
 		}
 	}
 	if _, err := gearListValue(data); err != nil {
@@ -234,7 +234,7 @@ func ExistingVersions(data map[string]any) map[string]string {
 	return result
 }
 
-func UpdateData(data map[string]any, cfg domain.SandConfig, configureVersions bool, versionUpdates map[string]string) {
+func UpdateData(data map[string]any, cfg domain.DuneConfig, configureVersions bool, versionUpdates map[string]string) {
 	data["profile"] = string(cfg.Profile)
 	data["mode"] = string(cfg.Mode)
 	data["workspace_mode"] = string(cfg.WorkspaceMode)
@@ -320,7 +320,7 @@ func gearListValue(data map[string]any) ([]string, error) {
 	for _, item := range items {
 		value, ok := item.(string)
 		if !ok {
-			return nil, fmt.Errorf("invalid sand.toml (%s): expected array of strings", key)
+			return nil, fmt.Errorf("invalid dune.toml (%s): expected array of strings", key)
 		}
 		values = append(values, value)
 	}

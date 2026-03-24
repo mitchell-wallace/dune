@@ -83,7 +83,7 @@ func BuildCSV(addons []domain.AddonName, warn func(string)) string {
 		name := string(addon)
 		if !isValidAddonName(name) {
 			if warn != nil {
-				warn(fmt.Sprintf("Invalid gear name in sand.toml skipped for build-time install: %s", name))
+				warn(fmt.Sprintf("Invalid gear name in dune.toml skipped for build-time install: %s", name))
 			}
 			continue
 		}

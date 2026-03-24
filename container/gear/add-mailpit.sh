@@ -16,10 +16,10 @@ install_helper() {
 set -euo pipefail
 
 if [ "$(id -u)" -eq 0 ]; then
-  exec /usr/local/bin/sand-privileged mp-local "$@"
+  exec /usr/local/bin/dune-privileged mp-local "$@"
 fi
 
-exec sudo /usr/local/bin/sand-privileged mp-local "$@"
+exec sudo /usr/local/bin/dune-privileged mp-local "$@"
 EOF_HELPER
   chmod 0755 /usr/local/bin/mp-local
   chown root:root /usr/local/bin/mp-local
@@ -61,5 +61,5 @@ chown root:root /usr/local/bin/mailpit
 
 install_helper
 log "Starting Mailpit"
-/usr/local/bin/sand-privileged mp-local start >/dev/null
+/usr/local/bin/dune-privileged mp-local start >/dev/null
 log "Done. Example run: mp-local start"

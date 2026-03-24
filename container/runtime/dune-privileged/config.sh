@@ -105,23 +105,23 @@ get_effective_mode() {
     return 0
   fi
 
-  canonicalize_mode "${SAND_SECURITY_MODE:-std}"
+  canonicalize_mode "${DUNE_SECURITY_MODE:-std}"
 }
 
 configure_mode() {
   local requested_mode requested_profile
-  requested_mode="$(canonicalize_mode "${1:-${SAND_SECURITY_MODE:-std}}")" || {
-    echo "Invalid security mode: ${1:-${SAND_SECURITY_MODE:-std}}" >&2
+  requested_mode="$(canonicalize_mode "${1:-${DUNE_SECURITY_MODE:-std}}")" || {
+    echo "Invalid security mode: ${1:-${DUNE_SECURITY_MODE:-std}}" >&2
     exit 1
   }
 
-  requested_profile="$(normalize_profile "${2:-${SAND_PROFILE:-0}}")" || {
-    echo "Invalid profile: ${2:-${SAND_PROFILE:-0}}" >&2
+  requested_profile="$(normalize_profile "${2:-${DUNE_PROFILE:-0}}")" || {
+    echo "Invalid profile: ${2:-${DUNE_PROFILE:-0}}" >&2
     exit 1
   }
 
-  mkdir -p "$SAND_ETC_DIR"
-  chmod 0755 "$SAND_ETC_DIR"
+  mkdir -p "$DUNE_ETC_DIR"
+  chmod 0755 "$DUNE_ETC_DIR"
 
   if [ -f "$MODE_FILE" ]; then
     return 0

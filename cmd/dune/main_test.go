@@ -40,14 +40,14 @@ func (f *fakeGearClient) ExecInContainer(_ context.Context, name string, env map
 func TestGearEnvIncludesOnlyConfiguredVersions(t *testing.T) {
 	t.Parallel()
 
-	got := gearEnv(domain.SandConfig{
+	got := gearEnv(domain.DuneConfig{
 		PythonVersion: "3.13",
 		GoVersion:     "1.25.4",
 	})
 
 	want := map[string]string{
-		"SAND_PYTHON_VERSION": "3.13",
-		"SAND_GO_VERSION":     "1.25.4",
+		"DUNE_PYTHON_VERSION": "3.13",
+		"DUNE_GO_VERSION":     "1.25.4",
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("unexpected env: got %#v want %#v", got, want)
@@ -70,11 +70,11 @@ func TestApplyConfiguredGearSkipsUnknownInvalidAndInstalled(t *testing.T) {
 		},
 	}
 
-	err := applyConfiguredGear(context.Background(), client, domain.SandConfig{
+	err := applyConfiguredGear(context.Background(), client, domain.DuneConfig{
 		Mode:          domain.ModeStd,
 		Addons:        []domain.AddonName{"add-go", "bad/name", "add-rust", "missing-addon"},
 		PythonVersion: "3.13",
-	}, "sand-demo", manifest)
+	}, "dune-demo", manifest)
 	if err != nil {
 		t.Fatalf("applyConfiguredGear returned error: %v", err)
 	}
@@ -82,13 +82,13 @@ func TestApplyConfiguredGearSkipsUnknownInvalidAndInstalled(t *testing.T) {
 	if len(client.calls) != 1 {
 		t.Fatalf("expected 1 gear install call, got %d", len(client.calls))
 	}
-	if client.calls[0].container != "sand-demo" {
+	if client.calls[0].container != "dune-demo" {
 		t.Fatalf("unexpected container: %s", client.calls[0].container)
 	}
 	if !reflect.DeepEqual(client.calls[0].args, []string{"gear", "install", "add-go"}) {
 		t.Fatalf("unexpected gear args: %#v", client.calls[0].args)
 	}
-	if client.calls[0].env["SAND_PYTHON_VERSION"] != "3.13" {
+	if client.calls[0].env["DUNE_PYTHON_VERSION"] != "3.13" {
 		t.Fatalf("expected python version env, got %#v", client.calls[0].env)
 	}
 }
@@ -109,7 +109,7 @@ func TestInjectRallyMountAddsMountAndEnv(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := injectRallyMount(configPath, repoRoot, "sand-demo"); err != nil {
+	if err := injectRallyMount(configPath, repoRoot, "dune-demo"); err != nil {
 		t.Fatalf("injectRallyMount returned error: %v", err)
 	}
 
@@ -134,7 +134,7 @@ func TestInjectRallyMountAddsMountAndEnv(t *testing.T) {
 		t.Fatalf("rally mount not found: %#v", mounts)
 	}
 	env := got["containerEnv"].(map[string]any)
-	if env[contract.EnvDataDir] != contract.ContainerDataDir("sand-demo") {
+	if env[contract.EnvDataDir] != contract.ContainerDataDir("dune-demo") {
 		t.Fatalf("unexpected data dir env: %#v", env)
 	}
 }

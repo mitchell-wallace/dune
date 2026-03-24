@@ -3,8 +3,8 @@ set -euo pipefail
 IFS=$'\n\t'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-UTILS_PATH="${SAND_UTILS_PATH:-/usr/local/lib/sand/lib/utils.sh}"
-FIREWALL_DOMAIN_CONFIG="${SAND_FIREWALL_DOMAIN_CONFIG:-/usr/local/lib/sand/runtime/firewall-domains.tsv}"
+UTILS_PATH="${DUNE_UTILS_PATH:-/usr/local/lib/dune/lib/utils.sh}"
+FIREWALL_DOMAIN_CONFIG="${DUNE_FIREWALL_DOMAIN_CONFIG:-/usr/local/lib/dune/runtime/firewall-domains.tsv}"
 
 if [ ! -f "$UTILS_PATH" ]; then
   UTILS_PATH="${SCRIPT_DIR}/../lib/utils.sh"
@@ -16,7 +16,7 @@ fi
 
 . "$UTILS_PATH"
 
-DEBUG_FIREWALL="${SAND_FIREWALL_DEBUG:-0}"
+DEBUG_FIREWALL="${DUNE_FIREWALL_DEBUG:-0}"
 FIREWALL_DEBUG_ENABLED=0
 case "$(printf '%s' "$DEBUG_FIREWALL" | tr '[:upper:]' '[:lower:]')" in
   1|true|yes|on)
@@ -24,13 +24,13 @@ case "$(printf '%s' "$DEBUG_FIREWALL" | tr '[:upper:]' '[:lower:]')" in
     ;;
 esac
 
-FIREWALL_RUNTIME_DIR="/run/sand"
+FIREWALL_RUNTIME_DIR="/run/dune"
 FIREWALL_REFRESH_PID_FILE="${FIREWALL_RUNTIME_DIR}/firewall-refresh.pid"
 FIREWALL_REFRESH_DOMAINS_FILE="${FIREWALL_RUNTIME_DIR}/firewall-refresh-domains.tsv"
 FIREWALL_REFRESH_LOG_FILE="${FIREWALL_RUNTIME_DIR}/firewall-refresh.log"
-FIREWALL_REFRESH_INTERVAL_SECONDS="${SAND_FIREWALL_REFRESH_INTERVAL_SECONDS:-10}"
-FIREWALL_REFRESH_ATTEMPTS="${SAND_FIREWALL_REFRESH_ATTEMPTS:-3}"
-FIREWALL_REFRESH_RETRY_DELAY_SECONDS="${SAND_FIREWALL_REFRESH_RETRY_DELAY_SECONDS:-1}"
+FIREWALL_REFRESH_INTERVAL_SECONDS="${DUNE_FIREWALL_REFRESH_INTERVAL_SECONDS:-10}"
+FIREWALL_REFRESH_ATTEMPTS="${DUNE_FIREWALL_REFRESH_ATTEMPTS:-3}"
+FIREWALL_REFRESH_RETRY_DELAY_SECONDS="${DUNE_FIREWALL_REFRESH_RETRY_DELAY_SECONDS:-1}"
 
 log_info() {
   echo "[init-firewall] $*"
@@ -71,9 +71,9 @@ validate_nonnegative_int() {
 }
 
 validate_refresh_config() {
-  validate_nonnegative_int "$FIREWALL_REFRESH_INTERVAL_SECONDS" "SAND_FIREWALL_REFRESH_INTERVAL_SECONDS"
-  validate_positive_int "$FIREWALL_REFRESH_ATTEMPTS" "SAND_FIREWALL_REFRESH_ATTEMPTS"
-  validate_nonnegative_int "$FIREWALL_REFRESH_RETRY_DELAY_SECONDS" "SAND_FIREWALL_REFRESH_RETRY_DELAY_SECONDS"
+  validate_nonnegative_int "$FIREWALL_REFRESH_INTERVAL_SECONDS" "DUNE_FIREWALL_REFRESH_INTERVAL_SECONDS"
+  validate_positive_int "$FIREWALL_REFRESH_ATTEMPTS" "DUNE_FIREWALL_REFRESH_ATTEMPTS"
+  validate_nonnegative_int "$FIREWALL_REFRESH_RETRY_DELAY_SECONDS" "DUNE_FIREWALL_REFRESH_RETRY_DELAY_SECONDS"
 }
 
 refresh_domain_allowlist_entries() {
@@ -127,7 +127,7 @@ run_refresh_loop() {
   validate_refresh_config
 
   if [ "$FIREWALL_REFRESH_INTERVAL_SECONDS" -eq 0 ]; then
-    log_info "Allowlist refresh loop disabled (SAND_FIREWALL_REFRESH_INTERVAL_SECONDS=0)"
+    log_info "Allowlist refresh loop disabled (DUNE_FIREWALL_REFRESH_INTERVAL_SECONDS=0)"
     exit 0
   fi
 
@@ -216,7 +216,7 @@ start_refresh_loop() {
   done
 
   if [ "$FIREWALL_REFRESH_INTERVAL_SECONDS" -eq 0 ]; then
-    log_info "Allowlist refresh loop disabled (SAND_FIREWALL_REFRESH_INTERVAL_SECONDS=0)"
+    log_info "Allowlist refresh loop disabled (DUNE_FIREWALL_REFRESH_INTERVAL_SECONDS=0)"
     return 0
   fi
 
