@@ -23,6 +23,7 @@ type Config struct {
 	AgentSpecs       []string
 	AutoStart        bool
 	ExitWhenIdle     bool
+	BeadsMode        string
 }
 
 type model struct {
@@ -52,6 +53,7 @@ func Run(cfg Config) error {
 		Iterations:       cfg.Iterations,
 		Stdout:           os.Stdout,
 		Stderr:           os.Stderr,
+		BeadsMode:        cfg.BeadsMode,
 	})
 	if err := r.EnsureInitialized(); err != nil {
 		return err
