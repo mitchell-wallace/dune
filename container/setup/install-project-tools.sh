@@ -63,7 +63,19 @@ install_dolt() {
     return 0
   fi
   log "Installing dolt"
-  curl -L https://github.com/dolthub/dolt/releases/latest/download/install.sh | sudo bash
+  if [ "$(id -u)" -eq 0 ]; then
+    curl -fsSL https://github.com/dolthub/dolt/releases/latest/download/install.sh | bash
+  elif command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
+    curl -fsSL https://github.com/dolthub/dolt/releases/latest/download/install.sh | sudo bash
+  else
+    log "ERROR: dolt requires root or passwordless sudo to install"
+    return 1
+  fi
+  if ! command -v dolt >/dev/null 2>&1; then
+    log "ERROR: dolt installer completed but dolt is still not on PATH"
+    return 1
+  fi
+  log "dolt installed"
 }
 
 # beads - memory system for agents
@@ -86,10 +98,10 @@ install_mise() {
 
 if [ "$INSTALL_SYSTEM_TOOLS" = "1" ]; then
   install_gitui
+  install_dolt
 fi
 
 if [ "$INSTALL_USER_TOOLS" = "1" ]; then
-  install_dolt
   install_beads
   install_beads_viewer
   install_mise
