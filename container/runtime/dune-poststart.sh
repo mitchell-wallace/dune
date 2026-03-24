@@ -14,9 +14,8 @@ autostart_gear_service() {
   local label="$3"
   local helper_cmd="$4"
   local state_file="/persist/agent/gear/${gear_name}.installed"
-  local legacy_state_file="/persist/agent/addons/${gear_name}.installed"
 
-  if [ ! -f "$state_file" ] && [ ! -f "$legacy_state_file" ]; then
+  if [ ! -f "$state_file" ]; then
     return 0
   fi
 

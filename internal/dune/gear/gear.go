@@ -10,7 +10,7 @@ import (
 	"claudebox/internal/dune/domain"
 )
 
-func ParseManifest(path string) ([]domain.AddonSpec, error) {
+func ParseManifest(path string) ([]domain.GearSpec, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open manifest: %w", err)
@@ -33,7 +33,7 @@ func ParseManifest(path string) ([]domain.AddonSpec, error) {
 		header[col] = idx
 	}
 
-	specs := make([]domain.AddonSpec, 0, len(rows)-1)
+	specs := make([]domain.GearSpec, 0, len(rows)-1)
 	for _, row := range rows[1:] {
 		name := fieldAt(row, header["name"])
 		if name == "" {
@@ -64,8 +64,8 @@ func ParseManifest(path string) ([]domain.AddonSpec, error) {
 			}
 		}
 
-		specs = append(specs, domain.AddonSpec{
-			Name:           domain.AddonName(name),
+		specs = append(specs, domain.GearSpec{
+			Name:           domain.GearName(name),
 			Script:         fieldAt(row, header["script"]),
 			Description:    fieldAt(row, header["description"]),
 			EnabledModes:   modes,
@@ -76,12 +76,12 @@ func ParseManifest(path string) ([]domain.AddonSpec, error) {
 	return specs, nil
 }
 
-func BuildCSV(addons []domain.AddonName, warn func(string)) string {
+func BuildCSV(gearNames []domain.GearName, warn func(string)) string {
 	seen := map[string]bool{}
 	ordered := []string{}
-	for _, addon := range addons {
-		name := string(addon)
-		if !isValidAddonName(name) {
+	for _, gearName := range gearNames {
+		name := string(gearName)
+		if !isValidGearName(name) {
 			if warn != nil {
 				warn(fmt.Sprintf("Invalid gear name in dune.toml skipped for build-time install: %s", name))
 			}
@@ -96,15 +96,15 @@ func BuildCSV(addons []domain.AddonName, warn func(string)) string {
 	return strings.Join(ordered, ",")
 }
 
-func IndexByName(specs []domain.AddonSpec) map[string]domain.AddonSpec {
-	index := make(map[string]domain.AddonSpec, len(specs))
+func IndexByName(specs []domain.GearSpec) map[string]domain.GearSpec {
+	index := make(map[string]domain.GearSpec, len(specs))
 	for _, spec := range specs {
 		index[string(spec.Name)] = spec
 	}
 	return index
 }
 
-func OrderedNames(specs []domain.AddonSpec) []string {
+func OrderedNames(specs []domain.GearSpec) []string {
 	names := make([]string, 0, len(specs))
 	for _, spec := range specs {
 		names = append(names, string(spec.Name))
@@ -113,22 +113,22 @@ func OrderedNames(specs []domain.AddonSpec) []string {
 	return names
 }
 
-func DedupeRequested(addons []domain.AddonName) []domain.AddonName {
+func DedupeRequested(gearNames []domain.GearName) []domain.GearName {
 	seen := map[string]bool{}
-	result := make([]domain.AddonName, 0, len(addons))
-	for _, addon := range addons {
-		name := string(addon)
+	result := make([]domain.GearName, 0, len(gearNames))
+	for _, gearName := range gearNames {
+		name := string(gearName)
 		if seen[name] {
 			continue
 		}
 		seen[name] = true
-		result = append(result, addon)
+		result = append(result, gearName)
 	}
 	return result
 }
 
 func IsValidName(name string) bool {
-	return isValidAddonName(name)
+	return isValidGearName(name)
 }
 
 func fieldAt(row []string, idx int) string {
@@ -138,7 +138,7 @@ func fieldAt(row []string, idx int) string {
 	return strings.TrimSpace(row[idx])
 }
 
-func isValidAddonName(name string) bool {
+func isValidGearName(name string) bool {
 	if name == "" {
 		return false
 	}

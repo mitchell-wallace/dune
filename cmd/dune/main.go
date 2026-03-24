@@ -128,14 +128,7 @@ func runDune(ctx context.Context, opts cli.Options, paths repoPaths) error {
 	identity := workspace.ContainerIdentity(ref, cfg.Profile)
 	docker := container.NewClient(container.OSRunner{})
 
-	if cfg.Profile == domain.Profile("0") && !docker.ContainerExists(ctx, identity.Name) && docker.ContainerExists(ctx, identity.LegacyName) {
-		fmt.Printf("Migrating legacy container name: %s -> %s\n", identity.LegacyName, identity.Name)
-		if err := docker.RenameContainer(ctx, identity.LegacyName, identity.Name); err != nil {
-			return err
-		}
-	}
-
-	buildGearArg := gear.BuildCSV(cfg.Addons, func(message string) {
+	buildGearArg := gear.BuildCSV(cfg.Gear, func(message string) {
 		fmt.Fprintf(os.Stderr, "WARNING: %s\n", message)
 	})
 
@@ -328,7 +321,7 @@ func resolveConfig(ref domain.WorkspaceRef) (domain.DuneConfig, []string, error)
 }
 
 func applyConfiguredGear(ctx context.Context, docker gearContainer, cfg domain.DuneConfig, containerName, manifestPath string) error {
-	if len(cfg.Addons) == 0 {
+	if len(cfg.Gear) == 0 {
 		return nil
 	}
 	if cfg.Mode == domain.ModeStrict {
@@ -341,7 +334,7 @@ func applyConfiguredGear(ctx context.Context, docker gearContainer, cfg domain.D
 		return err
 	}
 	known := gear.IndexByName(specs)
-	requested := gear.DedupeRequested(cfg.Addons)
+	requested := gear.DedupeRequested(cfg.Gear)
 	fmt.Printf("Applying configured gear from dune.toml (%d requested)...\n", len(requested))
 
 	env := gearEnv(cfg)
@@ -362,8 +355,7 @@ func applyConfiguredGear(ctx context.Context, docker gearContainer, cfg domain.D
 			skippedUnknown++
 			continue
 		}
-		if docker.ContainerFileExists(ctx, containerName, "/persist/agent/gear/"+name+".installed") ||
-			docker.ContainerFileExists(ctx, containerName, "/persist/agent/addons/"+name+".installed") {
+		if docker.ContainerFileExists(ctx, containerName, "/persist/agent/gear/"+name+".installed") {
 			skippedInstalled++
 			continue
 		}

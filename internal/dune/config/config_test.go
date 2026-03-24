@@ -30,8 +30,8 @@ func TestRenderParseLines(t *testing.T) {
 		"scalar\tmode\tstrict",
 		"scalar\tworkspace_mode\tcopy",
 		"scalar\tgo_version\t1.26.0",
-		"addon\tadd-go\t",
-		"addon\tadd-postgres\t",
+		"gear\tadd-go\t",
+		"gear\tadd-postgres\t",
 	}
 	if !reflect.DeepEqual(lines, want) {
 		t.Fatalf("unexpected parse lines:\n got %#v\nwant %#v", lines, want)
@@ -53,7 +53,7 @@ func TestUpdateDataKeepsVersionsWhenUnchanged(t *testing.T) {
 		Profile:       domain.Profile("a"),
 		Mode:          domain.ModeLax,
 		WorkspaceMode: domain.WorkspaceModeMount,
-		Addons:        []domain.AddonName{"add-go"},
+		Gear:          []domain.GearName{"add-go"},
 	}, false, nil)
 
 	if got := data["go_version"]; got != "1.25.4" {
@@ -67,9 +67,6 @@ func TestUpdateDataKeepsVersionsWhenUnchanged(t *testing.T) {
 	}
 	if got := data["gear"]; !reflect.DeepEqual(got, []string{"add-go"}) {
 		t.Fatalf("gear not written correctly: %#v", got)
-	}
-	if _, ok := data["addons"]; ok {
-		t.Fatalf("legacy addons key should have been removed")
 	}
 }
 

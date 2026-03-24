@@ -36,7 +36,7 @@ func TestContainerIdentityStable(t *testing.T) {
 		t.Fatal(err)
 	}
 	identity := ContainerIdentity(ref, "a")
-	if identity.Name == "" || identity.LegacyName == "" {
-		t.Fatal("expected container names to be populated")
+	if identity.Name == "" {
+		t.Fatal("expected container name to be populated")
 	}
 }

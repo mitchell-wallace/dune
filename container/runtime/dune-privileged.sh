@@ -28,7 +28,6 @@ fi
 GEAR_DIR="/usr/local/lib/dune/gear"
 GEAR_MANIFEST_PATH="${GEAR_DIR}/manifest.tsv"
 GEAR_STATE_DIR="/persist/agent/gear"
-LEGACY_ADDON_STATE_DIR="/persist/agent/addons"
 DUNE_ETC_DIR="/etc/dune"
 MODE_FILE="${DUNE_ETC_DIR}/security-mode"
 PROFILE_FILE="${DUNE_ETC_DIR}/profile"
@@ -42,7 +41,7 @@ case "$cmd" in
   configure-mode)
     configure_mode "${2:-}" "${3:-}"
     ;;
-  run-gear|run-addon)
+  run-gear)
     run_gear "${2:-}"
     ;;
   pg-local)

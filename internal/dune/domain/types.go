@@ -18,7 +18,7 @@ const (
 
 type Profile string
 
-type AddonName string
+type GearName string
 
 type WorkspaceRef struct {
 	Input      string
@@ -33,7 +33,7 @@ type DuneConfig struct {
 	Profile       Profile
 	Mode          Mode
 	WorkspaceMode WorkspaceMode
-	Addons        []AddonName
+	Gear          []GearName
 
 	PythonVersion string
 	UVVersion     string
@@ -52,8 +52,7 @@ type ResolvedConfig struct {
 }
 
 type ContainerIdentity struct {
-	Name       string
-	LegacyName string
+	Name string
 }
 
 type ContainerState struct {
@@ -63,8 +62,8 @@ type ContainerState struct {
 	WorkspaceMode WorkspaceMode
 }
 
-type AddonSpec struct {
-	Name           AddonName
+type GearSpec struct {
+	Name           GearName
 	Script         string
 	Description    string
 	EnabledModes   map[Mode]bool

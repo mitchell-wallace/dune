@@ -22,12 +22,11 @@ var VersionKeys = []string{
 var ScalarKeys = append([]string{"profile", "mode", "workspace_mode"}, VersionKeys...)
 
 var allowedKeys = func() map[string]struct{} {
-	keys := make(map[string]struct{}, len(ScalarKeys)+2)
+	keys := make(map[string]struct{}, len(ScalarKeys)+1)
 	for _, key := range ScalarKeys {
 		keys[key] = struct{}{}
 	}
 	keys["gear"] = struct{}{}
-	keys["addons"] = struct{}{}
 	return keys
 }()
 
@@ -36,7 +35,7 @@ func DefaultConfig() domain.DuneConfig {
 		Profile:       domain.Profile("0"),
 		Mode:          domain.ModeStd,
 		WorkspaceMode: domain.WorkspaceModeMount,
-		Addons:        []domain.AddonName{},
+		Gear:          []domain.GearName{},
 	}
 }
 
@@ -172,19 +171,14 @@ func Parse(data map[string]any) (domain.DuneConfig, []string, error) {
 		}
 	}
 
-	if _, hasGear := data["gear"]; hasGear {
-		if _, hasAddons := data["addons"]; hasAddons {
-			warnings = append(warnings, "Both gear and addons are set in dune.toml; gear takes precedence.")
-		}
-	}
 	items, err := gearListValue(data)
 	if err != nil {
 		return cfg, warnings, err
 	}
 	if items != nil {
-		cfg.Addons = make([]domain.AddonName, 0, len(items))
+		cfg.Gear = make([]domain.GearName, 0, len(items))
 		for _, item := range items {
-			cfg.Addons = append(cfg.Addons, domain.AddonName(item))
+			cfg.Gear = append(cfg.Gear, domain.GearName(item))
 		}
 	}
 
@@ -208,7 +202,7 @@ func ValidateExistingData(data map[string]any) []string {
 	return warnings
 }
 
-func ExistingAddons(data map[string]any) map[string]bool {
+func ExistingGear(data map[string]any) map[string]bool {
 	result := map[string]bool{}
 	items, err := gearListValue(data)
 	if err != nil || items == nil {
@@ -238,8 +232,7 @@ func UpdateData(data map[string]any, cfg domain.DuneConfig, configureVersions bo
 	data["profile"] = string(cfg.Profile)
 	data["mode"] = string(cfg.Mode)
 	data["workspace_mode"] = string(cfg.WorkspaceMode)
-	data["gear"] = addonStrings(cfg.Addons)
-	delete(data, "addons")
+	data["gear"] = gearStrings(cfg.Gear)
 
 	if !configureVersions {
 		return
@@ -288,39 +281,33 @@ func RenderParseLines(data map[string]any) ([]string, error) {
 		return lines, nil
 	}
 	for _, value := range items {
-		lines = append(lines, fmt.Sprintf("addon\t%s\t", value))
+		lines = append(lines, fmt.Sprintf("gear\t%s\t", value))
 	}
 	return lines, nil
 }
 
-func addonStrings(addons []domain.AddonName) []string {
-	values := make([]string, 0, len(addons))
-	for _, addon := range addons {
-		values = append(values, string(addon))
+func gearStrings(gearNames []domain.GearName) []string {
+	values := make([]string, 0, len(gearNames))
+	for _, gearName := range gearNames {
+		values = append(values, string(gearName))
 	}
 	return values
 }
 
 func gearListValue(data map[string]any) ([]string, error) {
-	var key string
-	switch {
-	case data["gear"] != nil:
-		key = "gear"
-	case data["addons"] != nil:
-		key = "addons"
-	default:
+	if data["gear"] == nil {
 		return nil, nil
 	}
 
-	items, ok := data[key].([]any)
+	items, ok := data["gear"].([]any)
 	if !ok {
-		return nil, fmt.Errorf("existing %s key is not a list; the wizard will replace it.", key)
+		return nil, fmt.Errorf("existing gear key is not a list; the wizard will replace it")
 	}
 	values := make([]string, 0, len(items))
 	for _, item := range items {
 		value, ok := item.(string)
 		if !ok {
-			return nil, fmt.Errorf("invalid dune.toml (%s): expected array of strings", key)
+			return nil, fmt.Errorf("invalid dune.toml (gear): expected array of strings")
 		}
 		values = append(values, value)
 	}

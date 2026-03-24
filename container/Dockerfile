@@ -154,7 +154,7 @@ RUN /bin/bash -lc 'set -euo pipefail; \
     lax|yolo|strict) ;; \
     *) echo "Invalid DUNE_BUILD_MODE='\''$mode'\''" >&2; exit 1 ;; \
   esac; \
-  gear_csv="$(printf "%s" "${DUNE_BUILD_GEAR:-${DUNE_BUILD_ADDONS:-}}" | tr "[:upper:]" "[:lower:]" | tr -d "[:space:]")"; \
+  gear_csv="$(printf "%s" "${DUNE_BUILD_GEAR:-}" | tr "[:upper:]" "[:lower:]" | tr -d "[:space:]")"; \
   if [ -z "$gear_csv" ]; then \
     echo "No build-time gear requested."; \
     exit 0; \
@@ -205,7 +205,6 @@ RUN \
   if [ -f /home/node/.gitconfig ] && [ -s /home/node/.gitconfig ]; then cp -a /home/node/.gitconfig /opt/agent-defaults/git/.gitconfig; fi && \
   if [ -f /home/node/.git-credentials ] && [ -s /home/node/.git-credentials ]; then cp -a /home/node/.git-credentials /opt/agent-defaults/git/.git-credentials; fi && \
   if [ -d /persist/agent/gear ] && [ -n "$(find /persist/agent/gear -mindepth 1 -print -quit 2>/dev/null)" ]; then cp -a /persist/agent/gear/. /opt/agent-defaults/gear/; fi && \
-  if [ -d /persist/agent/addons ] && [ -n "$(find /persist/agent/addons -mindepth 1 -print -quit 2>/dev/null)" ]; then cp -a /persist/agent/addons/. /opt/agent-defaults/gear/; fi && \
   /usr/local/bin/setup-agent-persist.sh && \
   touch /home/node/.bashrc /home/node/.zshrc && \
   if ! grep -qxF '[ -f ~/.agent-shell-setup.sh ] && source ~/.agent-shell-setup.sh' /home/node/.bashrc; then \
@@ -231,7 +230,6 @@ RUN rm -rf /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defau
   cp -a /persist/agent/opencode/data/. /opt/agent-defaults/opencode/data/ && \
   cp -a /persist/agent/gh/config/. /opt/agent-defaults/gh/config/ && \
   if [ -d /persist/agent/gear ] && [ -n "$(find /persist/agent/gear -mindepth 1 -print -quit 2>/dev/null)" ]; then cp -a /persist/agent/gear/. /opt/agent-defaults/gear/; fi && \
-  if [ -d /persist/agent/addons ] && [ -n "$(find /persist/agent/addons -mindepth 1 -print -quit 2>/dev/null)" ]; then cp -a /persist/agent/addons/. /opt/agent-defaults/gear/; fi && \
   if [ -f /persist/agent/git/.gitconfig ] && [ -s /persist/agent/git/.gitconfig ]; then cp -a /persist/agent/git/.gitconfig /opt/agent-defaults/git/.gitconfig; fi && \
   if [ -f /persist/agent/git/.git-credentials ] && [ -s /persist/agent/git/.git-credentials ]; then cp -a /persist/agent/git/.git-credentials /opt/agent-defaults/git/.git-credentials; fi
 

@@ -17,8 +17,8 @@ const (
 	EventConfigResolved            EventType = "config_resolved"
 	EventContainerProvisionStarted EventType = "container_provision_started"
 	EventContainerProvisionEnded   EventType = "container_provision_finished"
-	EventAddonInstallStarted       EventType = "addon_install_started"
-	EventAddonInstallEnded         EventType = "addon_install_finished"
+	EventGearInstallStarted        EventType = "gear_install_started"
+	EventGearInstallEnded          EventType = "gear_install_finished"
 	EventShellAttached             EventType = "shell_attached"
 )
 

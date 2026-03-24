@@ -13,7 +13,7 @@ func TestBuildCSVDedupesAndSkipsInvalid(t *testing.T) {
 	t.Parallel()
 
 	var warnings []string
-	got := BuildCSV([]domain.AddonName{"add-go", "invalid/name", "add-go", "add-rust"}, func(message string) {
+	got := BuildCSV([]domain.GearName{"add-go", "invalid/name", "add-go", "add-rust"}, func(message string) {
 		warnings = append(warnings, message)
 	})
 

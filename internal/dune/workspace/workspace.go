@@ -86,8 +86,7 @@ func FindDuneToml(baseDir string) (string, error) {
 
 func ContainerIdentity(ref domain.WorkspaceRef, profile domain.Profile) domain.ContainerIdentity {
 	return domain.ContainerIdentity{
-		Name:       fmt.Sprintf("dune-%s-%s-%s", ref.Slug, ref.Hash, profile),
-		LegacyName: fmt.Sprintf("sand-%s-%s", ref.Slug, ref.Hash),
+		Name: fmt.Sprintf("dune-%s-%s-%s", ref.Slug, ref.Hash, profile),
 	}
 }
 

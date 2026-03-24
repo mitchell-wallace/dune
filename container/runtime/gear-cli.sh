@@ -10,7 +10,6 @@ fi
 
 GEAR_MANIFEST_PATH="/usr/local/lib/dune/gear/manifest.tsv"
 GEAR_STATE_DIR="/persist/agent/gear"
-LEGACY_ADDON_STATE_DIR="/persist/agent/addons"
 
 get_mode() {
   if [ -f /etc/dune/security-mode ]; then
@@ -28,7 +27,7 @@ gear_state_path() {
 
 gear_installed() {
   local gear_name="$1"
-  [ -f "$(gear_state_path "$gear_name")" ] || [ -f "${LEGACY_ADDON_STATE_DIR}/${gear_name}.installed" ]
+  [ -f "$(gear_state_path "$gear_name")" ]
 }
 
 print_gear_overview() {

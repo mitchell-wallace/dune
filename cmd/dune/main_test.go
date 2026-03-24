@@ -72,7 +72,7 @@ func TestApplyConfiguredGearSkipsUnknownInvalidAndInstalled(t *testing.T) {
 
 	err := applyConfiguredGear(context.Background(), client, domain.DuneConfig{
 		Mode:          domain.ModeStd,
-		Addons:        []domain.AddonName{"add-go", "bad/name", "add-rust", "missing-addon"},
+		Gear:          []domain.GearName{"add-go", "bad/name", "add-rust", "missing-addon"},
 		PythonVersion: "3.13",
 	}, "dune-demo", manifest)
 	if err != nil {

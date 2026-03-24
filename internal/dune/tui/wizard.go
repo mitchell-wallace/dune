@@ -50,11 +50,11 @@ type wizardConfig struct {
 	ProfileWarning   string
 	Discovered       []string
 	Warnings         []string
-	Addons           []domain.AddonSpec
+	Gear             []domain.GearSpec
 	ExistingProfile  string
 	ExistingMode     string
 	ExistingWSMode   string
-	ExistingAddons   map[string]bool
+	ExistingGear     map[string]bool
 	ExistingVersions map[string]string
 }
 
@@ -66,8 +66,8 @@ const (
 	stepProfileCustom
 	stepModeSelect
 	stepWorkspaceMode
-	stepAddons
-	stepStrictAddons
+	stepGear
+	stepStrictGear
 	stepVersionConfirm
 	stepVersionInput
 	stepReview
@@ -78,9 +78,9 @@ type wizardModel struct {
 
 	step wizardStep
 
-	cursor      int
-	addonCursor int
-	versionIdx  int
+	cursor     int
+	gearCursor int
+	versionIdx int
 
 	textInput textinput.Model
 	message   string
@@ -88,7 +88,7 @@ type wizardModel struct {
 	profile           string
 	mode              string
 	workspaceMode     string
-	selectedAddons    map[string]bool
+	selectedGear      map[string]bool
 	configureVersions bool
 	versionUpdates    map[string]string
 
@@ -138,11 +138,11 @@ func RunConfigWizard(directory, manifestPath string) error {
 		ProfileWarning:   profileWarning,
 		Discovered:       discoveredProfiles,
 		Warnings:         config.ValidateExistingData(data),
-		Addons:           specs,
+		Gear:             specs,
 		ExistingProfile:  defaultString(string(parsed.Profile), "0"),
 		ExistingMode:     defaultString(string(parsed.Mode), "std"),
 		ExistingWSMode:   defaultString(string(parsed.WorkspaceMode), "mount"),
-		ExistingAddons:   config.ExistingAddons(data),
+		ExistingGear:     config.ExistingGear(data),
 		ExistingVersions: config.ExistingVersions(data),
 	})
 
@@ -163,9 +163,9 @@ func RunConfigWizard(directory, manifestPath string) error {
 	finalConfig.Profile = domain.Profile(finished.profile)
 	finalConfig.Mode = domain.Mode(finished.mode)
 	finalConfig.WorkspaceMode = domain.WorkspaceMode(finished.workspaceMode)
-	finalConfig.Addons = make([]domain.AddonName, 0, len(finished.selectedAddonsOrdered()))
-	for _, addon := range finished.selectedAddonsOrdered() {
-		finalConfig.Addons = append(finalConfig.Addons, domain.AddonName(addon))
+	finalConfig.Gear = make([]domain.GearName, 0, len(finished.selectedGearOrdered()))
+	for _, gearName := range finished.selectedGearOrdered() {
+		finalConfig.Gear = append(finalConfig.Gear, domain.GearName(gearName))
 	}
 
 	config.UpdateData(data, finalConfig, finished.configureVersions, finished.versionUpdates)
@@ -174,7 +174,7 @@ func RunConfigWizard(directory, manifestPath string) error {
 	}
 
 	fmt.Printf("Wrote %s\n", targetPath)
-	fmt.Printf("Next: sand %s %s or just sand\n", finished.profile, finished.mode)
+	fmt.Printf("Next: dune %s %s or just dune\n", finished.profile, finished.mode)
 	return nil
 }
 
@@ -221,11 +221,11 @@ func newWizardModel(cfg wizardConfig) wizardModel {
 		profile:           cfg.ExistingProfile,
 		mode:              cfg.ExistingMode,
 		workspaceMode:     cfg.ExistingWSMode,
-		selectedAddons:    map[string]bool{},
+		selectedGear:      map[string]bool{},
 		versionUpdates:    map[string]string{},
 		configureVersions: false,
 	}
-	model.syncSelectedAddons()
+	model.syncSelectedGear()
 	return model
 }
 
@@ -253,10 +253,10 @@ func (m wizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateModeSelect(msg)
 	case stepWorkspaceMode:
 		return m.updateWorkspaceMode(msg)
-	case stepAddons:
-		return m.updateAddons(msg)
-	case stepStrictAddons:
-		return m.updateStrictAddons(msg)
+	case stepGear:
+		return m.updateGear(msg)
+	case stepStrictGear:
+		return m.updateStrictGear(msg)
 	case stepVersionConfirm:
 		return m.updateVersionConfirm(msg)
 	case stepVersionInput:
@@ -280,10 +280,10 @@ func (m wizardModel) View() string {
 		return m.viewModeSelect()
 	case stepWorkspaceMode:
 		return m.viewWorkspaceMode()
-	case stepAddons:
-		return m.viewAddons()
-	case stepStrictAddons:
-		return m.viewStrictAddons()
+	case stepGear:
+		return m.viewGear()
+	case stepStrictGear:
+		return m.viewStrictGear()
 	case stepVersionConfirm:
 		return m.viewVersionConfirm()
 	case stepVersionInput:
@@ -356,8 +356,8 @@ func (m wizardModel) updateModeSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.mode = modeOptions[m.cursor].Value
 			if m.mode == "strict" {
 				m.workspaceMode = "copy"
-				m.syncSelectedAddons()
-				m.step = stepStrictAddons
+				m.syncSelectedGear()
+				m.step = stepStrictGear
 				return m, nil
 			}
 			m.step = stepWorkspaceMode
@@ -376,24 +376,24 @@ func (m wizardModel) updateWorkspaceMode(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.cursor = wrapCursor(m.cursor+1, len(workspaceModeOptions))
 		case "enter":
 			m.workspaceMode = workspaceModeOptions[m.cursor].Value
-			m.syncSelectedAddons()
-			m.step = stepAddons
+			m.syncSelectedGear()
+			m.step = stepGear
 		}
 	}
 	return m, nil
 }
 
-func (m wizardModel) updateAddons(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m wizardModel) updateGear(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if key, ok := msg.(tea.KeyMsg); ok {
 		switch key.String() {
 		case "up", "k":
-			m.addonCursor = wrapCursor(m.addonCursor-1, len(m.cfg.Addons))
+			m.gearCursor = wrapCursor(m.gearCursor-1, len(m.cfg.Gear))
 		case "down", "j":
-			m.addonCursor = wrapCursor(m.addonCursor+1, len(m.cfg.Addons))
+			m.gearCursor = wrapCursor(m.gearCursor+1, len(m.cfg.Gear))
 		case " ":
-			current := m.cfg.Addons[m.addonCursor]
+			current := m.cfg.Gear[m.gearCursor]
 			if current.EnabledModes[domain.Mode(m.mode)] {
-				m.selectedAddons[string(current.Name)] = !m.selectedAddons[string(current.Name)]
+				m.selectedGear[string(current.Name)] = !m.selectedGear[string(current.Name)]
 			}
 		case "enter":
 			m.step = stepVersionConfirm
@@ -403,7 +403,7 @@ func (m wizardModel) updateAddons(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m wizardModel) updateStrictAddons(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m wizardModel) updateStrictGear(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if key, ok := msg.(tea.KeyMsg); ok && key.String() == "enter" {
 		m.step = stepVersionConfirm
 		m.cursor = 1
@@ -524,25 +524,25 @@ func (m wizardModel) viewWorkspaceMode() string {
 	return strings.Join(lines, "\n") + "\n"
 }
 
-func (m wizardModel) viewAddons() string {
+func (m wizardModel) viewGear() string {
 	lines := []string{titleStyle.Render("Select gear"), ""}
-	for idx, add := range m.cfg.Addons {
+	for idx, add := range m.cfg.Gear {
 		prefix := "[ ]"
-		if m.selectedAddons[string(add.Name)] {
+		if m.selectedGear[string(add.Name)] {
 			prefix = "[x]"
 		}
 		label := fmt.Sprintf("%s %-16s %s", prefix, add.Name, add.Description)
 		if !add.EnabledModes[domain.Mode(m.mode)] {
-			lines = append(lines, muted.Render(renderCursorOption(idx == m.addonCursor, label+" [not available in "+m.mode+"]")))
+			lines = append(lines, muted.Render(renderCursorOption(idx == m.gearCursor, label+" [not available in "+m.mode+"]")))
 			continue
 		}
-		lines = append(lines, renderCursorOption(idx == m.addonCursor, label))
+		lines = append(lines, renderCursorOption(idx == m.gearCursor, label))
 	}
 	lines = append(lines, "", muted.Render("Use ↑/↓, Space to toggle, Enter to continue."))
 	return strings.Join(lines, "\n") + "\n"
 }
 
-func (m wizardModel) viewStrictAddons() string {
+func (m wizardModel) viewStrictGear() string {
 	lines := []string{
 		titleStyle.Render("Gear disabled in strict mode"),
 		warnStyle.Render("strict mode enforces workspace_mode=copy and writes gear = []."),
@@ -587,7 +587,7 @@ func (m wizardModel) viewReview() string {
 		fmt.Sprintf("profile        %s", m.profile),
 		fmt.Sprintf("mode           %s", m.mode),
 		fmt.Sprintf("workspace_mode %s", m.workspaceMode),
-		fmt.Sprintf("gear           %s", stringsJoinOrEmpty(m.selectedAddonsOrdered(), ", ", "(none)")),
+		fmt.Sprintf("gear           %s", stringsJoinOrEmpty(m.selectedGearOrdered(), ", ", "(none)")),
 	}
 	if m.configureVersions {
 		for _, key := range config.VersionKeys {
@@ -605,26 +605,26 @@ func (m wizardModel) viewReview() string {
 	return strings.Join(lines, "\n") + "\n"
 }
 
-func (m *wizardModel) syncSelectedAddons() {
-	m.selectedAddons = map[string]bool{}
+func (m *wizardModel) syncSelectedGear() {
+	m.selectedGear = map[string]bool{}
 	if m.mode == "strict" {
 		return
 	}
-	for _, add := range m.cfg.Addons {
-		if add.EnabledModes[domain.Mode(m.mode)] && m.cfg.ExistingAddons[string(add.Name)] {
-			m.selectedAddons[string(add.Name)] = true
+	for _, add := range m.cfg.Gear {
+		if add.EnabledModes[domain.Mode(m.mode)] && m.cfg.ExistingGear[string(add.Name)] {
+			m.selectedGear[string(add.Name)] = true
 		}
 	}
 }
 
-func (m wizardModel) selectedAddonsOrdered() []string {
-	selectedAddons := []string{}
-	for _, add := range m.cfg.Addons {
-		if m.selectedAddons[string(add.Name)] {
-			selectedAddons = append(selectedAddons, string(add.Name))
+func (m wizardModel) selectedGearOrdered() []string {
+	selectedGear := []string{}
+	for _, add := range m.cfg.Gear {
+		if m.selectedGear[string(add.Name)] {
+			selectedGear = append(selectedGear, string(add.Name))
 		}
 	}
-	return selectedAddons
+	return selectedGear
 }
 
 func wrapCursor(next, size int) int {

@@ -34,8 +34,8 @@ accounts.exa.ai	optional	-	32	Exa account endpoints
 raw.githubusercontent.com	optional	-	32	beads/beads_viewer installer scripts
 mise.run	optional	-	32	mise bootstrap install script
 getmic.ro	optional	-	32	micro editor installer script
-deb.debian.org	optional	-	32	Debian apt repositories for optional addon installs
-security.debian.org	optional	-	32	Debian security apt repository for optional addon installs
+deb.debian.org	optional	-	32	Debian apt repositories for optional gear installs
+security.debian.org	optional	-	32	Debian security apt repository for optional gear installs
 cdn.playwright.dev	optional	optional	16	Playwright browser download CDN
 playwright.download.prss.microsoft.com	optional	optional	16	Playwright browser download fallback CDN
 storage.googleapis.com	optional	optional	16	Playwright Chromium CFT redirected download host

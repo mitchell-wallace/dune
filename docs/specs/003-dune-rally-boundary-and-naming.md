@@ -177,6 +177,13 @@ Whether `gear` is its own binary or a subcommand exposed by runtime shell plumbi
 - update manifests, CLI help text, docs, and runtime scripts in a coordinated pass
 - keep internal compatibility aliases where useful during transition
 
+### Phase 4: Legacy Cleanup Completion
+
+- remove internal `Addon*` type and field names in favor of `Gear*`
+- remove parsing and persistence compatibility for legacy `addons` config and state paths
+- remove host-side legacy `sand-*` container rename handling once the cleanup lands
+- update tests and docs so `dune`, `gear`, and `rally` are the only active names in the supported path
+
 ## Documentation Rules
 
 - `001-ralph-go-migration.md` remains unchanged for reference.
