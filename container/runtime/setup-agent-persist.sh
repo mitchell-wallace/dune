@@ -32,95 +32,90 @@ link_home_path() {
   ln -s "$persist_path" "$home_path"
 }
 
-seed_dir_if_empty() {
-  local key="$1"
-  local src="$2"
-  local dst="$3"
-  local default_dir="${DEFAULT_BASE}/${key}"
+seed_path_if_empty() {
+  local mapping_type="$1"
+  local key="$2"
+  local src="$3"
+  local dst="$4"
+  local default_path="${DEFAULT_BASE}/${key}"
   local source_is_link_to_dst=0
 
-  mkdir -p "$dst"
+  case "$mapping_type" in
+    dir|seed-only-dir)
+      mkdir -p "$dst"
+      if dir_has_entries "$dst"; then
+        return 0
+      fi
 
-  if ! dir_has_entries "$dst"; then
-    if [ -L "$src" ] && [ "$(readlink "$src")" = "$dst" ]; then
-      source_is_link_to_dst=1
-    fi
+      if [ "$mapping_type" = "dir" ] && [ -L "$src" ] && [ "$(readlink "$src")" = "$dst" ]; then
+        source_is_link_to_dst=1
+      fi
 
-    if [ "$source_is_link_to_dst" -eq 0 ] && dir_has_entries "$src"; then
-      cp -a "$src/." "$dst/"
-      return 0
-    fi
+      if [ "$mapping_type" = "dir" ] && [ "$source_is_link_to_dst" -eq 0 ] && dir_has_entries "$src"; then
+        cp -a "$src/." "$dst/"
+        return 0
+      fi
 
-    if dir_has_entries "$default_dir"; then
-      cp -a "$default_dir/." "$dst/"
-    fi
-  fi
+      if dir_has_entries "$default_path"; then
+        cp -a "$default_path/." "$dst/"
+      fi
+      ;;
+    file)
+      mkdir -p "$(dirname "$dst")"
+      if file_has_content "$dst"; then
+        return 0
+      fi
+
+      if [ -L "$src" ] && [ "$(readlink "$src")" = "$dst" ]; then
+        source_is_link_to_dst=1
+      fi
+
+      if [ "$source_is_link_to_dst" -eq 0 ] && file_has_content "$src"; then
+        cp -a "$src" "$dst"
+        return 0
+      fi
+
+      if file_has_content "$default_path"; then
+        cp -a "$default_path" "$dst"
+      fi
+      ;;
+    *)
+      echo "Unsupported mapping type: ${mapping_type}" >&2
+      exit 1
+      ;;
+  esac
 }
 
-seed_file_if_empty() {
-  local key="$1"
-  local src="$2"
-  local dst="$3"
-  local default_file="${DEFAULT_BASE}/${key}"
-  local source_is_link_to_dst=0
+apply_mapping() {
+  local mapping_type="$1"
+  local key="$2"
+  local home_path="$3"
+  local persist_path="$4"
 
-  mkdir -p "$(dirname "$dst")"
+  seed_path_if_empty "$mapping_type" "$key" "$home_path" "$persist_path"
 
-  if ! file_has_content "$dst"; then
-    if [ -L "$src" ] && [ "$(readlink "$src")" = "$dst" ]; then
-      source_is_link_to_dst=1
-    fi
-
-    if [ "$source_is_link_to_dst" -eq 0 ] && file_has_content "$src"; then
-      cp -a "$src" "$dst"
-      return 0
-    fi
-
-    if file_has_content "$default_file"; then
-      cp -a "$default_file" "$dst"
-    fi
-  fi
+  case "$mapping_type" in
+    dir|file)
+      link_home_path "$home_path" "$persist_path"
+      ;;
+    seed-only-dir)
+      ;;
+  esac
 }
 
-persist_dir_mapping() {
-  local key="$1"
-  local home_dir="$2"
-  local persist_dir="$3"
+PERSIST_MAPPINGS=(
+  "dir|claude|${HOME_DIR}/.claude|${PERSIST_BASE}/claude"
+  "dir|codex|${HOME_DIR}/.codex|${PERSIST_BASE}/codex"
+  "dir|gemini|${HOME_DIR}/.gemini|${PERSIST_BASE}/gemini"
+  "dir|opencode/config|${HOME_DIR}/.config/opencode|${PERSIST_BASE}/opencode/config"
+  "dir|opencode/data|${HOME_DIR}/.local/share/opencode|${PERSIST_BASE}/opencode/data"
+  "dir|gh/config|${HOME_DIR}/.config/gh|${PERSIST_BASE}/gh/config"
+  "file|git/.gitconfig|${HOME_DIR}/.gitconfig|${PERSIST_BASE}/git/.gitconfig"
+  "file|git/.git-credentials|${HOME_DIR}/.git-credentials|${PERSIST_BASE}/git/.git-credentials"
+  "seed-only-dir|addons|-|${PERSIST_BASE}/addons"
+)
 
-  seed_dir_if_empty "$key" "$home_dir" "$persist_dir"
-  link_home_path "$home_dir" "$persist_dir"
-}
-
-persist_file_mapping() {
-  local key="$1"
-  local home_file="$2"
-  local persist_file="$3"
-
-  seed_file_if_empty "$key" "$home_file" "$persist_file"
-  link_home_path "$home_file" "$persist_file"
-}
-
-seed_persist_data_dir_if_empty() {
-  local key="$1"
-  local persist_dir="$2"
-  local default_dir="${DEFAULT_BASE}/${key}"
-
-  mkdir -p "$persist_dir"
-
-  if ! dir_has_entries "$persist_dir" && dir_has_entries "$default_dir"; then
-    cp -a "$default_dir/." "$persist_dir/"
-  fi
-}
-
-persist_dir_mapping "claude" "${HOME_DIR}/.claude" "${PERSIST_BASE}/claude"
-persist_dir_mapping "codex" "${HOME_DIR}/.codex" "${PERSIST_BASE}/codex"
-persist_dir_mapping "gemini" "${HOME_DIR}/.gemini" "${PERSIST_BASE}/gemini"
-persist_dir_mapping "opencode/config" "${HOME_DIR}/.config/opencode" "${PERSIST_BASE}/opencode/config"
-persist_dir_mapping "opencode/data" "${HOME_DIR}/.local/share/opencode" "${PERSIST_BASE}/opencode/data"
-persist_dir_mapping "gh/config" "${HOME_DIR}/.config/gh" "${PERSIST_BASE}/gh/config"
-
-persist_file_mapping "git/.gitconfig" "${HOME_DIR}/.gitconfig" "${PERSIST_BASE}/git/.gitconfig"
-persist_file_mapping "git/.git-credentials" "${HOME_DIR}/.git-credentials" "${PERSIST_BASE}/git/.git-credentials"
-
-# Addon install state is not linked into HOME, but still needs default seeding.
-seed_persist_data_dir_if_empty "addons" "${PERSIST_BASE}/addons"
+for mapping in "${PERSIST_MAPPINGS[@]}"; do
+  IFS='|' read -r mapping_type key home_path persist_path <<<"$mapping"
+  apply_mapping "$mapping_type" "$key" "$home_path" "$persist_path"
+done

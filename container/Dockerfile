@@ -131,12 +131,18 @@ COPY runtime/setup-agent-persist.sh /usr/local/bin/setup-agent-persist.sh
 COPY runtime/sand-privileged.sh /usr/local/bin/sand-privileged
 COPY runtime/sand-entrypoint.sh /usr/local/bin/sand-entrypoint.sh
 COPY runtime/sand-poststart.sh /usr/local/bin/sand-poststart.sh
+COPY runtime/init-firewall.sh /usr/local/bin/init-firewall.sh
 COPY runtime/addons-cli.sh /usr/local/bin/addons
+COPY lib/ /usr/local/lib/sand/lib/
+COPY runtime/sand-privileged/ /usr/local/lib/sand/runtime/sand-privileged/
+COPY runtime/firewall-domains.tsv /usr/local/lib/sand/runtime/firewall-domains.tsv
 COPY addons/ /usr/local/lib/sand/addons/
-RUN chmod 0755 /usr/local/bin/setup-agent-persist.sh /usr/local/bin/sand-privileged /usr/local/bin/sand-entrypoint.sh /usr/local/bin/sand-poststart.sh /usr/local/bin/addons && \
-  chown root:root /usr/local/bin/setup-agent-persist.sh /usr/local/bin/sand-privileged /usr/local/bin/sand-entrypoint.sh /usr/local/bin/sand-poststart.sh /usr/local/bin/addons && \
+RUN chmod 0755 /usr/local/bin/setup-agent-persist.sh /usr/local/bin/sand-privileged /usr/local/bin/sand-entrypoint.sh /usr/local/bin/sand-poststart.sh /usr/local/bin/init-firewall.sh /usr/local/bin/addons && \
+  chown root:root /usr/local/bin/setup-agent-persist.sh /usr/local/bin/sand-privileged /usr/local/bin/sand-entrypoint.sh /usr/local/bin/sand-poststart.sh /usr/local/bin/init-firewall.sh /usr/local/bin/addons && \
   chown -R root:root /usr/local/lib/sand && \
-  chmod 0755 /usr/local/lib/sand /usr/local/lib/sand/addons && \
+  chmod 0755 /usr/local/lib/sand /usr/local/lib/sand/lib /usr/local/lib/sand/runtime /usr/local/lib/sand/runtime/sand-privileged /usr/local/lib/sand/addons && \
+  chmod 0444 /usr/local/lib/sand/lib/utils.sh /usr/local/lib/sand/runtime/firewall-domains.tsv && \
+  find /usr/local/lib/sand/runtime/sand-privileged -mindepth 1 -maxdepth 1 -type f -exec chmod 0444 {} \; && \
   chmod 0444 /usr/local/lib/sand/addons/manifest.tsv && \
   find /usr/local/lib/sand/addons -mindepth 1 -maxdepth 1 -type f ! -name manifest.tsv -exec chmod 0555 {} \;
 
@@ -227,12 +233,8 @@ RUN rm -rf /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defau
   if [ -f /persist/agent/git/.gitconfig ] && [ -s /persist/agent/git/.gitconfig ]; then cp -a /persist/agent/git/.gitconfig /opt/agent-defaults/git/.gitconfig; fi && \
   if [ -f /persist/agent/git/.git-credentials ] && [ -s /persist/agent/git/.git-credentials ]; then cp -a /persist/agent/git/.git-credentials /opt/agent-defaults/git/.git-credentials; fi
 
-# Copy and set up firewall script
-COPY runtime/init-firewall.sh /usr/local/bin/init-firewall.sh
 USER root
-RUN chmod 0755 /usr/local/bin/init-firewall.sh && \
-  chown root:root /usr/local/bin/init-firewall.sh && \
-  echo "node ALL=(root) NOPASSWD: /usr/local/bin/sand-privileged" > /etc/sudoers.d/node-sand-privileged && \
+RUN echo "node ALL=(root) NOPASSWD: /usr/local/bin/sand-privileged" > /etc/sudoers.d/node-sand-privileged && \
   chmod 0440 /etc/sudoers.d/node-sand-privileged
 ENTRYPOINT ["/usr/local/bin/sand-entrypoint.sh"]
 USER node
