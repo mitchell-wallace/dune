@@ -13,9 +13,10 @@ import (
 type Command string
 
 const (
-	CommandRun     Command = "run"
-	CommandConfig  Command = "config"
-	CommandRebuild Command = "rebuild"
+	CommandRun        Command = "run"
+	CommandConfig     Command = "config"
+	CommandRebuild    Command = "rebuild"
+	CommandRallyBuild Command = "rally-build"
 )
 
 type Options struct {
@@ -34,6 +35,8 @@ func Parse(argv []string) (Options, error) {
 			return parseConfig(argv[1:])
 		case "rebuild":
 			return parseRebuild(argv[1:])
+		case "rally":
+			return parseRally(argv[1:])
 		}
 	}
 	return parseRun(argv)
@@ -72,6 +75,29 @@ func parseRebuild(argv []string) (Options, error) {
 	args := fs.Args()
 	if len(args) > 1 {
 		return Options{}, errors.New("unexpected arguments for dune rebuild")
+	}
+	if len(args) == 1 {
+		opts.WorkspaceInput = args[0]
+	}
+	return opts, nil
+}
+
+func parseRally(argv []string) (Options, error) {
+	if len(argv) == 0 || argv[0] != "build" {
+		return Options{}, fmt.Errorf("usage: dune rally build [-d directory]")
+	}
+	fs := flag.NewFlagSet("dune rally build", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	var opts Options
+	opts.Command = CommandRallyBuild
+	fs.StringVar(&opts.WorkspaceInput, "directory", "", "")
+	fs.StringVar(&opts.WorkspaceInput, "d", "", "")
+	if err := fs.Parse(argv[1:]); err != nil {
+		return Options{}, err
+	}
+	args := fs.Args()
+	if len(args) > 1 {
+		return Options{}, errors.New("unexpected arguments for dune rally build")
 	}
 	if len(args) == 1 {
 		opts.WorkspaceInput = args[0]

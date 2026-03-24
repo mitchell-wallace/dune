@@ -59,6 +59,8 @@ func run(argv []string) error {
 		return tui.RunConfigWizard(defaultWorkspaceInput(opts.WorkspaceInput), paths.Manifest)
 	case cli.CommandRebuild:
 		return runRebuild(context.Background(), opts, paths)
+	case cli.CommandRallyBuild:
+		return runRallyBuild(context.Background(), opts, paths)
 	default:
 		return runDune(context.Background(), opts, paths)
 	}
@@ -86,6 +88,55 @@ func runRebuild(ctx context.Context, opts cli.Options, paths repoPaths) error {
 	}
 
 	return runDune(ctx, cli.Options{Command: cli.CommandRun, WorkspaceInput: ref.Dir}, paths)
+}
+
+func runRallyBuild(ctx context.Context, opts cli.Options, paths repoPaths) error {
+	// Build the binary on the host.
+	fmt.Println("Building rally binary...")
+	if err := buildRallyBinary(ctx, paths.Root); err != nil {
+		return fmt.Errorf("build failed: %w", err)
+	}
+	ver := readVersion(paths.Root)
+	commit := gitCommitShort(ctx, paths.Root)
+	fmt.Printf("Built rally %s (%s)\n", ver, commit)
+
+	// Resolve the target container.
+	ref, err := workspace.Resolve(defaultWorkspaceInput(opts.WorkspaceInput))
+	if err != nil {
+		return err
+	}
+	cfg, _, err := resolveConfig(ref)
+	if err != nil {
+		return err
+	}
+	identity := workspace.ContainerIdentity(ref, cfg.Profile)
+
+	docker := container.NewClient(container.OSRunner{})
+	if !docker.ContainerExists(ctx, identity.Name) {
+		return fmt.Errorf("container %s does not exist", identity.Name)
+	}
+	if !docker.ContainerRunning(ctx, identity.Name) {
+		fmt.Printf("Starting container %s...\n", identity.Name)
+		if err := docker.StartContainer(ctx, identity.Name); err != nil {
+			return err
+		}
+	}
+
+	// Ensure the persistent binary directory exists inside the container.
+	if err := docker.ExecInContainer(ctx, identity.Name, nil, "mkdir", "-p", contract.PersistentBinaryDir); err != nil {
+		return fmt.Errorf("failed to create %s in container: %w", contract.PersistentBinaryDir, err)
+	}
+
+	// Copy the built binary into the container's persistent volume.
+	hostBinary := contract.HostBinaryPath(paths.Root)
+	containerDest := contract.PersistentBinaryDir + "/" + contract.BinaryName
+	runner := container.OSRunner{}
+	if err := runner.Run(ctx, "docker", "cp", hostBinary, identity.Name+":"+containerDest); err != nil {
+		return fmt.Errorf("docker cp failed: %w", err)
+	}
+
+	fmt.Printf("Pushed rally %s (%s) to %s\n", ver, commit, identity.Name)
+	return nil
 }
 
 func runDune(ctx context.Context, opts cli.Options, paths repoPaths) error {

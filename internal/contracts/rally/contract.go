@@ -9,6 +9,7 @@ const (
 	BinaryName          = "rally"
 	ContainerBinaryPath = "/usr/local/bin/rally"
 	ContainerDataRoot   = "/persist/agent/rally"
+	PersistentBinaryDir = "/persist/agent/rally/bin"
 	DefaultRepoProgress = "docs/orchestration/rally-progress.yaml"
 	EnvContainerName    = "RALLY_CONTAINER_NAME"
 	EnvDataDir          = "RALLY_DATA_DIR"

@@ -10,6 +10,14 @@ if command -v opencode >/dev/null 2>&1; then
   alias op='opencode --yolo'
 fi
 
+# Prefer hot-updated rally binary from persistent volume over bind-mounted seed.
+# The dune CLI on the host is the only channel for host→container binary updates;
+# the container's /workspace contains the user's project, not the dune/rally source.
+case ":${PATH}:" in
+  *":/persist/agent/rally/bin:"*) ;;
+  *) export PATH="/persist/agent/rally/bin:${PATH}" ;;
+esac
+
 # Ensure mise shims are available in interactive shells. Keep this path even
 # before shims exist so newly installed runtimes work immediately.
 case ":${PATH}:" in
