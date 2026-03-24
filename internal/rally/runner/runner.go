@@ -14,6 +14,7 @@ import (
 	"claudebox/internal/contracts/rally"
 	"claudebox/internal/rally/messages"
 	"claudebox/internal/rally/progress"
+	"claudebox/internal/rally/prompt"
 	"claudebox/internal/rally/state"
 )
 
@@ -32,12 +33,19 @@ type Config struct {
 	Iterations       int
 	Stdout           io.Writer
 	Stderr           io.Writer
+	BeadsMode        string // "auto", "true", "false", or "" (use env default)
+	InlinePrompt     string
+	ScoutMode        bool
+	ScoutFocus       string
 }
+
+const defaultScoutIterations = 5
 
 type Runner struct {
 	cfg          Config
 	stateStore   *state.Store
 	messageStore *messages.Store
+	beadsCache   *bool // cached result of detectBeads
 }
 
 type SessionResult struct {
@@ -208,7 +216,11 @@ func (r *Runner) Run(ctx context.Context) ([]SessionResult, error) {
 	if err := os.MkdirAll(r.cfg.DataDir, 0o755); err != nil {
 		return nil, err
 	}
-	st, err := r.StartOrResumeBatch(r.cfg.Iterations)
+	iterations := r.cfg.Iterations
+	if r.cfg.ScoutMode && iterations <= 1 {
+		iterations = defaultScoutIterations
+	}
+	st, err := r.StartOrResumeBatch(iterations)
 	if err != nil {
 		return nil, err
 	}
@@ -261,7 +273,7 @@ func (r *Runner) runOne(ctx context.Context, st *state.State, mix AgentMix) (Ses
 	}
 	defer logFile.Close()
 
-	messageIDs, promptBody, err := r.buildPrompt(st.ActiveBatch.BatchID, sessionID)
+	messageIDs, promptBody, err := r.buildPrompt(st.ActiveBatch.BatchID, sessionID, iterationIndex, st.ActiveBatch.TargetIterations, agent)
 	if err != nil {
 		return SessionResult{}, err
 	}
@@ -353,97 +365,123 @@ func (r *Runner) runOne(ctx context.Context, st *state.State, mix AgentMix) (Ses
 	}, runErr
 }
 
-func (r *Runner) buildPrompt(batchID, sessionID int) ([]int, string, error) {
-	basePrompt := "You are running inside rally. Complete one scoped task thoroughly and use `rally progress record` to update session progress before you exit."
-
-	events, err := r.messageStore.Load()
-	if err != nil {
-		return nil, "", err
+func (r *Runner) detectBeads() bool {
+	if r.beadsCache != nil {
+		return *r.beadsCache
 	}
-	folded := messages.Fold(events)
-	ordered := messages.OrderedMessages(folded)
+	result := false
+	switch r.cfg.BeadsMode {
+	case "true":
+		result = true
+	case "false", "":
+		result = false
+	case "auto":
+		cmd := exec.Command("bd", "ready", "--json", "--limit", "1")
+		cmd.Dir = r.cfg.WorkspaceDir
+		result = cmd.Run() == nil
+	}
+	r.beadsCache = &result
+	return result
+}
 
+func (r *Runner) buildPrompt(batchID, sessionID, iterationIndex, targetIterations int, agent string) ([]int, string, error) {
 	var batchBodies []string
 	var sessionBody string
 	var consumed []int
-	st, err := r.stateStore.Load()
+
+	// When an inline prompt is provided, use it exclusively and skip
+	// the message store entirely.
+	if r.cfg.InlinePrompt != "" {
+		batchBodies = []string{r.cfg.InlinePrompt}
+	} else {
+		events, err := r.messageStore.Load()
+		if err != nil {
+			return nil, "", err
+		}
+		folded := messages.Fold(events)
+		ordered := messages.OrderedMessages(folded)
+
+		st, err := r.stateStore.Load()
+		if err != nil {
+			return nil, "", err
+		}
+
+		for _, msg := range ordered {
+			switch msg.Scope {
+			case messages.ScopeBatch:
+				if msg.ApplyBatchID != nil && *msg.ApplyBatchID == batchID && !msg.Canceled {
+					batchBodies = append(batchBodies, msg.Body)
+					continue
+				}
+				if !msg.Pending() {
+					continue
+				}
+				target := 0
+				if msg.TargetBatchID != nil {
+					target = *msg.TargetBatchID
+				}
+				if target == 0 || target == batchID {
+					batchBodies = append(batchBodies, msg.Body)
+					applyBatchID := batchID
+					if err := r.messageStore.Append(messages.Event{
+						EventID:      st.NextEventID,
+						MessageID:    msg.MessageID,
+						Scope:        messages.ScopeBatch,
+						EventType:    messages.EventMessageConsumed,
+						ConsumedAt:   messages.Timestamp(),
+						ApplyBatchID: &applyBatchID,
+					}); err != nil {
+						return nil, "", err
+					}
+					st.NextEventID++
+					consumed = append(consumed, msg.MessageID)
+				}
+			case messages.ScopeSession:
+				if !msg.Pending() {
+					continue
+				}
+				if sessionBody == "" {
+					sessionBody = msg.Body
+					targetSessionID := sessionID
+					if err := r.messageStore.Append(messages.Event{
+						EventID:         st.NextEventID,
+						MessageID:       msg.MessageID,
+						Scope:           messages.ScopeSession,
+						EventType:       messages.EventMessageConsumed,
+						ConsumedAt:      messages.Timestamp(),
+						TargetSessionID: &targetSessionID,
+					}); err != nil {
+						return nil, "", err
+					}
+					st.NextEventID++
+					consumed = append(consumed, msg.MessageID)
+				}
+			}
+		}
+		if err := r.stateStore.Save(st); err != nil {
+			return nil, "", err
+		}
+	}
+
+	data := prompt.PromptData{
+		SessionID:           sessionID,
+		BatchID:             batchID,
+		IterationIndex:      iterationIndex,
+		TargetIterations:    targetIterations,
+		Agent:               agent,
+		BeadsEnabled:        r.detectBeads(),
+		ScoutMode:           r.cfg.ScoutMode,
+		ScoutFocus:          r.cfg.ScoutFocus,
+		ProjectInstructions: prompt.LoadProjectInstructions(r.cfg.DataDir),
+		BatchMessages:       batchBodies,
+		SessionDirective:    sessionBody,
+	}
+
+	body, err := prompt.Build(data)
 	if err != nil {
 		return nil, "", err
 	}
-
-	for _, msg := range ordered {
-		switch msg.Scope {
-		case messages.ScopeBatch:
-			if msg.ApplyBatchID != nil && *msg.ApplyBatchID == batchID && !msg.Canceled {
-				batchBodies = append(batchBodies, msg.Body)
-				continue
-			}
-			if !msg.Pending() {
-				continue
-			}
-			target := 0
-			if msg.TargetBatchID != nil {
-				target = *msg.TargetBatchID
-			}
-			if target == 0 || target == batchID {
-				batchBodies = append(batchBodies, msg.Body)
-				applyBatchID := batchID
-				if err := r.messageStore.Append(messages.Event{
-					EventID:      st.NextEventID,
-					MessageID:    msg.MessageID,
-					Scope:        messages.ScopeBatch,
-					EventType:    messages.EventMessageConsumed,
-					ConsumedAt:   messages.Timestamp(),
-					ApplyBatchID: &applyBatchID,
-				}); err != nil {
-					return nil, "", err
-				}
-				st.NextEventID++
-				consumed = append(consumed, msg.MessageID)
-			}
-		case messages.ScopeSession:
-			if !msg.Pending() {
-				continue
-			}
-			if sessionBody == "" {
-				sessionBody = msg.Body
-				targetSessionID := sessionID
-				if err := r.messageStore.Append(messages.Event{
-					EventID:         st.NextEventID,
-					MessageID:       msg.MessageID,
-					Scope:           messages.ScopeSession,
-					EventType:       messages.EventMessageConsumed,
-					ConsumedAt:      messages.Timestamp(),
-					TargetSessionID: &targetSessionID,
-				}); err != nil {
-					return nil, "", err
-				}
-				st.NextEventID++
-				consumed = append(consumed, msg.MessageID)
-			}
-		}
-	}
-	if err := r.stateStore.Save(st); err != nil {
-		return nil, "", err
-	}
-
-	var builder strings.Builder
-	builder.WriteString(strings.TrimSpace(basePrompt))
-	builder.WriteString("\n\n## Rally Context\n")
-	if len(batchBodies) > 0 {
-		builder.WriteString("### Batch Messages\n")
-		for _, body := range batchBodies {
-			builder.WriteString("- ")
-			builder.WriteString(body)
-			builder.WriteString("\n")
-		}
-	}
-	if sessionBody != "" {
-		builder.WriteString("### Session Message\n")
-		builder.WriteString(sessionBody)
-		builder.WriteString("\n")
-	}
-	return consumed, builder.String(), nil
+	return consumed, body, nil
 }
 
 func activeBatchMap(batch *state.BatchState) map[string]any {

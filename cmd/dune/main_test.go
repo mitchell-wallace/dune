@@ -109,7 +109,7 @@ func TestInjectRallyMountAddsMountAndEnv(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := injectRallyMount(configPath, repoRoot, "dune-demo"); err != nil {
+	if err := injectRallyMount(configPath, repoRoot, "dune-demo", "auto"); err != nil {
 		t.Fatalf("injectRallyMount returned error: %v", err)
 	}
 
