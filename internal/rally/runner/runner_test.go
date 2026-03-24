@@ -131,7 +131,7 @@ func TestBuildAgentCommandUsesConfiguredModels(t *testing.T) {
 		},
 		{
 			agent:  "gemini",
-			want:   []string{"gemini", "-q", "--model", "gemini-2.5-pro", "--prompt", "prompt", "--yolo", "--output-format", "text"},
+			want:   []string{"gemini", "--model", "gemini-2.5-pro", "--prompt", "prompt", "--yolo", "--output-format", "text"},
 			stderr: false,
 		},
 		{

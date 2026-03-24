@@ -152,7 +152,7 @@ func BuildAgentCommand(cfg Config, agentName, prompt string) ([]string, bool, er
 		command = append(command, prompt)
 		return command, true, nil
 	case "gemini":
-		command := []string{"gemini", "-q"}
+		command := []string{"gemini"}
 		if cfg.GeminiModel != "" {
 			command = append(command, "--model", cfg.GeminiModel)
 		}
