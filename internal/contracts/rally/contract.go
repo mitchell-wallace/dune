@@ -62,10 +62,14 @@ func HostSystemBinaryPath() (string, error) {
 }
 
 func HostBinaryBuildCommand(repoRoot string) []string {
-	return HostBinaryBuildCommandWithVersion(repoRoot, "", "")
+	return HostBinaryBuildCommandForPath(repoRoot, HostBinaryPath(repoRoot), "", "")
 }
 
 func HostBinaryBuildCommandWithVersion(repoRoot, version, commit string) []string {
+	return HostBinaryBuildCommandForPath(repoRoot, HostBinaryPath(repoRoot), version, commit)
+}
+
+func HostBinaryBuildCommandForPath(repoRoot, outputPath, version, commit string) []string {
 	args := []string{"go", "build"}
 	if version != "" || commit != "" {
 		pkg := "claudebox/internal/version"
@@ -78,7 +82,7 @@ func HostBinaryBuildCommandWithVersion(repoRoot, version, commit string) []strin
 		}
 		args = append(args, "-ldflags", joinSpaces(flags))
 	}
-	args = append(args, "-o", HostBinaryPath(repoRoot), "./cmd/rally")
+	args = append(args, "-o", outputPath, "./cmd/rally")
 	return args
 }
 

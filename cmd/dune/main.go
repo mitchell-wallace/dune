@@ -332,7 +332,7 @@ func buildRallyBinary(ctx context.Context, repoRoot, binPath string) error {
 	ver := readVersion(repoRoot)
 	commit := gitCommitShort(ctx, repoRoot)
 
-	cmdArgs := contract.HostBinaryBuildCommandWithVersion(repoRoot, ver, commit)
+	cmdArgs := contract.HostBinaryBuildCommandForPath(repoRoot, binPath, ver, commit)
 	cmd := exec.CommandContext(ctx, cmdArgs[0], cmdArgs[1:]...)
 	cmd.Dir = repoRoot
 	cmd.Stdout = os.Stdout

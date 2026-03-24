@@ -7,4 +7,4 @@ Ad-hoc work that forms a sizeable change should come with an offer to commit, pe
 
 ## Architecture: host vs container
 
-The container's `/workspace` contains the **user's project**, not the claudebox/dune/rally source code. The `dune` CLI running on the host is the only channel for transferring host-side artifacts (like rebuilt binaries) into the container. Rally inside the container cannot self-update or access its own source. Use `dune rally build` to push an updated rally binary into a running container.
+The container's `/workspace` contains the **user's project**, not the claudebox/dune/rally source code. The `dune` CLI running on the host is the only channel for transferring host-side artifacts (like rebuilt binaries) into the container. Rally inside the container cannot self-update or access its own source. `dune rally build` rebuilds the host system rally binary and updates the current repo container; `dune rally update` re-pushes the latest host system rally binary into the current repo container.

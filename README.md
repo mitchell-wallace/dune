@@ -24,7 +24,11 @@ dune 1 std                  # profile 1, mode std
 dune -d ./repo -p a -m lax  # explicit flags
 dune config                 # interactive wizard for dune.toml
 dune config -d ./repo       # run wizard for a specific workspace
+dune rally build            # rebuild the host system rally binary and update this repo's container
+dune rally update           # push the latest host system rally binary into this repo's container
 ```
+
+`dune rally build` writes the Linux rally artifact to `~/.local/share/dune/bin/rally-linux-amd64` and syncs that binary into the active workspace container through `/persist/agent/rally/bin/rally`. `dune rally update` skips the rebuild step and just re-syncs the latest system binary into the current workspace container.
 
 `dune config` writes or updates `dune.toml` at the workspace git root (or directory fallback if not in a git repo), with:
 - profile selection (including discovered `agent-persist-*` profile volumes)
