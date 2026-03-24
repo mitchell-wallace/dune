@@ -51,6 +51,11 @@ type Client struct {
 	Runner CommandRunner
 }
 
+type Mount struct {
+	Source      string
+	Destination string
+}
+
 func NewClient(runner CommandRunner) *Client {
 	return &Client{Runner: runner}
 }
@@ -77,20 +82,39 @@ func (c *Client) ContainerEnvValue(ctx context.Context, name, key string) (strin
 	return "", nil
 }
 
-func (c *Client) ContainerMountTargets(ctx context.Context, name string) ([]string, error) {
-	output, err := c.Runner.Output(ctx, "docker", "inspect", "-f", "{{range .Mounts}}{{println .Destination}}{{end}}", name)
+func (c *Client) ContainerMounts(ctx context.Context, name string) ([]Mount, error) {
+	output, err := c.Runner.Output(ctx, "docker", "inspect", "-f", "{{range .Mounts}}{{println .Destination \"|\" .Source}}{{end}}", name)
 	if err != nil {
 		return nil, err
 	}
 	if strings.TrimSpace(output) == "" {
 		return nil, nil
 	}
-	var targets []string
+	var mounts []Mount
 	for _, line := range strings.Split(output, "\n") {
 		line = strings.TrimSpace(line)
 		if line != "" {
-			targets = append(targets, line)
+			destination, source, ok := strings.Cut(line, "|")
+			if !ok {
+				return nil, fmt.Errorf("unexpected docker mount format: %q", line)
+			}
+			mounts = append(mounts, Mount{
+				Destination: strings.TrimSpace(destination),
+				Source:      strings.TrimSpace(source),
+			})
 		}
+	}
+	return mounts, nil
+}
+
+func (c *Client) ContainerMountTargets(ctx context.Context, name string) ([]string, error) {
+	mounts, err := c.ContainerMounts(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+	var targets []string
+	for _, mount := range mounts {
+		targets = append(targets, mount.Destination)
 	}
 	return targets, nil
 }

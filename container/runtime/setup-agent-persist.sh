@@ -110,10 +110,13 @@ ensure_rally_binary() {
   mkdir -p "$(dirname "$persist_bin")"
 
   if [ ! -x "$persist_bin" ]; then
-    return 0
+    if ! chmod 0755 "$persist_bin" 2>/dev/null; then
+      if [ ! -x "$persist_bin" ]; then
+        echo "WARNING: ${persist_bin} exists but is not executable, and its mode could not be updated" >&2
+        return 1
+      fi
+    fi
   fi
-
-  chmod 0755 "$persist_bin"
 
   if [ -L "$target_path" ] && [ "$(readlink "$target_path")" = "$persist_bin" ]; then
     return 0

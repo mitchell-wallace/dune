@@ -115,7 +115,7 @@ func TestContainerMountTargetsParsesOutput(t *testing.T) {
 
 	client := NewClient(fakeRunner{
 		output: map[string]string{
-			"docker inspect -f {{range .Mounts}}{{println .Destination}}{{end}} dune-demo": "/workspace\n/usr/local/bin/rally",
+			"docker inspect -f {{range .Mounts}}{{println .Destination \"|\" .Source}}{{end}} dune-demo": "/workspace|/tmp/demo\n/usr/local/bin/rally|/tmp/rally",
 		},
 	})
 
@@ -125,5 +125,26 @@ func TestContainerMountTargetsParsesOutput(t *testing.T) {
 	}
 	if strings.Join(got, ",") != "/workspace,/usr/local/bin/rally" {
 		t.Fatalf("unexpected mount targets: %#v", got)
+	}
+}
+
+func TestContainerMountsParsesOutput(t *testing.T) {
+	t.Parallel()
+
+	client := NewClient(fakeRunner{
+		output: map[string]string{
+			"docker inspect -f {{range .Mounts}}{{println .Destination \"|\" .Source}}{{end}} dune-demo": "/workspace|/tmp/demo\n/usr/local/bin/rally|/tmp/rally",
+		},
+	})
+
+	got, err := client.ContainerMounts(context.Background(), "dune-demo")
+	if err != nil {
+		t.Fatalf("ContainerMounts returned error: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("unexpected mount count: %#v", got)
+	}
+	if got[1].Destination != "/usr/local/bin/rally" || got[1].Source != "/tmp/rally" {
+		t.Fatalf("unexpected mount: %#v", got[1])
 	}
 }

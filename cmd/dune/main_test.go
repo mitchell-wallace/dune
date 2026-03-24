@@ -127,3 +127,14 @@ func TestInjectRallyRuntimeConfigAddsEnv(t *testing.T) {
 		t.Fatalf("unexpected beads env: %#v", env)
 	}
 }
+
+func TestNormalizeDockerHostPath(t *testing.T) {
+	t.Parallel()
+
+	if got := normalizeDockerHostPath("/host_mnt/home/demo/project/.bin/linux/rally"); got != "/home/demo/project/.bin/linux/rally" {
+		t.Fatalf("unexpected normalized path: %q", got)
+	}
+	if got := normalizeDockerHostPath("/tmp/rally"); got != "/tmp/rally" {
+		t.Fatalf("unexpected passthrough path: %q", got)
+	}
+}

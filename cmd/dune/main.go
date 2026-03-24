@@ -38,7 +38,7 @@ type rallyContainer interface {
 	ContainerExists(ctx context.Context, name string) bool
 	ContainerRunning(ctx context.Context, name string) bool
 	StartContainer(ctx context.Context, name string) error
-	ContainerMountTargets(ctx context.Context, name string) ([]string, error)
+	ContainerMounts(ctx context.Context, name string) ([]container.Mount, error)
 	ExecInContainer(ctx context.Context, name string, env map[string]string, args ...string) error
 	ExecInContainerAsUser(ctx context.Context, name, user string, env map[string]string, args ...string) error
 }
@@ -411,13 +411,15 @@ func syncRallyBinaryToContainer(ctx context.Context, docker rallyContainer, runn
 		}
 	}
 
-	mountTargets, err := docker.ContainerMountTargets(ctx, containerName)
+	mounts, err := docker.ContainerMounts(ctx, containerName)
 	if err != nil {
 		return err
 	}
-	for _, target := range mountTargets {
-		if target == contract.ContainerBinaryPath {
-			return fmt.Errorf("container %s still bind-mounts %s; rebuild it once with `dune rebuild` to switch to system rally updates", containerName, contract.ContainerBinaryPath)
+	var legacyBinarySource string
+	for _, mount := range mounts {
+		if mount.Destination == contract.ContainerBinaryPath {
+			legacyBinarySource = mount.Source
+			break
 		}
 	}
 
@@ -434,7 +436,24 @@ func syncRallyBinaryToContainer(ctx context.Context, docker rallyContainer, runn
 			shellQuote(tmpPath), shellQuote(contract.PersistentBinaryPath), shellQuote(tmpPath))); err != nil {
 		return fmt.Errorf("failed to activate rally in container: %w", err)
 	}
+	if legacyBinarySource != "" {
+		legacyBinarySourceHostPath := normalizeDockerHostPath(legacyBinarySource)
+		if err := os.MkdirAll(filepath.Dir(legacyBinarySourceHostPath), 0o755); err != nil {
+			return fmt.Errorf("failed to prepare legacy rally bind mount source %s: %w", legacyBinarySourceHostPath, err)
+		}
+		if err := runner.Run(ctx, "install", "-m", "0755", hostBinary, legacyBinarySourceHostPath); err != nil {
+			return fmt.Errorf("failed to update legacy rally bind mount source %s: %w", legacyBinarySourceHostPath, err)
+		}
+		fmt.Fprintf(os.Stderr, "WARNING: container %s still bind-mounts %s; updated legacy source %s for compatibility, but run `dune rebuild` to migrate to persisted rally updates\n", containerName, contract.ContainerBinaryPath, legacyBinarySourceHostPath)
+	}
 	return nil
+}
+
+func normalizeDockerHostPath(path string) string {
+	if strings.HasPrefix(path, "/host_mnt/") {
+		return strings.TrimPrefix(path, "/host_mnt")
+	}
+	return path
 }
 
 func rallyBinaryNeedsBuild(repoRoot, binPath string) bool {
