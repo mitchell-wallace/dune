@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"testing"
 
 	"claudebox/internal/contracts/rally"
@@ -93,13 +92,11 @@ func TestApplyConfiguredGearSkipsUnknownInvalidAndInstalled(t *testing.T) {
 	}
 }
 
-func TestInjectRallyMountAddsMountAndEnv(t *testing.T) {
+func TestInjectRallyRuntimeConfigAddsEnv(t *testing.T) {
 	t.Parallel()
 
-	repoRoot := t.TempDir()
 	configPath := filepath.Join(t.TempDir(), "devcontainer.json")
 	content := map[string]any{
-		"mounts": []string{"source=existing,target=/tmp,type=bind"},
 		"containerEnv": map[string]any{
 			"FOO": "bar",
 		},
@@ -109,8 +106,8 @@ func TestInjectRallyMountAddsMountAndEnv(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := injectRallyMount(configPath, repoRoot, "dune-demo", "auto"); err != nil {
-		t.Fatalf("injectRallyMount returned error: %v", err)
+	if err := injectRallyRuntimeConfig(configPath, "dune-demo", "auto"); err != nil {
+		t.Fatalf("injectRallyRuntimeConfig returned error: %v", err)
 	}
 
 	var got map[string]any
@@ -122,19 +119,11 @@ func TestInjectRallyMountAddsMountAndEnv(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	mounts := got["mounts"].([]any)
-	foundMount := false
-	for _, item := range mounts {
-		if value, ok := item.(string); ok && strings.Contains(value, contract.ContainerBinaryPath) {
-			foundMount = true
-			break
-		}
-	}
-	if !foundMount {
-		t.Fatalf("rally mount not found: %#v", mounts)
-	}
 	env := got["containerEnv"].(map[string]any)
 	if env[contract.EnvDataDir] != contract.ContainerDataDir("dune-demo") {
 		t.Fatalf("unexpected data dir env: %#v", env)
+	}
+	if env[contract.EnvBeads] != "auto" {
+		t.Fatalf("unexpected beads env: %#v", env)
 	}
 }

@@ -109,3 +109,21 @@ func TestContainerEnvValueFindsKey(t *testing.T) {
 		t.Fatalf("unexpected env value: %s", got)
 	}
 }
+
+func TestContainerMountTargetsParsesOutput(t *testing.T) {
+	t.Parallel()
+
+	client := NewClient(fakeRunner{
+		output: map[string]string{
+			"docker inspect -f {{range .Mounts}}{{println .Destination}}{{end}} dune-demo": "/workspace\n/usr/local/bin/rally",
+		},
+	})
+
+	got, err := client.ContainerMountTargets(context.Background(), "dune-demo")
+	if err != nil {
+		t.Fatalf("ContainerMountTargets returned error: %v", err)
+	}
+	if strings.Join(got, ",") != "/workspace,/usr/local/bin/rally" {
+		t.Fatalf("unexpected mount targets: %#v", got)
+	}
+}

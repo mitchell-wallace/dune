@@ -103,6 +103,31 @@ apply_mapping() {
   esac
 }
 
+ensure_rally_binary() {
+  local persist_bin="${PERSIST_BASE}/rally/bin/rally"
+  local target_path="/usr/local/bin/rally"
+
+  mkdir -p "$(dirname "$persist_bin")"
+
+  if [ ! -x "$persist_bin" ]; then
+    return 0
+  fi
+
+  chmod 0755 "$persist_bin"
+
+  if [ -L "$target_path" ] && [ "$(readlink "$target_path")" = "$persist_bin" ]; then
+    return 0
+  fi
+
+  if grep -Fq " ${target_path} " /proc/self/mountinfo 2>/dev/null; then
+    echo "WARNING: ${target_path} is a mounted path; rebuild this container once to switch rally to the persisted system binary" >&2
+    return 0
+  fi
+
+  rm -f "$target_path"
+  ln -s "$persist_bin" "$target_path"
+}
+
 PERSIST_MAPPINGS=(
   "dir|claude|${HOME_DIR}/.claude|${PERSIST_BASE}/claude"
   "dir|codex|${HOME_DIR}/.codex|${PERSIST_BASE}/codex"
@@ -119,3 +144,5 @@ for mapping in "${PERSIST_MAPPINGS[@]}"; do
   IFS='|' read -r mapping_type key home_path persist_path <<<"$mapping"
   apply_mapping "$mapping_type" "$key" "$home_path" "$persist_path"
 done
+
+ensure_rally_binary

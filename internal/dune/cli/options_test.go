@@ -51,6 +51,21 @@ func TestParseConfigSubcommand(t *testing.T) {
 	}
 }
 
+func TestParseRallyUpdateSubcommand(t *testing.T) {
+	t.Parallel()
+
+	opts, err := Parse([]string{"rally", "update", "-d", "./repo"})
+	if err != nil {
+		t.Fatalf("Parse returned error: %v", err)
+	}
+	if opts.Command != CommandRallyUpdate {
+		t.Fatalf("unexpected command: %s", opts.Command)
+	}
+	if opts.WorkspaceInput != "./repo" {
+		t.Fatalf("unexpected workspace input: %s", opts.WorkspaceInput)
+	}
+}
+
 func TestParseRunFlagsOverride(t *testing.T) {
 	t.Parallel()
 

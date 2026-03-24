@@ -2,27 +2,29 @@ package contract
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 )
 
 const (
-	BinaryName          = "rally"
-	ContainerBinaryPath = "/usr/local/bin/rally"
-	ContainerDataRoot   = "/persist/agent/rally"
-	PersistentBinaryDir = "/persist/agent/rally/bin"
-	DefaultRepoProgress = "docs/orchestration/rally-progress.yaml"
-	EnvContainerName    = "RALLY_CONTAINER_NAME"
-	EnvDataDir          = "RALLY_DATA_DIR"
-	EnvRepoProgressPath = "RALLY_REPO_PROGRESS_PATH"
-	EnvSessionID        = "RALLY_SESSION_ID"
-	EnvBatchID          = "RALLY_BATCH_ID"
-	EnvIterationIndex   = "RALLY_ITERATION_INDEX"
-	EnvAgent            = "RALLY_AGENT"
-	EnvSessionDir       = "RALLY_SESSION_DIR"
-	EnvWorkspaceDir     = "RALLY_WORKSPACE_DIR"
-	EnvBeads            = "RALLY_BEADS"
-	SchemaVersion       = 1
-	RepoHistoryWindow   = 50
+	BinaryName           = "rally"
+	ContainerBinaryPath  = "/usr/local/bin/rally"
+	ContainerDataRoot    = "/persist/agent/rally"
+	PersistentBinaryDir  = "/persist/agent/rally/bin"
+	PersistentBinaryPath = PersistentBinaryDir + "/" + BinaryName
+	DefaultRepoProgress  = "docs/orchestration/rally-progress.yaml"
+	EnvContainerName     = "RALLY_CONTAINER_NAME"
+	EnvDataDir           = "RALLY_DATA_DIR"
+	EnvRepoProgressPath  = "RALLY_REPO_PROGRESS_PATH"
+	EnvSessionID         = "RALLY_SESSION_ID"
+	EnvBatchID           = "RALLY_BATCH_ID"
+	EnvIterationIndex    = "RALLY_ITERATION_INDEX"
+	EnvAgent             = "RALLY_AGENT"
+	EnvSessionDir        = "RALLY_SESSION_DIR"
+	EnvWorkspaceDir      = "RALLY_WORKSPACE_DIR"
+	EnvBeads             = "RALLY_BEADS"
+	SchemaVersion        = 1
+	RepoHistoryWindow    = 50
 )
 
 func ContainerDataDir(containerName string) string {
@@ -45,6 +47,18 @@ func ContainerEnv(containerName string) map[string]string {
 
 func HostBinaryPath(repoRoot string) string {
 	return filepath.Join(repoRoot, ".bin", "linux", BinaryName)
+}
+
+func HostSystemBinaryPath() (string, error) {
+	if override := filepath.Clean(os.Getenv("DUNE_RALLY_BINARY_PATH")); override != "." && override != "" {
+		return override, nil
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, ".local", "share", "dune", "bin", "rally-linux-amd64"), nil
 }
 
 func HostBinaryBuildCommand(repoRoot string) []string {

@@ -77,6 +77,24 @@ func (c *Client) ContainerEnvValue(ctx context.Context, name, key string) (strin
 	return "", nil
 }
 
+func (c *Client) ContainerMountTargets(ctx context.Context, name string) ([]string, error) {
+	output, err := c.Runner.Output(ctx, "docker", "inspect", "-f", "{{range .Mounts}}{{println .Destination}}{{end}}", name)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(output) == "" {
+		return nil, nil
+	}
+	var targets []string
+	for _, line := range strings.Split(output, "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			targets = append(targets, line)
+		}
+	}
+	return targets, nil
+}
+
 func (c *Client) ResolveContainerMode(ctx context.Context, name string) (domain.Mode, error) {
 	if c.ContainerRunning(ctx, name) {
 		output, err := c.Runner.Output(ctx, "docker", "exec", name, "sh", "-lc", "cat /etc/dune/security-mode 2>/dev/null || true")
@@ -172,7 +190,14 @@ func (c *Client) ContainerFileExists(ctx context.Context, name, path string) boo
 }
 
 func (c *Client) ExecInContainer(ctx context.Context, name string, env map[string]string, args ...string) error {
+	return c.ExecInContainerAsUser(ctx, name, "", env, args...)
+}
+
+func (c *Client) ExecInContainerAsUser(ctx context.Context, name, user string, env map[string]string, args ...string) error {
 	command := []string{"exec"}
+	if user != "" {
+		command = append(command, "--user", user)
+	}
 	for key, value := range env {
 		command = append(command, "-e", key+"="+value)
 	}
