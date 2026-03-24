@@ -27,6 +27,7 @@ var allowedKeys = func() map[string]struct{} {
 		keys[key] = struct{}{}
 	}
 	keys["gear"] = struct{}{}
+	keys["beads"] = struct{}{}
 	return keys
 }()
 
@@ -171,6 +172,19 @@ func Parse(data map[string]any) (domain.DuneConfig, []string, error) {
 		}
 	}
 
+	if beadsRaw, ok := data["beads"]; ok && beadsRaw != nil {
+		beadsStr, ok := beadsRaw.(string)
+		if !ok {
+			return cfg, warnings, fmt.Errorf("invalid dune.toml (beads): expected string")
+		}
+		switch strings.ToLower(strings.TrimSpace(beadsStr)) {
+		case "auto", "true", "false":
+			cfg.Beads = strings.ToLower(strings.TrimSpace(beadsStr))
+		default:
+			return cfg, warnings, fmt.Errorf("invalid beads in dune.toml: %q (must be auto, true, or false)", beadsStr)
+		}
+	}
+
 	items, err := gearListValue(data)
 	if err != nil {
 		return cfg, warnings, err
@@ -233,6 +247,9 @@ func UpdateData(data map[string]any, cfg domain.DuneConfig, configureVersions bo
 	data["mode"] = string(cfg.Mode)
 	data["workspace_mode"] = string(cfg.WorkspaceMode)
 	data["gear"] = gearStrings(cfg.Gear)
+	if cfg.Beads != "" {
+		data["beads"] = cfg.Beads
+	}
 
 	if !configureVersions {
 		return

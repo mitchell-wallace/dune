@@ -95,6 +95,74 @@ func TestUpdateDataAppliesVersionEdits(t *testing.T) {
 	}
 }
 
+func TestParseBeadsAuto(t *testing.T) {
+	t.Parallel()
+	cfg, _, err := Parse(map[string]any{"beads": "auto"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Beads != "auto" {
+		t.Fatalf("expected beads=auto, got %q", cfg.Beads)
+	}
+}
+
+func TestParseBeadsTrue(t *testing.T) {
+	t.Parallel()
+	cfg, _, err := Parse(map[string]any{"beads": "true"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Beads != "true" {
+		t.Fatalf("expected beads=true, got %q", cfg.Beads)
+	}
+}
+
+func TestParseBeadsAbsent(t *testing.T) {
+	t.Parallel()
+	cfg, _, err := Parse(map[string]any{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Beads != "" {
+		t.Fatalf("expected beads empty, got %q", cfg.Beads)
+	}
+}
+
+func TestParseBeadsInvalid(t *testing.T) {
+	t.Parallel()
+	_, _, err := Parse(map[string]any{"beads": "invalid"})
+	if err == nil {
+		t.Fatal("expected error for invalid beads value")
+	}
+}
+
+func TestUpdateDataWritesBeads(t *testing.T) {
+	t.Parallel()
+	data := map[string]any{}
+	UpdateData(data, domain.DuneConfig{
+		Profile:       domain.Profile("0"),
+		Mode:          domain.ModeStd,
+		WorkspaceMode: domain.WorkspaceModeMount,
+		Beads:         "auto",
+	}, false, nil)
+	if got := data["beads"]; got != "auto" {
+		t.Fatalf("expected beads=auto in data, got %v", got)
+	}
+}
+
+func TestUpdateDataOmitsEmptyBeads(t *testing.T) {
+	t.Parallel()
+	data := map[string]any{}
+	UpdateData(data, domain.DuneConfig{
+		Profile:       domain.Profile("0"),
+		Mode:          domain.ModeStd,
+		WorkspaceMode: domain.WorkspaceModeMount,
+	}, false, nil)
+	if _, ok := data["beads"]; ok {
+		t.Fatal("expected beads absent from data when empty")
+	}
+}
+
 func TestParseRejectsUnsupportedVersionKeyTypes(t *testing.T) {
 	t.Parallel()
 

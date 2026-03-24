@@ -165,7 +165,7 @@ func runDune(ctx context.Context, opts cli.Options, paths repoPaths) error {
 		if err := buildRallyBinary(ctx, paths.Root); err != nil {
 			return err
 		}
-		if err := injectRallyMount(effectiveConfig, paths.Root, identity.Name); err != nil {
+		if err := injectRallyMount(effectiveConfig, paths.Root, identity.Name, cfg.Beads); err != nil {
 			return err
 		}
 
@@ -252,7 +252,7 @@ func buildRallyBinary(ctx context.Context, repoRoot string) error {
 	return cmd.Run()
 }
 
-func injectRallyMount(configPath, repoRoot, containerName string) error {
+func injectRallyMount(configPath, repoRoot, containerName, beadsMode string) error {
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return err
@@ -270,6 +270,9 @@ func injectRallyMount(configPath, repoRoot, containerName string) error {
 	envMap := asMapAny(cfg["containerEnv"])
 	for key, value := range contract.ContainerEnv(containerName) {
 		envMap[key] = value
+	}
+	if beadsMode != "" {
+		envMap[contract.EnvBeads] = beadsMode
 	}
 	cfg["containerEnv"] = envMap
 

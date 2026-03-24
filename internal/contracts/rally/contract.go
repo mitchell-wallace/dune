@@ -19,6 +19,7 @@ const (
 	EnvAgent            = "RALLY_AGENT"
 	EnvSessionDir       = "RALLY_SESSION_DIR"
 	EnvWorkspaceDir     = "RALLY_WORKSPACE_DIR"
+	EnvBeads            = "RALLY_BEADS"
 	SchemaVersion       = 1
 	RepoHistoryWindow   = 50
 )

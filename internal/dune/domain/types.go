@@ -40,6 +40,8 @@ type DuneConfig struct {
 	GoVersion     string
 	RustVersion   string
 
+	Beads string // "auto", "true", "false", or "" (unset)
+
 	UnknownKeys []string
 }
 
