@@ -1,7 +1,9 @@
 package runner
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -58,6 +60,10 @@ type SessionResult struct {
 	IterationIndex int
 	Agent          string
 	ExitCode       int
+}
+
+type geminiHeadlessOutput struct {
+	Response string `json:"response"`
 }
 
 func New(cfg Config) *Runner {
@@ -156,8 +162,8 @@ func BuildAgentCommand(cfg Config, agentName, prompt string) ([]string, bool, er
 		if cfg.GeminiModel != "" {
 			command = append(command, "--model", cfg.GeminiModel)
 		}
-		command = append(command, "--prompt", prompt, "--yolo", "--output-format", "text")
-		return command, false, nil
+		command = append(command, "--prompt", prompt, "--yolo", "--output-format", "json")
+		return command, true, nil
 	case "opencode":
 		command := []string{"opencode", "run"}
 		if cfg.OpenCodeModel != "" {
@@ -344,7 +350,12 @@ func (r *Runner) runOne(ctx context.Context, st *state.State, mix AgentMix) (Ses
 
 	stdout := io.MultiWriter(logFile, r.cfg.Stdout)
 	stderrTarget := io.MultiWriter(logFile, r.cfg.Stderr)
-	cmd.Stdout = stdout
+	var geminiStdout bytes.Buffer
+	if agent == "gemini" {
+		cmd.Stdout = &geminiStdout
+	} else {
+		cmd.Stdout = stdout
+	}
 	if suppressStderr {
 		cmd.Stderr = logFile
 	} else {
@@ -369,6 +380,17 @@ func (r *Runner) runOne(ctx context.Context, st *state.State, mix AgentMix) (Ses
 	}
 
 	runErr := cmd.Run()
+	if agent == "gemini" {
+		formatted, err := formatGeminiHeadlessResponse(geminiStdout.Bytes())
+		if err != nil {
+			fmt.Fprintf(logFile, "rally: warning: failed to parse Gemini JSON output: %v\n", err)
+			if _, writeErr := stdout.Write(geminiStdout.Bytes()); writeErr != nil && runErr == nil {
+				runErr = writeErr
+			}
+		} else if _, writeErr := stdout.Write(formatted); writeErr != nil && runErr == nil {
+			runErr = writeErr
+		}
+	}
 	endedAt := time.Now().UTC()
 	exitCode := 0
 	status := "completed"
@@ -417,6 +439,18 @@ func (r *Runner) runOne(ctx context.Context, st *state.State, mix AgentMix) (Ses
 		Agent:          agent,
 		ExitCode:       exitCode,
 	}, runErr
+}
+
+func formatGeminiHeadlessResponse(raw []byte) ([]byte, error) {
+	var payload geminiHeadlessOutput
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return nil, err
+	}
+	response := strings.TrimSpace(payload.Response)
+	if response == "" {
+		return nil, fmt.Errorf("missing response field")
+	}
+	return []byte(response + "\n"), nil
 }
 
 func (r *Runner) detectBeads() bool {

@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"os/exec"
@@ -131,8 +132,8 @@ func TestBuildAgentCommandUsesConfiguredModels(t *testing.T) {
 		},
 		{
 			agent:  "gemini",
-			want:   []string{"gemini", "--model", "gemini-2.5-pro", "--prompt", "prompt", "--yolo", "--output-format", "text"},
-			stderr: false,
+			want:   []string{"gemini", "--model", "gemini-2.5-pro", "--prompt", "prompt", "--yolo", "--output-format", "json"},
+			stderr: true,
 		},
 		{
 			agent:  "opencode",
@@ -214,6 +215,73 @@ func TestAutoCommitWorkspaceSkipsCleanRepo(t *testing.T) {
 	}
 	if hash != "" {
 		t.Fatalf("expected empty hash for clean repo, got %q", hash)
+	}
+}
+
+func TestFormatGeminiHeadlessResponse(t *testing.T) {
+	t.Parallel()
+
+	got, err := formatGeminiHeadlessResponse([]byte(`{"response":"OK","stats":{}}`))
+	if err != nil {
+		t.Fatalf("formatGeminiHeadlessResponse returned error: %v", err)
+	}
+	if string(got) != "OK\n" {
+		t.Fatalf("unexpected formatted output: %q", got)
+	}
+}
+
+func TestRunnerGeminiWritesOnlyFinalResponseToStdout(t *testing.T) {
+	workspaceDir := t.TempDir()
+	binDir := filepath.Join(workspaceDir, "bin")
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	geminiScript := "#!/usr/bin/env bash\nprintf '%s\\n' 'Gemini noise' >&2\nprintf '%s\\n' '{\"response\":\"OK\",\"stats\":{}}'\n"
+	geminiPath := filepath.Join(binDir, "gemini")
+	if err := os.WriteFile(geminiPath, []byte(geminiScript), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	dataDir := filepath.Join(workspaceDir, "data")
+	repoPath := filepath.Join(workspaceDir, "docs", "orchestration", "rally-progress.yaml")
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	r := New(Config{
+		WorkspaceDir:     workspaceDir,
+		DataDir:          dataDir,
+		RepoProgressPath: repoPath,
+		AgentSpecs:       []string{"ge:1"},
+		Iterations:       1,
+		Stdout:           &stdout,
+		Stderr:           &stderr,
+	})
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	results, err := r.Run(context.Background())
+	if err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("unexpected results length: %d", len(results))
+	}
+	if got := stdout.String(); got != "OK\n" {
+		t.Fatalf("unexpected stdout: %q", got)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dataDir, "sessions", "session-1", "terminal.log"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	log := string(data)
+	if !strings.Contains(log, "OK\n") {
+		t.Fatalf("session transcript missing final response: %s", log)
+	}
+	if strings.Contains(log, `{"response":"OK","stats":{}}`) {
+		t.Fatalf("session transcript should not include raw Gemini JSON: %s", log)
+	}
+	if !strings.Contains(log, "Gemini noise") {
+		t.Fatalf("session transcript missing Gemini stderr: %s", log)
 	}
 }
 
