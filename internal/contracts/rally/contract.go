@@ -47,13 +47,35 @@ func HostBinaryPath(repoRoot string) string {
 }
 
 func HostBinaryBuildCommand(repoRoot string) []string {
-	return []string{
-		"go",
-		"build",
-		"-o",
-		HostBinaryPath(repoRoot),
-		"./cmd/rally",
+	return HostBinaryBuildCommandWithVersion(repoRoot, "", "")
+}
+
+func HostBinaryBuildCommandWithVersion(repoRoot, version, commit string) []string {
+	args := []string{"go", "build"}
+	if version != "" || commit != "" {
+		pkg := "claudebox/internal/version"
+		var flags []string
+		if version != "" {
+			flags = append(flags, fmt.Sprintf("-X %s.Version=%s", pkg, version))
+		}
+		if commit != "" {
+			flags = append(flags, fmt.Sprintf("-X %s.Commit=%s", pkg, commit))
+		}
+		args = append(args, "-ldflags", joinSpaces(flags))
 	}
+	args = append(args, "-o", HostBinaryPath(repoRoot), "./cmd/rally")
+	return args
+}
+
+func joinSpaces(ss []string) string {
+	result := ""
+	for i, s := range ss {
+		if i > 0 {
+			result += " "
+		}
+		result += s
+	}
+	return result
 }
 
 func SessionDir(dataDir string, sessionID int) string {

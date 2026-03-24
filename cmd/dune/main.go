@@ -243,13 +243,34 @@ func buildRallyBinary(ctx context.Context, repoRoot string) error {
 		return err
 	}
 
-	cmdArgs := contract.HostBinaryBuildCommand(repoRoot)
+	ver := readVersion(repoRoot)
+	commit := gitCommitShort(ctx, repoRoot)
+
+	cmdArgs := contract.HostBinaryBuildCommandWithVersion(repoRoot, ver, commit)
 	cmd := exec.CommandContext(ctx, cmdArgs[0], cmdArgs[1:]...)
 	cmd.Dir = repoRoot
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=amd64", "CGO_ENABLED=0")
 	return cmd.Run()
+}
+
+func readVersion(repoRoot string) string {
+	data, err := os.ReadFile(filepath.Join(repoRoot, "VERSION"))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
+}
+
+func gitCommitShort(ctx context.Context, repoRoot string) string {
+	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--short", "HEAD")
+	cmd.Dir = repoRoot
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }
 
 func injectRallyMount(configPath, repoRoot, containerName, beadsMode string) error {

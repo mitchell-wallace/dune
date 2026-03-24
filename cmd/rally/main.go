@@ -15,6 +15,7 @@ import (
 	"claudebox/internal/rally/runner"
 	"claudebox/internal/rally/state"
 	orchtui "claudebox/internal/rally/tui"
+	"claudebox/internal/version"
 )
 
 func main() {
@@ -43,7 +44,7 @@ func run(argv []string) error {
 	case "import-legacy":
 		return runImportLegacy()
 	case "version":
-		fmt.Println(contract.BinaryName)
+		fmt.Printf("%s %s\n", contract.BinaryName, version.String())
 		return nil
 	case "--help", "-h", "help":
 		printUsage()
