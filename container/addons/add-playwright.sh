@@ -14,31 +14,22 @@ PLAYWRIGHT_BROWSERS="${SAND_PLAYWRIGHT_BROWSERS:-chromium firefox webkit}"
 PLAYWRIGHT_INSTALL_ATTEMPTS="${SAND_PLAYWRIGHT_INSTALL_ATTEMPTS:-5}"
 PLAYWRIGHT_RETRY_DELAY_SECONDS="${SAND_PLAYWRIGHT_RETRY_DELAY_SECONDS:-5}"
 PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT="${SAND_PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT:-120000}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+UTILS_PATH="${SAND_UTILS_PATH:-/usr/local/lib/sand/lib/utils.sh}"
+FIREWALL_DOMAIN_CONFIG="${SAND_FIREWALL_DOMAIN_CONFIG:-/usr/local/lib/sand/runtime/firewall-domains.tsv}"
+
+if [ ! -f "$UTILS_PATH" ]; then
+  UTILS_PATH="${SCRIPT_DIR}/../lib/utils.sh"
+fi
+
+if [ ! -f "$FIREWALL_DOMAIN_CONFIG" ]; then
+  FIREWALL_DOMAIN_CONFIG="${SCRIPT_DIR}/../runtime/firewall-domains.tsv"
+fi
+
+. "$UTILS_PATH"
 
 log() {
   echo "[add-playwright] $*"
-}
-
-resolve_ipv4s_with_retry() {
-  local domain="$1"
-  local attempts="${2:-5}"
-  local delay_seconds="${3:-1}"
-  local dig_ips=""
-  local getent_ips=""
-  local ips=""
-
-  for _ in $(seq 1 "$attempts"); do
-    dig_ips="$(dig +short A "$domain" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' || true)"
-    getent_ips="$(getent ahostsv4 "$domain" 2>/dev/null | awk '{print $1}' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' || true)"
-    ips="$(printf '%s\n%s\n' "$dig_ips" "$getent_ips" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | sort -u || true)"
-    if [ -n "$ips" ]; then
-      printf '%s\n' "$ips"
-      return 0
-    fi
-    sleep "$delay_seconds"
-  done
-
-  return 1
 }
 
 add_ipset_allow_entries_for_domain() {
@@ -54,26 +45,14 @@ add_ipset_allow_entries_for_domain() {
   fi
 
   while IFS= read -r ip; do
-    [ -z "$ip" ] && continue
+    local network
 
-    if [ "$cidr_bits" = "32" ]; then
-      ipset add --exist allowed-domains "$ip"
-    else
-      local cidr
-      case "$cidr_bits" in
-        16)
-          cidr="$(echo "$ip" | awk -F. '{print $1 "." $2 ".0.0/16"}')"
-          ;;
-        24)
-          cidr="$(echo "$ip" | awk -F. '{print $1 "." $2 "." $3 ".0/24"}')"
-          ;;
-        *)
-          echo "[add-playwright] Unsupported CIDR bits for firewall refresh: $cidr_bits" >&2
-          return 1
-          ;;
-      esac
-      ipset add --exist allowed-domains "$cidr"
+    [ -z "$ip" ] && continue
+    if ! network="$(ipv4_to_cidr_network "$ip" "$cidr_bits")"; then
+      echo "[add-playwright] Unsupported CIDR bits for firewall refresh: $cidr_bits" >&2
+      return 1
     fi
+    ipset add --exist allowed-domains "$network"
 
     added=$((added + 1))
   done <<<"$ips"
@@ -85,8 +64,41 @@ add_ipset_allow_entries_for_domain() {
   return 0
 }
 
+load_playwright_firewall_specs() {
+  local domain=""
+  local _allow_requirement=""
+  local _refresh_requirement=""
+  local cidr_bits=""
+  local reason=""
+  local -a specs=()
+
+  if [ ! -f "$FIREWALL_DOMAIN_CONFIG" ]; then
+    echo "[add-playwright] Firewall domain config not found: ${FIREWALL_DOMAIN_CONFIG}" >&2
+    exit 1
+  fi
+
+  while IFS=$'\t' read -r domain _allow_requirement _refresh_requirement cidr_bits reason; do
+    [ -z "${domain:-}" ] && continue
+    [ "$domain" = "domain" ] && continue
+    [[ "$domain" == \#* ]] && continue
+    if [[ "$reason" == Playwright\ * ]]; then
+      specs+=("${domain}|${cidr_bits}")
+    fi
+  done < "$FIREWALL_DOMAIN_CONFIG"
+
+  if [ "${#specs[@]}" -eq 0 ]; then
+    echo "[add-playwright] No Playwright firewall domains found in ${FIREWALL_DOMAIN_CONFIG}" >&2
+    exit 1
+  fi
+
+  printf '%s\n' "${specs[@]}"
+}
+
 refresh_playwright_firewall_allowlist() {
   local refreshed=0
+  local spec=""
+  local domain=""
+  local cidr_bits=""
 
   if ! command -v ipset >/dev/null 2>&1; then
     return 0
@@ -98,32 +110,18 @@ refresh_playwright_firewall_allowlist() {
 
   log "Refreshing firewall allowlist for Playwright browser download hosts"
 
-  if add_ipset_allow_entries_for_domain "cdn.playwright.dev" "16"; then
-    refreshed=$((refreshed + 1))
-  fi
-  if add_ipset_allow_entries_for_domain "playwright.download.prss.microsoft.com" "16"; then
-    refreshed=$((refreshed + 1))
-  fi
-  if add_ipset_allow_entries_for_domain "storage.googleapis.com" "16"; then
-    refreshed=$((refreshed + 1))
-  fi
+  while IFS= read -r spec; do
+    [ -z "$spec" ] && continue
+    IFS='|' read -r domain cidr_bits <<<"$spec"
+    if add_ipset_allow_entries_for_domain "$domain" "$cidr_bits"; then
+      refreshed=$((refreshed + 1))
+    fi
+  done < <(load_playwright_firewall_specs)
 
   if [ "$refreshed" -eq 0 ]; then
     echo "[add-playwright] Unable to refresh firewall allowlist for Playwright download hosts" >&2
     exit 1
   fi
-}
-
-run_as_target_user() {
-  runuser -u "$TARGET_USER" -- env \
-    HOME="$TARGET_HOME" \
-    USER="$TARGET_USER" \
-    LOGNAME="$TARGET_USER" \
-    XDG_CACHE_HOME="${TARGET_HOME}/.cache" \
-    XDG_CONFIG_HOME="${TARGET_HOME}/.config" \
-    NPM_CONFIG_PREFIX="$NPM_PREFIX" \
-    PATH="${NPM_GLOBAL_BIN}:$PATH" \
-    "$@"
 }
 
 run_with_retry() {
