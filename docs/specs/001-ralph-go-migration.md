@@ -15,6 +15,17 @@
 - Preserve existing agent mix behavior and non-interactive agent commands for Claude, Codex, Gemini, and OpenCode.
 - Replace manual session numbering/ranges with orchestrator-assigned monotonic `batch_id` and `session_id`; TUI displays both global `session_id` and per-batch `iteration_index`.
 
+## Implementation Tasks
+
+- [x] Add shared `sand-orch` contract constants for binary path, env wiring, data dir, and repo progress path.
+- [x] Build `cmd/sand-orch` with `internal/orchestrator/...` packages for state, messages, progress, runner, and TUI.
+- [x] Persist orchestrator truth under `/persist/agent/ralph/<container-name>/` with `state.yaml`, `messages.jsonl`, and per-session artifacts.
+- [x] Implement `sand-orch progress record`, `sand-orch progress repair`, and `sand-orch import-legacy`.
+- [x] Preserve deterministic weighted agent mix selection and existing simple/non-interactive CLI invocation for Claude, Codex, Gemini, and OpenCode.
+- [x] Wire host `sand` provisioning to build a Linux `sand-orch` artifact, mount it read-only at `/usr/local/bin/sand-orch`, and inject required env vars.
+- [x] Add unit and integration tests for state folding, messages, progress repair and regeneration, runner behavior, host wiring, and deterministic selection.
+- [x] Verify `sand-orch` is callable inside an ephemeral container with the mounted binary, env wiring, and persisted data paths present.
+
 ## Data Model And Storage
 
 - Data dir lives under `/persist/agent/ralph/<container-name>/`; host `sand` injects `SAND_CONTAINER_NAME`, `SAND_ORCH_DATA_DIR`, and `SAND_ORCH_REPO_PROGRESS_PATH`.

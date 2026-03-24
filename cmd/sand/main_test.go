@@ -2,12 +2,15 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"claudebox/internal/domain"
+	"claudebox/internal/orchestrator/contract"
 )
 
 type fakeAddonClient struct {
@@ -87,5 +90,51 @@ func TestApplyConfiguredAddonsSkipsUnknownInvalidAndInstalled(t *testing.T) {
 	}
 	if client.calls[0].env["SAND_PYTHON_VERSION"] != "3.13" {
 		t.Fatalf("expected python version env, got %#v", client.calls[0].env)
+	}
+}
+
+func TestInjectSandOrchMountAddsMountAndEnv(t *testing.T) {
+	t.Parallel()
+
+	repoRoot := t.TempDir()
+	configPath := filepath.Join(t.TempDir(), "devcontainer.json")
+	content := map[string]any{
+		"mounts": []string{"source=existing,target=/tmp,type=bind"},
+		"containerEnv": map[string]any{
+			"FOO": "bar",
+		},
+	}
+	rendered, _ := json.Marshal(content)
+	if err := os.WriteFile(configPath, rendered, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := injectSandOrchMount(configPath, repoRoot, "sand-demo"); err != nil {
+		t.Fatalf("injectSandOrchMount returned error: %v", err)
+	}
+
+	var got map[string]any
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatal(err)
+	}
+
+	mounts := got["mounts"].([]any)
+	foundMount := false
+	for _, item := range mounts {
+		if value, ok := item.(string); ok && strings.Contains(value, contract.ContainerBinaryPath) {
+			foundMount = true
+			break
+		}
+	}
+	if !foundMount {
+		t.Fatalf("sand-orch mount not found: %#v", mounts)
+	}
+	env := got["containerEnv"].(map[string]any)
+	if env[contract.EnvDataDir] != contract.ContainerDataDir("sand-demo") {
+		t.Fatalf("unexpected data dir env: %#v", env)
 	}
 }

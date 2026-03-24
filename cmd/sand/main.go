@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -16,6 +17,7 @@ import (
 	"claudebox/internal/container"
 	"claudebox/internal/devcontainer"
 	"claudebox/internal/domain"
+	"claudebox/internal/orchestrator/contract"
 	"claudebox/internal/tasks"
 	"claudebox/internal/tui"
 	"claudebox/internal/workspace"
@@ -167,6 +169,13 @@ func runSand(ctx context.Context, opts cli.Options, paths repoPaths) error {
 		}
 		defer cleanup()
 
+		if err := buildSandOrchBinary(ctx, paths.Root); err != nil {
+			return err
+		}
+		if err := injectSandOrchMount(effectiveConfig, paths.Root, identity.Name); err != nil {
+			return err
+		}
+
 		cmd := exec.CommandContext(ctx, "npx", "@devcontainers/cli", "up",
 			"--workspace-folder", ref.Dir,
 			"--config", effectiveConfig,
@@ -224,11 +233,82 @@ func runSand(ctx context.Context, opts cli.Options, paths repoPaths) error {
 		}
 	}
 
+	if value, err := docker.ContainerEnvValue(ctx, identity.Name, contract.EnvDataDir); err == nil && value == "" {
+		fmt.Fprintf(os.Stderr, "WARNING: Container '%s' is missing sand-orch wiring. Recreate it once with `sand rebuild` to mount the runtime binary.\n", identity.Name)
+	}
+
 	if err := applyConfiguredAddons(ctx, docker, cfg, identity.Name, paths.Manifest); err != nil {
 		return err
 	}
 
 	return docker.AttachShell(ctx, identity.Name)
+}
+
+func buildSandOrchBinary(ctx context.Context, repoRoot string) error {
+	binPath := contract.HostBinaryPath(repoRoot)
+	if err := os.MkdirAll(filepath.Dir(binPath), 0o755); err != nil {
+		return err
+	}
+
+	cmdArgs := contract.HostBinaryBuildCommand(repoRoot)
+	cmd := exec.CommandContext(ctx, cmdArgs[0], cmdArgs[1:]...)
+	cmd.Dir = repoRoot
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=amd64", "CGO_ENABLED=0")
+	return cmd.Run()
+}
+
+func injectSandOrchMount(configPath, repoRoot, containerName string) error {
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return err
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return err
+	}
+
+	mounts := asStringSlice(cfg["mounts"])
+	hostBinary := contract.HostBinaryPath(repoRoot)
+	mounts = append(mounts, fmt.Sprintf("source=%s,target=%s,type=bind,readonly", hostBinary, contract.ContainerBinaryPath))
+	cfg["mounts"] = mounts
+
+	envMap := asMapAny(cfg["containerEnv"])
+	for key, value := range contract.ContainerEnv(containerName) {
+		envMap[key] = value
+	}
+	cfg["containerEnv"] = envMap
+
+	rendered, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(configPath, append(rendered, '\n'), 0o644)
+}
+
+func asStringSlice(value any) []string {
+	items, ok := value.([]any)
+	if !ok {
+		if typed, ok := value.([]string); ok {
+			return append([]string{}, typed...)
+		}
+		return []string{}
+	}
+	result := make([]string, 0, len(items))
+	for _, item := range items {
+		if str, ok := item.(string); ok {
+			result = append(result, str)
+		}
+	}
+	return result
+}
+
+func asMapAny(value any) map[string]any {
+	if result, ok := value.(map[string]any); ok && result != nil {
+		return result
+	}
+	return map[string]any{}
 }
 
 func resolveConfig(ref domain.WorkspaceRef) (domain.SandConfig, []string, error) {
