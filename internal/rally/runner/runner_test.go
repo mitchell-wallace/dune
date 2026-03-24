@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strconv"
@@ -130,7 +131,7 @@ func TestBuildAgentCommandUsesConfiguredModels(t *testing.T) {
 		},
 		{
 			agent:  "gemini",
-			want:   []string{"gemini", "--model", "gemini-2.5-pro", "--prompt", "prompt", "--yolo", "--output-format", "text"},
+			want:   []string{"gemini", "-q", "--model", "gemini-2.5-pro", "--prompt", "prompt", "--yolo", "--output-format", "text"},
 			stderr: false,
 		},
 		{
@@ -166,4 +167,62 @@ func TestBuildAgentCommandOmitsEmptyModelFlags(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("command mismatch:\n got %#v\nwant %#v", got, want)
 	}
+}
+
+func TestAutoCommitWorkspaceCommitsDirtyRepo(t *testing.T) {
+	t.Parallel()
+
+	repo := t.TempDir()
+	runGit(t, repo, "init")
+	runGit(t, repo, "config", "user.name", "Rally Test")
+	runGit(t, repo, "config", "user.email", "rally@example.com")
+	if err := os.WriteFile(filepath.Join(repo, "file.txt"), []byte("one\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, repo, "add", "file.txt")
+	runGit(t, repo, "commit", "-m", "initial")
+
+	if err := os.WriteFile(filepath.Join(repo, "file.txt"), []byte("two\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	hash, err := autoCommitWorkspace(repo, 3, 2, "codex")
+	if err != nil {
+		t.Fatalf("autoCommitWorkspace returned error: %v", err)
+	}
+	if hash == "" {
+		t.Fatal("expected commit hash")
+	}
+
+	logOutput := runGit(t, repo, "log", "-1", "--pretty=%s")
+	if strings.TrimSpace(logOutput) != "rally: session 3 iteration 2 (codex)" {
+		t.Fatalf("unexpected commit message: %q", logOutput)
+	}
+}
+
+func TestAutoCommitWorkspaceSkipsCleanRepo(t *testing.T) {
+	t.Parallel()
+
+	repo := t.TempDir()
+	runGit(t, repo, "init")
+	runGit(t, repo, "config", "user.name", "Rally Test")
+	runGit(t, repo, "config", "user.email", "rally@example.com")
+
+	hash, err := autoCommitWorkspace(repo, 1, 1, "claude")
+	if err != nil {
+		t.Fatalf("autoCommitWorkspace returned error: %v", err)
+	}
+	if hash != "" {
+		t.Fatalf("expected empty hash for clean repo, got %q", hash)
+	}
+}
+
+func runGit(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %v failed: %v\n%s", args, err, output)
+	}
+	return string(output)
 }

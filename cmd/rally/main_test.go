@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"claudebox/internal/contracts/rally"
 	"claudebox/internal/rally/progress"
+	"claudebox/internal/rally/state"
 )
 
 func TestProgressRecordMergesSessionMeta(t *testing.T) {
@@ -50,5 +52,62 @@ func TestProgressRecordMergesSessionMeta(t *testing.T) {
 	}
 	if meta.Session.Summary != "done" || meta.Session.Status != "completed" {
 		t.Fatalf("unexpected session meta: %#v", meta.Session)
+	}
+}
+
+func TestPrepareBatchStartRejectsAmbiguousNonInteractiveResume(t *testing.T) {
+	dir := t.TempDir()
+	if err := state.NewStore(dir).Save(state.State{
+		SchemaVersion: contract.SchemaVersion,
+		ActiveBatch: &state.BatchState{
+			BatchID:             2,
+			TargetIterations:    3,
+			CompletedIterations: 1,
+		},
+		NextBatchID:   3,
+		NextSessionID: 5,
+		NextMessageID: 1,
+		NextEventID:   1,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	err := prepareBatchStart(dir, batchStartPrompt, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestPrepareBatchStartNewClearsActiveBatch(t *testing.T) {
+	dir := t.TempDir()
+	if err := state.NewStore(dir).Save(state.State{
+		SchemaVersion: contract.SchemaVersion,
+		ActiveBatch: &state.BatchState{
+			BatchID:             2,
+			TargetIterations:    3,
+			CompletedIterations: 1,
+		},
+		StopAfterCurrent: true,
+		NextBatchID:      3,
+		NextSessionID:    5,
+		NextMessageID:    1,
+		NextEventID:      1,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := prepareBatchStart(dir, batchStartNew, bytes.NewBuffer(nil), bytes.NewBuffer(nil)); err != nil {
+		t.Fatalf("prepareBatchStart returned error: %v", err)
+	}
+
+	st, err := state.NewStore(dir).Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.ActiveBatch != nil {
+		t.Fatalf("expected active batch cleared, got %#v", st.ActiveBatch)
+	}
+	if st.StopAfterCurrent {
+		t.Fatal("expected stop-after-current cleared")
 	}
 }

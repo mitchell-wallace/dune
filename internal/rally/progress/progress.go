@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -187,23 +186,7 @@ func RebuildRepoProgress(dataDir, repoProgressPath string, activeBatch map[strin
 	if err := os.WriteFile(repoProgressPath, encoded, 0o644); err != nil {
 		return RepoProgress{}, err
 	}
-	autoCommitRepoProgress(repoProgressPath)
 	return repo, nil
-}
-
-// autoCommitRepoProgress stages and commits the rally-progress file.
-// Failures are silently ignored — progress tracking should not block the run.
-func autoCommitRepoProgress(path string) {
-	// Determine the repo root from the file's location.
-	dir := filepath.Dir(path)
-	addCmd := exec.Command("git", "add", path)
-	addCmd.Dir = dir
-	if err := addCmd.Run(); err != nil {
-		return
-	}
-	commitCmd := exec.Command("git", "commit", "-m", "rally: update progress", "--", path)
-	commitCmd.Dir = dir
-	_ = commitCmd.Run()
 }
 
 func ValidateRepoProgress(repoProgressPath string) error {

@@ -14,6 +14,7 @@ type PromptData struct {
 	ProjectInstructions string
 	BatchMessages       []string
 	SessionDirective    string
+	RepoProgressPath    string
 	TaskOutputPath      string // where scout writes tasks; empty = default
 }
 

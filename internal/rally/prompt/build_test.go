@@ -49,6 +49,9 @@ func TestBuildWithBeads(t *testing.T) {
 	if !strings.Contains(result, "bd update") {
 		t.Error("expected bd update instruction")
 	}
+	if !strings.Contains(result, "--status closed") {
+		t.Error("expected beads closed status instruction")
+	}
 	if strings.Contains(result, "Exploration Mode") {
 		t.Error("should not contain zero-config fallback when beads enabled")
 	}
@@ -181,6 +184,12 @@ func TestBuildAlwaysIncludesProgressRecord(t *testing.T) {
 	}
 	if !strings.Contains(result, "rally progress record") {
 		t.Error("expected rally progress record instruction")
+	}
+	if !strings.Contains(result, "Commit your work") {
+		t.Error("expected commit instruction")
+	}
+	if !strings.Contains(result, "repo progress yaml") {
+		t.Error("expected fallback progress instruction")
 	}
 }
 

@@ -152,7 +152,7 @@ func BuildAgentCommand(cfg Config, agentName, prompt string) ([]string, bool, er
 		command = append(command, prompt)
 		return command, true, nil
 	case "gemini":
-		command := []string{"gemini"}
+		command := []string{"gemini", "-q"}
 		if cfg.GeminiModel != "" {
 			command = append(command, "--model", cfg.GeminiModel)
 		}
@@ -404,6 +404,11 @@ func (r *Runner) runOne(ctx context.Context, st *state.State, mix AgentMix) (Ses
 	if _, err := progress.RebuildRepoProgress(r.cfg.DataDir, r.cfg.RepoProgressPath, activeBatchMap(st.ActiveBatch)); err != nil {
 		return SessionResult{}, err
 	}
+	if commitHash, err := autoCommitWorkspace(r.cfg.WorkspaceDir, sessionID, iterationIndex, agent); err != nil {
+		fmt.Fprintf(r.cfg.Stderr, "rally: session %d auto-commit warning: %v\n", sessionID, err)
+	} else if commitHash != "" {
+		fmt.Fprintf(r.cfg.Stderr, "rally: session %d auto-committed workspace changes (%s)\n", sessionID, commitHash)
+	}
 
 	return SessionResult{
 		SessionID:      sessionID,
@@ -524,6 +529,7 @@ func (r *Runner) buildPrompt(batchID, sessionID, iterationIndex, targetIteration
 		ProjectInstructions: prompt.LoadProjectInstructions(r.cfg.DataDir),
 		BatchMessages:       batchBodies,
 		SessionDirective:    sessionBody,
+		RepoProgressPath:    r.cfg.RepoProgressPath,
 	}
 
 	body, err := prompt.Build(data)
@@ -531,6 +537,55 @@ func (r *Runner) buildPrompt(batchID, sessionID, iterationIndex, targetIteration
 		return nil, "", err
 	}
 	return consumed, body, nil
+}
+
+func autoCommitWorkspace(workspaceDir string, sessionID, iterationIndex int, agent string) (string, error) {
+	rootCmd := exec.Command("git", "-C", workspaceDir, "rev-parse", "--show-toplevel")
+	output, err := rootCmd.Output()
+	if err != nil {
+		return "", nil
+	}
+	repoRoot := strings.TrimSpace(string(output))
+	if repoRoot == "" {
+		return "", nil
+	}
+
+	statusCmd := exec.Command("git", "-C", repoRoot, "status", "--porcelain")
+	statusOutput, err := statusCmd.Output()
+	if err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(string(statusOutput)) == "" {
+		return "", nil
+	}
+
+	addCmd := exec.Command("git", "-C", repoRoot, "add", "-A")
+	if err := addCmd.Run(); err != nil {
+		return "", err
+	}
+
+	diffCmd := exec.Command("git", "-C", repoRoot, "diff", "--cached", "--quiet")
+	if err := diffCmd.Run(); err == nil {
+		return "", nil
+	} else {
+		var exitErr *exec.ExitError
+		if !errors.As(err, &exitErr) {
+			return "", err
+		}
+	}
+
+	message := fmt.Sprintf("rally: session %d iteration %d (%s)", sessionID, iterationIndex, agent)
+	commitCmd := exec.Command("git", "-C", repoRoot, "commit", "-m", message)
+	if err := commitCmd.Run(); err != nil {
+		return "", err
+	}
+
+	hashCmd := exec.Command("git", "-C", repoRoot, "rev-parse", "--short", "HEAD")
+	hashOutput, err := hashCmd.Output()
+	if err != nil {
+		return "", nil
+	}
+	return strings.TrimSpace(string(hashOutput)), nil
 }
 
 func activeBatchMap(batch *state.BatchState) map[string]any {

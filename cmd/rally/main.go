@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -72,6 +73,8 @@ Flags for run/tui:
   --iterations N           Number of iterations (default: 1, scout: 5)
   --agent SPEC             Agent mix (repeatable, e.g. cc:2 cx:1)
   --beads [auto|true|false] Beads task source (default: from env/config)
+  --resume                 Resume the last unfinished batch explicitly
+  --new                    Start a new batch explicitly, discarding unfinished batch state
   --scout [focus]          Scout mode: explore, don't change code
 
 Examples:
@@ -82,8 +85,17 @@ Examples:
 `)
 }
 
+type batchStartMode string
+
+const (
+	batchStartPrompt batchStartMode = ""
+	batchStartResume batchStartMode = "resume"
+	batchStartNew    batchStartMode = "new"
+)
+
 func runTUI(argv []string) error {
 	cfg := defaultConfig()
+	startMode := batchStartPrompt
 	for len(argv) > 0 {
 		switch argv[0] {
 		case "--iterations":
@@ -118,12 +130,27 @@ func runTUI(argv []string) error {
 					argv = argv[1:]
 				}
 			}
+		case "--resume":
+			if startMode == batchStartNew {
+				return fmt.Errorf("cannot use --resume and --new together")
+			}
+			startMode = batchStartResume
+			argv = argv[1:]
+		case "--new":
+			if startMode == batchStartResume {
+				return fmt.Errorf("cannot use --resume and --new together")
+			}
+			startMode = batchStartNew
+			argv = argv[1:]
 		default:
 			return fmt.Errorf("unknown tui arg: %s", argv[0])
 		}
 	}
 	if cfg.Iterations == 0 {
 		cfg.Iterations = 1
+	}
+	if err := prepareBatchStart(cfg.DataDir, startMode, os.Stdin, os.Stdout); err != nil {
+		return err
 	}
 	return orchtui.Run(cfg)
 }
@@ -144,6 +171,7 @@ func runProgress(argv []string) error {
 
 func runBatch(argv []string) error {
 	cfg := defaultConfig()
+	startMode := batchStartPrompt
 	var remaining []string
 	beadsMode := os.Getenv(contract.EnvBeads)
 	scoutMode := false
@@ -185,6 +213,18 @@ func runBatch(argv []string) error {
 				scoutFocus = argv[0]
 				argv = argv[1:]
 			}
+		case "--resume":
+			if startMode == batchStartNew {
+				return fmt.Errorf("cannot use --resume and --new together")
+			}
+			startMode = batchStartResume
+			argv = argv[1:]
+		case "--new":
+			if startMode == batchStartResume {
+				return fmt.Errorf("cannot use --resume and --new together")
+			}
+			startMode = batchStartNew
+			argv = argv[1:]
 		default:
 			remaining = append(remaining, argv[0])
 			argv = argv[1:]
@@ -199,6 +239,9 @@ func runBatch(argv []string) error {
 	}
 	if scoutMode && !iterationsExplicit {
 		iterations = 5
+	}
+	if err := prepareBatchStart(cfg.DataDir, startMode, os.Stdin, os.Stdout); err != nil {
+		return err
 	}
 
 	r := runner.New(runner.Config{
@@ -402,26 +445,36 @@ func runProgressRecord() error {
 	if sessionRaw == "" {
 		return fmt.Errorf("%s is required for progress record", contract.EnvSessionID)
 	}
+	if stdinIsTerminal() {
+		return fmt.Errorf("rally progress record reads YAML from stdin; pipe it in, for example:\ncat <<'YAML' | rally progress record\nsummary: what changed\nstatus: completed\nfiles_touched:\n  - path/to/file\ncommits:\n  - <commit-hash>\nYAML\nIf that still fails, add what you can directly to %s", repoPath)
+	}
 	sessionID, err := strconv.Atoi(sessionRaw)
 	if err != nil {
 		return err
 	}
+	fmt.Fprintf(os.Stderr, "rally progress record: reading YAML from stdin for session %d\n", sessionID)
 	input, err := progress.ParseRecordInput(os.Stdin)
 	if err != nil {
-		return err
+		return fmt.Errorf("rally progress record: could not parse YAML input: %w\nIf this keeps failing, add what you can directly to %s", err, repoPath)
 	}
+	fmt.Fprintf(os.Stderr, "rally progress record: updating session metadata in %s\n", progress.SessionMetaPath(dataDir, sessionID))
 	if err := progress.UpdateSessionMeta(dataDir, sessionID, func(meta *progress.SessionMeta) error {
 		progress.ApplyRecord(meta, input)
 		return nil
 	}); err != nil {
-		return err
+		return fmt.Errorf("rally progress record: failed to update session metadata: %w\nIf this keeps failing, add what you can directly to %s", err, repoPath)
 	}
 	st, err := state.NewStore(dataDir).Load()
 	if err != nil {
 		return err
 	}
+	fmt.Fprintf(os.Stderr, "rally progress record: rebuilding repo progress at %s\n", repoPath)
 	_, err = progress.RebuildRepoProgress(dataDir, repoPath, activeBatchMap(st.ActiveBatch))
-	return err
+	if err != nil {
+		return fmt.Errorf("rally progress record: failed to rebuild repo progress: %w\nIf this keeps failing, add what you can directly to %s", err, repoPath)
+	}
+	fmt.Fprintln(os.Stderr, "rally progress record: done")
+	return nil
 }
 
 func runProgressRepair() error {
@@ -473,6 +526,80 @@ func getenvOr(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func stdinIsTerminal() bool {
+	info, err := os.Stdin.Stat()
+	if err != nil {
+		return false
+	}
+	return (info.Mode() & os.ModeCharDevice) != 0
+}
+
+func prepareBatchStart(dataDir string, mode batchStartMode, in io.Reader, out io.Writer) error {
+	store := state.NewStore(dataDir)
+	st, err := store.Load()
+	if err != nil {
+		return err
+	}
+	if st.ActiveBatch == nil {
+		return nil
+	}
+
+	switch mode {
+	case batchStartResume:
+		return nil
+	case batchStartNew:
+		st.ActiveBatch = nil
+		st.StopAfterCurrent = false
+		return store.Save(st)
+	}
+
+	if !readerIsTerminal(in) || !writerIsTerminal(out) {
+		return fmt.Errorf("an unfinished rally batch exists; rerun with --resume to continue it or --new to start a fresh batch")
+	}
+
+	reader := bufio.NewReader(in)
+	for {
+		fmt.Fprintf(out, "rally: unfinished batch #%d is at iteration %d/%d. Resume or start a new batch? [resume/new]: ",
+			st.ActiveBatch.BatchID, st.ActiveBatch.CompletedIterations, st.ActiveBatch.TargetIterations)
+		answer, err := reader.ReadString('\n')
+		if err != nil {
+			return err
+		}
+		switch strings.ToLower(strings.TrimSpace(answer)) {
+		case "resume", "r":
+			return nil
+		case "new", "n":
+			st.ActiveBatch = nil
+			st.StopAfterCurrent = false
+			return store.Save(st)
+		}
+	}
+}
+
+func readerIsTerminal(r io.Reader) bool {
+	file, ok := r.(*os.File)
+	if !ok {
+		return false
+	}
+	info, err := file.Stat()
+	if err != nil {
+		return false
+	}
+	return (info.Mode() & os.ModeCharDevice) != 0
+}
+
+func writerIsTerminal(w io.Writer) bool {
+	file, ok := w.(*os.File)
+	if !ok {
+		return false
+	}
+	info, err := file.Stat()
+	if err != nil {
+		return false
+	}
+	return (info.Mode() & os.ModeCharDevice) != 0
 }
 
 func activeBatchMap(batch *state.BatchState) map[string]any {

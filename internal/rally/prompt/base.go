@@ -30,5 +30,8 @@ Pick something concrete, make the change, and commit it.
 {{.SessionDirective}}
 {{end}}
 ## Session Completion
-When you are done, use ` + "`rally progress record`" + ` to log a summary of
-what you accomplished before you exit.`
+When you are done:
+1. Commit your work. If you changed files, do not leave the session without a git commit.
+2. Record progress with ` + "`cat <<'YAML' | rally progress record`" + `.
+   Include at least: ` + "`summary`" + `, ` + "`status`" + `, and any ` + "`files_touched`" + `, ` + "`commits`" + `, or ` + "`follow_ups`" + `.
+3. If ` + "`rally progress record`" + ` errors at runtime, add what you can directly to {{if .RepoProgressPath}}` + "`{{.RepoProgressPath}}`" + `{{else}}the repo progress yaml{{end}} before you exit.`
