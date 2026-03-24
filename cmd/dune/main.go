@@ -29,7 +29,7 @@ type repoPaths struct {
 	Manifest     string
 }
 
-type addonContainer interface {
+type gearContainer interface {
 	ContainerFileExists(ctx context.Context, name, path string) bool
 	ExecInContainer(ctx context.Context, name string, env map[string]string, args ...string) error
 }
@@ -135,7 +135,7 @@ func runDune(ctx context.Context, opts cli.Options, paths repoPaths) error {
 		}
 	}
 
-	buildAddonsArg := gear.BuildCSV(cfg.Addons, func(message string) {
+	buildGearArg := gear.BuildCSV(cfg.Addons, func(message string) {
 		fmt.Fprintf(os.Stderr, "WARNING: %s\n", message)
 	})
 
@@ -159,8 +159,8 @@ func runDune(ctx context.Context, opts cli.Options, paths repoPaths) error {
 		}
 	} else {
 		fmt.Printf("Provisioning dev container via devcontainers CLI (profile=%s mode=%s workspace_mode=%s)\n", cfg.Profile, cfg.Mode, cfg.WorkspaceMode)
-		if buildAddonsArg != "" {
-			fmt.Printf("Build-time addons requested from sand.toml: %s\n", buildAddonsArg)
+		if buildGearArg != "" {
+			fmt.Printf("Build-time gear requested from sand.toml: %s\n", buildGearArg)
 		}
 
 		effectiveConfig, cleanup, err := devcontainer.PrepareConfig(paths.Devcontainer, cfg.WorkspaceMode)
@@ -181,7 +181,7 @@ func runDune(ctx context.Context, opts cli.Options, paths repoPaths) error {
 			"--config", effectiveConfig,
 			"--id-label", "devcontainer.local_folder="+ref.Dir,
 			"--id-label", "devcontainer.config_file="+paths.Devcontainer,
-			"--id-label", "sand.profile="+string(cfg.Profile),
+			"--id-label", "dune.profile="+string(cfg.Profile),
 		)
 		cmd.Dir = paths.Root
 		cmd.Stdout = os.Stdout
@@ -191,7 +191,7 @@ func runDune(ctx context.Context, opts cli.Options, paths repoPaths) error {
 			"SAND_SECURITY_MODE="+string(cfg.Mode),
 			"SAND_WORKSPACE_MODE="+string(cfg.WorkspaceMode),
 			"SAND_BUILD_MODE="+string(cfg.Mode),
-			"SAND_BUILD_ADDONS="+buildAddonsArg,
+			"SAND_BUILD_GEAR="+buildGearArg,
 			"SAND_PYTHON_VERSION="+cfg.PythonVersion,
 			"SAND_UV_VERSION="+cfg.UVVersion,
 			"SAND_GO_VERSION="+cfg.GoVersion,
@@ -237,7 +237,7 @@ func runDune(ctx context.Context, opts cli.Options, paths repoPaths) error {
 		fmt.Fprintf(os.Stderr, "WARNING: Container '%s' is missing rally wiring. Recreate it once with `dune rebuild` to mount the runtime binary.\n", identity.Name)
 	}
 
-	if err := applyConfiguredAddons(ctx, docker, cfg, identity.Name, paths.Manifest); err != nil {
+	if err := applyConfiguredGear(ctx, docker, cfg, identity.Name, paths.Manifest); err != nil {
 		return err
 	}
 
@@ -327,12 +327,12 @@ func resolveConfig(ref domain.WorkspaceRef) (domain.SandConfig, []string, error)
 	return cfg, warnings, nil
 }
 
-func applyConfiguredAddons(ctx context.Context, docker addonContainer, cfg domain.SandConfig, containerName, manifestPath string) error {
+func applyConfiguredGear(ctx context.Context, docker gearContainer, cfg domain.SandConfig, containerName, manifestPath string) error {
 	if len(cfg.Addons) == 0 {
 		return nil
 	}
 	if cfg.Mode == domain.ModeStrict {
-		fmt.Fprintln(os.Stderr, "WARNING: sand.toml lists addons but mode is strict; ignoring configured addons.")
+		fmt.Fprintln(os.Stderr, "WARNING: sand.toml lists gear but mode is strict; ignoring configured gear.")
 		return nil
 	}
 
@@ -342,42 +342,43 @@ func applyConfiguredAddons(ctx context.Context, docker addonContainer, cfg domai
 	}
 	known := gear.IndexByName(specs)
 	requested := gear.DedupeRequested(cfg.Addons)
-	fmt.Printf("Applying configured addons from sand.toml (%d requested)...\n", len(requested))
+	fmt.Printf("Applying configured gear from sand.toml (%d requested)...\n", len(requested))
 
-	env := addonEnv(cfg)
+	env := gearEnv(cfg)
 
 	installed := 0
 	skippedInstalled := 0
 	skippedUnknown := 0
 	skippedInvalid := 0
-	for _, addon := range requested {
-		name := string(addon)
+	for _, item := range requested {
+		name := string(item)
 		if !gear.IsValidName(name) {
-			fmt.Fprintf(os.Stderr, "WARNING: Invalid addon name in sand.toml skipped: %s\n", name)
+			fmt.Fprintf(os.Stderr, "WARNING: Invalid gear name in sand.toml skipped: %s\n", name)
 			skippedInvalid++
 			continue
 		}
 		if _, ok := known[name]; !ok {
-			fmt.Fprintf(os.Stderr, "WARNING: Unknown addon in sand.toml skipped: %s\n", name)
+			fmt.Fprintf(os.Stderr, "WARNING: Unknown gear entry in sand.toml skipped: %s\n", name)
 			skippedUnknown++
 			continue
 		}
-		if docker.ContainerFileExists(ctx, containerName, "/persist/agent/addons/"+name+".installed") {
+		if docker.ContainerFileExists(ctx, containerName, "/persist/agent/gear/"+name+".installed") ||
+			docker.ContainerFileExists(ctx, containerName, "/persist/agent/addons/"+name+".installed") {
 			skippedInstalled++
 			continue
 		}
-		fmt.Printf("Installing addon from sand.toml: %s\n", name)
-		if err := docker.ExecInContainer(ctx, containerName, env, "addons", name); err != nil {
-			return fmt.Errorf("failed to install configured addon %q: %w", name, err)
+		fmt.Printf("Installing gear from sand.toml: %s\n", name)
+		if err := docker.ExecInContainer(ctx, containerName, env, "gear", "install", name); err != nil {
+			return fmt.Errorf("failed to install configured gear %q: %w", name, err)
 		}
 		installed++
 	}
 
-	fmt.Printf("sand.toml addon summary: installed=%d skipped_installed=%d skipped_unknown=%d skipped_invalid=%d\n", installed, skippedInstalled, skippedUnknown, skippedInvalid)
+	fmt.Printf("sand.toml gear summary: installed=%d skipped_installed=%d skipped_unknown=%d skipped_invalid=%d\n", installed, skippedInstalled, skippedUnknown, skippedInvalid)
 	return nil
 }
 
-func addonEnv(cfg domain.SandConfig) map[string]string {
+func gearEnv(cfg domain.SandConfig) map[string]string {
 	env := map[string]string{}
 	if cfg.PythonVersion != "" {
 		env["SAND_PYTHON_VERSION"] = cfg.PythonVersion
@@ -407,13 +408,13 @@ func locateRepoPaths() (repoPaths, error) {
 	paths := repoPaths{
 		Root:         root,
 		Devcontainer: filepath.Join(root, "container", "devcontainer.json"),
-		Manifest:     filepath.Join(root, "container", "addons", "manifest.tsv"),
+		Manifest:     filepath.Join(root, "container", "gear", "manifest.tsv"),
 	}
 	if _, err := os.Stat(paths.Devcontainer); err != nil {
 		return repoPaths{}, fmt.Errorf("expected devcontainer config at %s", paths.Devcontainer)
 	}
 	if _, err := os.Stat(paths.Manifest); err != nil {
-		return repoPaths{}, fmt.Errorf("expected addons manifest at %s", paths.Manifest)
+		return repoPaths{}, fmt.Errorf("expected gear manifest at %s", paths.Manifest)
 	}
 	return paths, nil
 }

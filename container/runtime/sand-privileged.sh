@@ -23,11 +23,12 @@ fi
 . "$UTILS_PATH"
 . "${MODULE_DIR}/config.sh"
 . "${MODULE_DIR}/services.sh"
-. "${MODULE_DIR}/addons.sh"
+. "${MODULE_DIR}/gear.sh"
 
-ADDON_DIR="/usr/local/lib/sand/addons"
-MANIFEST_PATH="${ADDON_DIR}/manifest.tsv"
-ADDON_STATE_DIR="/persist/agent/addons"
+GEAR_DIR="/usr/local/lib/sand/gear"
+GEAR_MANIFEST_PATH="${GEAR_DIR}/manifest.tsv"
+GEAR_STATE_DIR="/persist/agent/gear"
+LEGACY_ADDON_STATE_DIR="/persist/agent/addons"
 SAND_ETC_DIR="/etc/sand"
 MODE_FILE="${SAND_ETC_DIR}/security-mode"
 PROFILE_FILE="${SAND_ETC_DIR}/profile"
@@ -41,8 +42,8 @@ case "$cmd" in
   configure-mode)
     configure_mode "${2:-}" "${3:-}"
     ;;
-  run-addon)
-    run_addon "${2:-}"
+  run-gear|run-addon)
+    run_gear "${2:-}"
     ;;
   pg-local)
     pg_local_cmd "${2:-help}"
@@ -60,7 +61,7 @@ case "$cmd" in
     ensure_timezone "${2:-}"
     ;;
   *)
-    echo "Usage: sand-privileged <init-firewall|configure-mode|run-addon|pg-local|redis-local|mp-local|ensure-locale|ensure-timezone>" >&2
+    echo "Usage: sand-privileged <init-firewall|configure-mode|run-gear|pg-local|redis-local|mp-local|ensure-locale|ensure-timezone>" >&2
     exit 1
     ;;
 esac

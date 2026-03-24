@@ -112,7 +112,7 @@ PERSIST_MAPPINGS=(
   "dir|gh/config|${HOME_DIR}/.config/gh|${PERSIST_BASE}/gh/config"
   "file|git/.gitconfig|${HOME_DIR}/.gitconfig|${PERSIST_BASE}/git/.gitconfig"
   "file|git/.git-credentials|${HOME_DIR}/.git-credentials|${PERSIST_BASE}/git/.git-credentials"
-  "seed-only-dir|addons|-|${PERSIST_BASE}/addons"
+  "seed-only-dir|gear|-|${PERSIST_BASE}/gear"
 )
 
 for mapping in "${PERSIST_MAPPINGS[@]}"; do

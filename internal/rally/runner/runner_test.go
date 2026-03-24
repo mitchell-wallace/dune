@@ -49,7 +49,7 @@ func TestRunnerAppliesBatchMessageAcrossRemainingSessions(t *testing.T) {
 	}
 
 	dataDir := filepath.Join(workspaceDir, "data")
-	repoPath := filepath.Join(workspaceDir, "docs", "orchestration", "ralph-progress.yaml")
+	repoPath := filepath.Join(workspaceDir, "docs", "orchestration", "rally-progress.yaml")
 	r := New(Config{
 		WorkspaceDir:     workspaceDir,
 		DataDir:          dataDir,

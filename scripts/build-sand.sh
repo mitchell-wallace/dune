@@ -4,7 +4,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 BIN_DIR="$REPO_ROOT/.bin"
-BIN_PATH="$BIN_DIR/sand"
+DUNE_BIN_PATH="$BIN_DIR/dune"
+LEGACY_SAND_BIN_PATH="$BIN_DIR/sand"
 FORCE=0
 PRINT_PATH=0
 
@@ -28,12 +29,12 @@ done
 mkdir -p "$BIN_DIR"
 
 needs_rebuild() {
-  if [ "$FORCE" -eq 1 ] || [ ! -x "$BIN_PATH" ]; then
+  if [ "$FORCE" -eq 1 ] || [ ! -x "$DUNE_BIN_PATH" ]; then
     return 0
   fi
 
   while IFS= read -r source_path; do
-    if [ "$source_path" -nt "$BIN_PATH" ]; then
+    if [ "$source_path" -nt "$DUNE_BIN_PATH" ]; then
       return 0
     fi
   done < <(
@@ -45,15 +46,17 @@ needs_rebuild() {
 }
 
 if needs_rebuild; then
-  echo "Building sand host binary..." >&2
+  echo "Building dune host binary..." >&2
   (
     cd "$REPO_ROOT"
-    go build -o "$BIN_PATH" ./cmd/sand
+    go build -o "$DUNE_BIN_PATH" ./cmd/dune
   )
 fi
 
+ln -sf "$DUNE_BIN_PATH" "$LEGACY_SAND_BIN_PATH"
+
 if [ "$PRINT_PATH" -eq 1 ]; then
-  printf '%s\n' "$BIN_PATH"
+  printf '%s\n' "$DUNE_BIN_PATH"
 else
-  echo "sand binary ready at $BIN_PATH" >&2
+  echo "dune binary ready at $DUNE_BIN_PATH" >&2
 fi

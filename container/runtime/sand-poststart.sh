@@ -8,27 +8,28 @@ if [ ! -f "$UTILS_PATH" ]; then
 fi
 . "$UTILS_PATH"
 
-autostart_addon_service() {
-  local addon_name="$1"
+autostart_gear_service() {
+  local gear_name="$1"
   local service_cmd="$2"
   local label="$3"
   local helper_cmd="$4"
-  local state_file="/persist/agent/addons/${addon_name}.installed"
+  local state_file="/persist/agent/gear/${gear_name}.installed"
+  local legacy_state_file="/persist/agent/addons/${gear_name}.installed"
 
-  if [ ! -f "$state_file" ]; then
+  if [ ! -f "$state_file" ] && [ ! -f "$legacy_state_file" ]; then
     return 0
   fi
 
   if ! command -v "$helper_cmd" >/dev/null 2>&1; then
-    echo "Reinstalling persisted addon '${addon_name}'"
-    if ! sudo -n /usr/local/bin/sand-privileged run-addon "$addon_name"; then
-      echo "WARNING: failed to reinstall persisted addon '${addon_name}'" >&2
+    echo "Reinstalling persisted gear '${gear_name}'"
+    if ! sudo -n /usr/local/bin/sand-privileged run-gear "$gear_name"; then
+      echo "WARNING: failed to reinstall persisted gear '${gear_name}'" >&2
       return 1
     fi
   fi
 
   if ! sudo -n /usr/local/bin/sand-privileged "$service_cmd" start; then
-    echo "WARNING: failed to autostart ${label} for installed addon '${addon_name}'" >&2
+    echo "WARNING: failed to autostart ${label} for installed gear '${gear_name}'" >&2
     return 1
   fi
 
@@ -42,9 +43,9 @@ autostart_installed_services() {
     return 0
   fi
 
-  autostart_addon_service "add-postgres" "pg-local" "PostgreSQL" "pg-local" || failed=1
-  autostart_addon_service "add-redis" "redis-local" "Redis" "redis-local" || failed=1
-  autostart_addon_service "add-mailpit" "mp-local" "Mailpit" "mp-local" || failed=1
+  autostart_gear_service "add-postgres" "pg-local" "PostgreSQL" "pg-local" || failed=1
+  autostart_gear_service "add-redis" "redis-local" "Redis" "redis-local" || failed=1
+  autostart_gear_service "add-mailpit" "mp-local" "Mailpit" "mp-local" || failed=1
 
   return "$failed"
 }

@@ -20,7 +20,7 @@ pg_local_cmd() {
   cmd="${1:-help}"
 
   pg_version="$(get_pg_version)" || {
-    echo "PostgreSQL is not installed. Run: addons add-postgres" >&2
+    echo "PostgreSQL is not installed. Run: gear install add-postgres" >&2
     exit 1
   }
 
@@ -98,7 +98,7 @@ redis_local_cmd() {
   redis_pid="/var/run/redis-local.pid"
 
   if ! command -v redis-server >/dev/null 2>&1; then
-    echo "Redis is not installed. Run: addons add-redis" >&2
+    echo "Redis is not installed. Run: gear install add-redis" >&2
     exit 1
   fi
 
@@ -194,7 +194,7 @@ mp_local_cmd() {
   smtp_addr="127.0.0.1:1025"
 
   if ! command -v mailpit >/dev/null 2>&1; then
-    echo "Mailpit is not installed. Run: addons add-mailpit" >&2
+    echo "Mailpit is not installed. Run: gear install add-mailpit" >&2
     exit 1
   fi
 

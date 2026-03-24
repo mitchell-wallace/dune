@@ -11,13 +11,13 @@ Three functions are copy-pasted across multiple files:
 
 | Function | Files |
 |---|---|
-| `canonicalize_mode()` | `sand-privileged.sh`, `addons-cli.sh`, `sand-poststart.sh` |
+| `canonicalize_mode()` | `sand-privileged.sh`, `gear-cli.sh`, `sand-poststart.sh` |
 | `resolve_ipv4s_with_retry()` | `sand-privileged.sh`, `add-playwright.sh`, `init-firewall.sh` |
-| `run_as_target_user()` | Every addon install script (~6 copies) |
+| `run_as_target_user()` | Every gear install script (~6 copies) |
 
 A `lib/utils.sh` sourced by these scripts eliminates the most pervasive duplication.
 Low risk to introduce, high payoff. Also candidates for the shared lib:
-- `mode_enabled()` — `sand-privileged.sh`, `addons-cli.sh`
+- `mode_enabled()` — `sand-privileged.sh`, `gear-cli.sh`
 - `run_as_root()` — `install-project-tools.sh`, `boost-cli.sh`
 - `log()` — different implementations in nearly every file
 
@@ -29,7 +29,7 @@ Monolithic dispatcher for three unrelated concerns:
 
 - **Locale/timezone setup** (~100 lines)
 - **Service management** for PostgreSQL, Redis, Mailpit (~230 lines)
-- **Addon execution** (~85 lines)
+- **Gear execution** (~85 lines)
 
 The three service blocks (`pg_local_cmd`, `redis_local_cmd`, `mp_local_cmd`) all implement
 the same interface (start/stop/restart/status/logs/shell/url/help) and differ only in
@@ -39,7 +39,7 @@ service template function.
 Proposed split:
 - `sand-privileged-config.sh` — locale, timezone, mode/profile normalization
 - `sand-privileged-services.sh` — pg/redis/mailpit service management (or per-service files)
-- `sand-privileged-addons.sh` — addon execution and manifest ops
+- `sand-privileged-gear.sh` — gear execution and manifest ops
 
 ---
 
@@ -56,7 +56,7 @@ Also: `resolve_ipv4s_with_retry()` is duplicated here (see Priority 1).
 
 ---
 
-## Priority 4: Consolidate addon install scripts
+## Priority 4: Consolidate gear install scripts
 
 The following script groups are 90%+ identical, differing only in tool name and install command:
 
@@ -68,7 +68,7 @@ The following script groups are 90%+ identical, differing only in tool name and 
 
 Options:
 - Shared installer function in `lib/utils.sh` with per-script thin wrappers
-- Single parameterized script driven by addon manifest entries
+- Single parameterized script driven by gear manifest entries
 - Generate from manifest at build time
 
 ---
@@ -91,7 +91,7 @@ canonicalize_mode()           # 3 copies
 mode_enabled()                # 2 copies
 normalize_profile()           # 2 copies
 resolve_ipv4s_with_retry()    # 3 copies
-run_as_target_user()          # 6+ copies (all addon scripts)
+run_as_target_user()          # 6+ copies (all gear scripts)
 run_as_root()                 # 2+ copies
 log()                         # ~10 different implementations
 ```
@@ -104,20 +104,20 @@ log()                         # ~10 different implementations
 |---|---|---|
 | `runtime/sand-privileged.sh` | 639 | Very High |
 | `runtime/init-firewall.sh` | 553 | Very High |
-| `addons/add-playwright.sh` | 208 | High |
-| `addons/boost-cli.sh` | 152 | Medium |
-| `runtime/addons-cli.sh` | 138 | Medium |
+| `gear/add-playwright.sh` | 208 | High |
+| `gear/boost-cli.sh` | 152 | Medium |
+| `runtime/gear-cli.sh` | 138 | Medium |
 | `runtime/setup-agent-persist.sh` | 127 | Medium |
 | `runtime/sand-poststart.sh` | 103 | Medium |
 | `setup/install-project-tools.sh` | 86 | Low-Medium |
-| `addons/add-postgres.sh` | 81 | Medium |
+| `gear/add-postgres.sh` | 81 | Medium |
 | `home/.agent-shell-setup.sh` | 71 | Low |
-| `addons/add-mailpit.sh` | 66 | Medium |
-| `addons/add-redis.sh` | 66 | Low |
-| `addons/add-python-uv.sh` | 49 | Low |
-| `addons/add-go.sh` / `add-rust.sh` | 41 each | Low |
-| `addons/add-gemini.sh` / `add-opencode.sh` | 41 each | Low |
-| `addons/add-pnpm.sh` / `add-turbo.sh` | 33 each | Low |
+| `gear/add-mailpit.sh` | 66 | Medium |
+| `gear/add-redis.sh` | 66 | Low |
+| `gear/add-python-uv.sh` | 49 | Low |
+| `gear/add-go.sh` / `add-rust.sh` | 41 each | Low |
+| `gear/add-gemini.sh` / `add-opencode.sh` | 41 each | Low |
+| `gear/add-pnpm.sh` / `add-turbo.sh` | 33 each | Low |
 | `runtime/sand-entrypoint.sh` | 38 | Minimal |
 | `setup/configure-agents.sh` | 13 | Minimal |
 

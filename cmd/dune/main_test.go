@@ -13,34 +13,34 @@ import (
 	"claudebox/internal/dune/domain"
 )
 
-type fakeAddonClient struct {
+type fakeGearClient struct {
 	exists map[string]bool
-	calls  []addonCall
+	calls  []gearCall
 }
 
-type addonCall struct {
+type gearCall struct {
 	container string
 	env       map[string]string
 	args      []string
 }
 
-func (f *fakeAddonClient) ContainerFileExists(_ context.Context, _ string, path string) bool {
+func (f *fakeGearClient) ContainerFileExists(_ context.Context, _ string, path string) bool {
 	return f.exists[path]
 }
 
-func (f *fakeAddonClient) ExecInContainer(_ context.Context, name string, env map[string]string, args ...string) error {
+func (f *fakeGearClient) ExecInContainer(_ context.Context, name string, env map[string]string, args ...string) error {
 	clonedEnv := make(map[string]string, len(env))
 	for key, value := range env {
 		clonedEnv[key] = value
 	}
-	f.calls = append(f.calls, addonCall{container: name, env: clonedEnv, args: append([]string{}, args...)})
+	f.calls = append(f.calls, gearCall{container: name, env: clonedEnv, args: append([]string{}, args...)})
 	return nil
 }
 
-func TestAddonEnvIncludesOnlyConfiguredVersions(t *testing.T) {
+func TestGearEnvIncludesOnlyConfiguredVersions(t *testing.T) {
 	t.Parallel()
 
-	got := addonEnv(domain.SandConfig{
+	got := gearEnv(domain.SandConfig{
 		PythonVersion: "3.13",
 		GoVersion:     "1.25.4",
 	})
@@ -54,7 +54,7 @@ func TestAddonEnvIncludesOnlyConfiguredVersions(t *testing.T) {
 	}
 }
 
-func TestApplyConfiguredAddonsSkipsUnknownInvalidAndInstalled(t *testing.T) {
+func TestApplyConfiguredGearSkipsUnknownInvalidAndInstalled(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
@@ -64,29 +64,29 @@ func TestApplyConfiguredAddonsSkipsUnknownInvalidAndInstalled(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	client := &fakeAddonClient{
+	client := &fakeGearClient{
 		exists: map[string]bool{
-			"/persist/agent/addons/add-rust.installed": true,
+			"/persist/agent/gear/add-rust.installed": true,
 		},
 	}
 
-	err := applyConfiguredAddons(context.Background(), client, domain.SandConfig{
+	err := applyConfiguredGear(context.Background(), client, domain.SandConfig{
 		Mode:          domain.ModeStd,
 		Addons:        []domain.AddonName{"add-go", "bad/name", "add-rust", "missing-addon"},
 		PythonVersion: "3.13",
 	}, "sand-demo", manifest)
 	if err != nil {
-		t.Fatalf("applyConfiguredAddons returned error: %v", err)
+		t.Fatalf("applyConfiguredGear returned error: %v", err)
 	}
 
 	if len(client.calls) != 1 {
-		t.Fatalf("expected 1 addon install call, got %d", len(client.calls))
+		t.Fatalf("expected 1 gear install call, got %d", len(client.calls))
 	}
 	if client.calls[0].container != "sand-demo" {
 		t.Fatalf("unexpected container: %s", client.calls[0].container)
 	}
-	if !reflect.DeepEqual(client.calls[0].args, []string{"addons", "add-go"}) {
-		t.Fatalf("unexpected addon args: %#v", client.calls[0].args)
+	if !reflect.DeepEqual(client.calls[0].args, []string{"gear", "install", "add-go"}) {
+		t.Fatalf("unexpected gear args: %#v", client.calls[0].args)
 	}
 	if client.calls[0].env["SAND_PYTHON_VERSION"] != "3.13" {
 		t.Fatalf("expected python version env, got %#v", client.calls[0].env)

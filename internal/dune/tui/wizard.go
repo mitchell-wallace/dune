@@ -19,10 +19,10 @@ import (
 )
 
 var modeOptions = []option{
-	{Value: string(domain.ModeStd), Description: "firewall enabled, curated addons available"},
+	{Value: string(domain.ModeStd), Description: "firewall enabled, curated gear available"},
 	{Value: string(domain.ModeLax), Description: "firewall enabled, passwordless sudo"},
 	{Value: string(domain.ModeYolo), Description: "firewall disabled, passwordless sudo"},
-	{Value: string(domain.ModeStrict), Description: "firewall enabled, addons disabled, workspace copied (not mounted)"},
+	{Value: string(domain.ModeStrict), Description: "firewall enabled, gear disabled, workspace copied (not mounted)"},
 }
 
 var workspaceModeOptions = []option{
@@ -466,7 +466,7 @@ func (m wizardModel) updateReview(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m wizardModel) viewIntro() string {
 	lines := []string{
-		titleStyle.Render("sand config"),
+		titleStyle.Render("dune config"),
 		"",
 		boxStyle.Render(strings.Join([]string{
 			"This wizard creates or updates sand.toml at the repo root.",
@@ -525,7 +525,7 @@ func (m wizardModel) viewWorkspaceMode() string {
 }
 
 func (m wizardModel) viewAddons() string {
-	lines := []string{titleStyle.Render("Select addons"), ""}
+	lines := []string{titleStyle.Render("Select gear"), ""}
 	for idx, add := range m.cfg.Addons {
 		prefix := "[ ]"
 		if m.selectedAddons[string(add.Name)] {
@@ -544,8 +544,8 @@ func (m wizardModel) viewAddons() string {
 
 func (m wizardModel) viewStrictAddons() string {
 	lines := []string{
-		titleStyle.Render("Addons disabled in strict mode"),
-		warnStyle.Render("strict mode enforces workspace_mode=copy and writes addons = []."),
+		titleStyle.Render("Gear disabled in strict mode"),
+		warnStyle.Render("strict mode enforces workspace_mode=copy and writes gear = []."),
 		"",
 		muted.Render("Press Enter to continue."),
 	}
@@ -587,7 +587,7 @@ func (m wizardModel) viewReview() string {
 		fmt.Sprintf("profile        %s", m.profile),
 		fmt.Sprintf("mode           %s", m.mode),
 		fmt.Sprintf("workspace_mode %s", m.workspaceMode),
-		fmt.Sprintf("addons         %s", stringsJoinOrEmpty(m.selectedAddonsOrdered(), ", ", "(none)")),
+		fmt.Sprintf("gear           %s", stringsJoinOrEmpty(m.selectedAddonsOrdered(), ", ", "(none)")),
 	}
 	if m.configureVersions {
 		for _, key := range config.VersionKeys {

@@ -40,7 +40,7 @@ func Parse(argv []string) (Options, error) {
 }
 
 func parseConfig(argv []string) (Options, error) {
-	fs := flag.NewFlagSet("sand config", flag.ContinueOnError)
+	fs := flag.NewFlagSet("dune config", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	var opts Options
 	opts.Command = CommandConfig
@@ -51,7 +51,7 @@ func parseConfig(argv []string) (Options, error) {
 	}
 	args := fs.Args()
 	if len(args) > 1 {
-		return Options{}, errors.New("unexpected arguments for sand config")
+		return Options{}, errors.New("unexpected arguments for dune config")
 	}
 	if len(args) == 1 {
 		opts.WorkspaceInput = args[0]
@@ -60,7 +60,7 @@ func parseConfig(argv []string) (Options, error) {
 }
 
 func parseRebuild(argv []string) (Options, error) {
-	fs := flag.NewFlagSet("sand rebuild", flag.ContinueOnError)
+	fs := flag.NewFlagSet("dune rebuild", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	var opts Options
 	opts.Command = CommandRebuild
@@ -71,7 +71,7 @@ func parseRebuild(argv []string) (Options, error) {
 	}
 	args := fs.Args()
 	if len(args) > 1 {
-		return Options{}, errors.New("unexpected arguments for sand rebuild")
+		return Options{}, errors.New("unexpected arguments for dune rebuild")
 	}
 	if len(args) == 1 {
 		opts.WorkspaceInput = args[0]
@@ -80,7 +80,7 @@ func parseRebuild(argv []string) (Options, error) {
 }
 
 func parseRun(argv []string) (Options, error) {
-	fs := flag.NewFlagSet("sand", flag.ContinueOnError)
+	fs := flag.NewFlagSet("dune", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
 	var (

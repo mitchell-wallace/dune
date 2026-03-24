@@ -13,42 +13,42 @@ Changes:
 - switch claude code to native installer
 - add oh-my-claudecode
 - add codex installer
-- make gemini-cli available as addon
-- make opencode available as addon
+- make gemini-cli available as gear
+- make opencode available as gear
 - switch devcontainer vscode to biome
 
 How to use:
 
-Run `install-sand-alias.sh`, then from any folder run `sand` to create or reuse the workspace container and start an interactive session. The installer prebuilds a repo-local host binary at `.bin/sand`, and `sand.sh` rebuilds that binary only when Go sources change.
+Run `install-sand-alias.sh` or `install-dune-alias.sh`, then from any folder run `dune` to create or reuse the workspace container and start an interactive session. The installer prebuilds a repo-local host binary at `.bin/dune`, and `dune.sh` rebuilds that binary only when Go sources change.
 
-`sand` supports profile + security mode selection:
+`dune` supports profile + security mode selection:
 
 ```sh
-sand                        # profile 0, mode std, current directory
-sand 1                      # profile 1, mode std
-sand strict                 # profile 0, mode strict
-sand 1 std                  # profile 1, mode std
-sand -d ./repo -p a -m lax  # explicit flags
-sand config                 # interactive wizard for sand.toml
-sand config -d ./repo       # run wizard for a specific workspace
+dune                        # profile 0, mode std, current directory
+dune 1                      # profile 1, mode std
+dune strict                 # profile 0, mode strict
+dune 1 std                  # profile 1, mode std
+dune -d ./repo -p a -m lax  # explicit flags
+dune config                 # interactive wizard for sand.toml
+dune config -d ./repo       # run wizard for a specific workspace
 ```
 
-`sand config` writes or updates `sand.toml` at the workspace git root (or directory fallback if not in a git repo), with:
+`dune config` writes or updates `sand.toml` at the workspace git root (or directory fallback if not in a git repo), with:
 - profile selection (including discovered `agent-persist-*` profile volumes)
 - security mode selection with descriptions
-- addon toggles with manifest descriptions
+- gear toggles with manifest descriptions
 - optional advanced version pins
 
-If a `sand.toml` is found for the workspace, `sand` reads defaults for profile/mode/addons and pre-installs configured addons during image build (before firewall init), with a post-start install-missing fallback.
+If a `sand.toml` is found for the workspace, `dune` reads defaults for profile/mode/gear and pre-installs configured gear during image build (before firewall init), with a post-start install-missing fallback.
 CLI flags still override file values.
 
 Security modes:
-- `std` / `standard` (default): firewall enabled, curated addons available
+- `std` / `standard` (default): firewall enabled, curated gear available
 - `lax`: firewall enabled, passwordless sudo
 - `yolo`: passwordless sudo, firewall disabled
-- `strict`: firewall enabled, addons disabled
+- `strict`: firewall enabled, gear disabled
 
-Container security mode is immutable after creation for a workspace+profile combo. If you request a different mode later, `sand` warns and reuses the existing mode.
+Container security mode is immutable after creation for a workspace+profile combo. If you request a different mode later, `dune` warns and reuses the existing mode.
 
 `sand.toml` discovery order:
 - Preferred: git root `sand.toml` for the workspace
@@ -89,7 +89,7 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
 - OpenCode auth/data path: ~/.local/share/opencode/auth.json ~/.config/opencode/opencode.json
 - GitHub CLI auth path: ~/.config/gh/hosts.yml
 - Git globals for HTTPS auth: ~/.gitconfig ~/.git-credentials
-- Persisted volume path in-container: /persist/agent/{gemini,codex,claude,opencode,gh,git,addons}
+- Persisted volume path in-container: /persist/agent/{gemini,codex,claude,opencode,gh,git,gear}
 - Docker volume per profile: agent-persist-<profile>
 - Note: ~/.gemini ~/.codex ~/.claude ~/.config/opencode ~/.local/share/opencode ~/.config/gh ~/.gitconfig ~/.git-credentials are symlinked to /persist/agent/* by /usr/local/bin/setup-agent-persist.sh
 
@@ -99,32 +99,32 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
 - ge -> gemini --model gemini-3.1-pro-preview --yolo (when `add-gemini` is installed)
 - op -> opencode --yolo (when `add-opencode` is installed)
 
-*ADDONS*
-- Source of predefined addons in repo: `container/addons/`
-- Manifest: `container/addons/manifest.tsv`
-- Runtime location in container: `/usr/local/lib/sand/addons` (root-owned and immutable to `node`)
-- Command: `addons`
+*GEAR*
+- Source of predefined gear in repo: `container/gear/`
+- Manifest: `container/gear/manifest.tsv`
+- Runtime location in container: `/usr/local/lib/sand/gear` (root-owned and immutable to `node`)
+- Command: `gear`
 - Example:
-  - `addons` / `addons list` / `addons help` -> same output: addon status + helper commands
-  - `addons boost-cli`
-  - `addons add-postgres`
-  - `addons add-redis`
-  - `addons add-playwright`
-  - `addons add-pnpm`
-  - `addons add-turbo`
-  - `addons add-gemini`
-  - `addons add-opencode`
-  - `addons add-mailpit`
-  - `addons add-python-uv`
-  - `addons add-go`
-  - `addons add-rust`
-- `strict` mode disables addons and omits addon hints from startup messaging.
-- Addons are whitelist-only from the manifest; arbitrary scripts are not runnable through `addons`.
-- Addon install state is tracked per profile under `/persist/agent/addons/*.installed`.
-- Helper commands are installed only when their addon is installed.
+  - `gear` / `gear list` / `gear help` -> same output: gear status + helper commands
+  - `gear install boost-cli`
+  - `gear install add-postgres`
+  - `gear install add-redis`
+  - `gear install add-playwright`
+  - `gear install add-pnpm`
+  - `gear install add-turbo`
+  - `gear install add-gemini`
+  - `gear install add-opencode`
+  - `gear install add-mailpit`
+  - `gear install add-python-uv`
+  - `gear install add-go`
+  - `gear install add-rust`
+- `strict` mode disables gear and omits gear hints from startup messaging.
+- Gear is whitelist-only from the manifest; arbitrary scripts are not runnable through `gear`.
+- Gear install state is tracked per profile under `/persist/agent/gear/*.installed`.
+- Helper commands are installed only when their gear is installed.
 - `add-gemini` installs the Gemini CLI globally while preserving `~/.gemini` auth/config through the profile volume.
 - `add-opencode` installs the OpenCode CLI globally while preserving `~/.config/opencode` and `~/.local/share/opencode` through the profile volume.
-- If `add-gemini` or `add-opencode` are listed in `sand.toml`, they follow the normal configured-addon path and are installed during cold build.
+- If `add-gemini` or `add-opencode` are listed in `sand.toml`, they follow the normal configured-gear path and are installed during cold build.
 - `add-playwright` installs global `playwright` plus Chromium/Firefox/WebKit browsers for e2e.
 - `add-postgres`, `add-redis`, and `add-mailpit` autostart on container startup when installed for the active profile.
 - `add-python-uv`, `add-go`, and `add-rust` install runtimes/toolchains via `mise`.
@@ -133,30 +133,30 @@ NOTE: .claude.json is a complex file; it is better to edit Claude's mcp config v
 - Optional repo config file with top-level keys:
   - `profile = "0"`
   - `mode = "std"`
-  - `addons = ["add-playwright", "add-go"]`
+  - `gear = ["add-playwright", "add-go"]`
   - Optional version pins:
     - `python_version`, `uv_version`, `go_version`, `rust_version`
 - Precedence:
   - CLI flags override `sand.toml`
   - `sand.toml` overrides defaults
-- `sand.toml` addons are install-missing-only:
+- `sand.toml` gear is install-missing-only:
   - preferred path: build-time install before runtime firewall init
-  - already-installed addons are skipped
-  - unknown addon names are warned and skipped
-  - addon failures are fatal
-- `strict` mode with configured addons: warns and skips addon install.
-- `sand config` requires an interactive terminal.
-- `sand.toml` parsing and host-side orchestration are handled by the Go `sand` CLI.
+  - already-installed gear is skipped
+  - unknown gear names are warned and skipped
+  - gear install failures are fatal
+- `strict` mode with configured gear: warns and skips gear install.
+- `dune config` requires an interactive terminal.
+- `sand.toml` parsing and host-side orchestration are handled by the Go `dune` CLI.
 - `workspace_mode=copy` rewrites a temporary devcontainer config in the Go host CLI.
 
 *LOCAL DATASTORE HELPERS*
-- `pg-local` (installed by `addons add-postgres`):
+- `pg-local` (installed by `gear install add-postgres`):
   - `pg-local start|stop|restart|status|logs|shell|url`
   - defaults: `PGHOST=127.0.0.1`, `PGPORT=5432`, `PGUSER=node`, `PGDATABASE=app`
-- `redis-local` (installed by `addons add-redis`):
+- `redis-local` (installed by `gear install add-redis`):
   - `redis-local start|stop|restart|status|logs|shell|url`
   - defaults: `redis://127.0.0.1:6379`
-- `mp-local` (installed by `addons add-mailpit`):
+- `mp-local` (installed by `gear install add-mailpit`):
   - `mp-local start|stop|restart|status|logs|url`
   - defaults: `http://127.0.0.1:8025` (UI), `smtp://127.0.0.1:1025`
 
@@ -187,16 +187,16 @@ gh auth setup-git
 
 - Shows active profile and security mode
 - Shows shell aliases (`cc`, `cx`, plus `ge`/`op` when installed)
-- Shows addon command help when mode is not `strict`
+- Shows gear command help when mode is not `strict`
 
 ## recommendation: profile isolation by security mode
 
 Use different profiles for different security modes to avoid cross-contamination of auth/config state through shared persisted credentials.
 
 Example:
-- `sand 0 std` for normal work
-- `sand 1 strict` for locked-down sessions
-- `sand 2 lax` or `sand 3 yolo` for experimental tooling installs
+- `dune 0 std` for normal work
+- `dune 1 strict` for locked-down sessions
+- `dune 2 lax` or `dune 3 yolo` for experimental tooling installs
 
 ## user notes
 

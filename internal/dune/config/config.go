@@ -22,10 +22,11 @@ var VersionKeys = []string{
 var ScalarKeys = append([]string{"profile", "mode", "workspace_mode"}, VersionKeys...)
 
 var allowedKeys = func() map[string]struct{} {
-	keys := make(map[string]struct{}, len(ScalarKeys)+1)
+	keys := make(map[string]struct{}, len(ScalarKeys)+2)
 	for _, key := range ScalarKeys {
 		keys[key] = struct{}{}
 	}
+	keys["gear"] = struct{}{}
 	keys["addons"] = struct{}{}
 	return keys
 }()
@@ -171,19 +172,19 @@ func Parse(data map[string]any) (domain.SandConfig, []string, error) {
 		}
 	}
 
-	addonsValue, ok := data["addons"]
-	if ok && addonsValue != nil {
-		items, ok := addonsValue.([]any)
-		if !ok {
-			return cfg, warnings, fmt.Errorf("invalid sand.toml (addons): expected array of strings")
+	if _, hasGear := data["gear"]; hasGear {
+		if _, hasAddons := data["addons"]; hasAddons {
+			warnings = append(warnings, "Both gear and addons are set in sand.toml; gear takes precedence.")
 		}
+	}
+	items, err := gearListValue(data)
+	if err != nil {
+		return cfg, warnings, err
+	}
+	if items != nil {
 		cfg.Addons = make([]domain.AddonName, 0, len(items))
 		for _, item := range items {
-			value, ok := item.(string)
-			if !ok {
-				return cfg, warnings, fmt.Errorf("invalid sand.toml (addons): expected array of strings")
-			}
-			cfg.Addons = append(cfg.Addons, domain.AddonName(value))
+			cfg.Addons = append(cfg.Addons, domain.AddonName(item))
 		}
 	}
 
@@ -201,28 +202,20 @@ func ValidateExistingData(data map[string]any) []string {
 			warnings = append(warnings, fmt.Sprintf("Existing sand.toml key %q is not a string; it will be kept until overwritten.", key))
 		}
 	}
-	if addonsValue, ok := data["addons"]; ok && addonsValue != nil {
-		if _, ok := addonsValue.([]any); !ok {
-			warnings = append(warnings, "Existing addons key is not a list; the wizard will replace it.")
-		}
+	if _, err := gearListValue(data); err != nil {
+		warnings = append(warnings, err.Error())
 	}
 	return warnings
 }
 
 func ExistingAddons(data map[string]any) map[string]bool {
 	result := map[string]bool{}
-	addonsValue, ok := data["addons"]
-	if !ok || addonsValue == nil {
-		return result
-	}
-	items, ok := addonsValue.([]any)
-	if !ok {
+	items, err := gearListValue(data)
+	if err != nil || items == nil {
 		return result
 	}
 	for _, item := range items {
-		if value, ok := item.(string); ok {
-			result[value] = true
-		}
+		result[item] = true
 	}
 	return result
 }
@@ -245,7 +238,8 @@ func UpdateData(data map[string]any, cfg domain.SandConfig, configureVersions bo
 	data["profile"] = string(cfg.Profile)
 	data["mode"] = string(cfg.Mode)
 	data["workspace_mode"] = string(cfg.WorkspaceMode)
-	data["addons"] = addonStrings(cfg.Addons)
+	data["gear"] = addonStrings(cfg.Addons)
+	delete(data, "addons")
 
 	if !configureVersions {
 		return
@@ -286,20 +280,14 @@ func RenderParseLines(data map[string]any) ([]string, error) {
 		lines = append(lines, fmt.Sprintf("scalar\t%s\t%s", key, strValue))
 	}
 
-	addonsValue, ok := data["addons"]
-	if !ok || addonsValue == nil {
+	items, err := gearListValue(data)
+	if err != nil {
+		return lines, err
+	}
+	if items == nil {
 		return lines, nil
 	}
-
-	items, ok := addonsValue.([]any)
-	if !ok {
-		return lines, fmt.Errorf("error\taddons\texpected array of strings")
-	}
-	for _, item := range items {
-		value, ok := item.(string)
-		if !ok {
-			return lines, fmt.Errorf("error\taddons\texpected array of strings")
-		}
+	for _, value := range items {
 		lines = append(lines, fmt.Sprintf("addon\t%s\t", value))
 	}
 	return lines, nil
@@ -311,4 +299,30 @@ func addonStrings(addons []domain.AddonName) []string {
 		values = append(values, string(addon))
 	}
 	return values
+}
+
+func gearListValue(data map[string]any) ([]string, error) {
+	var key string
+	switch {
+	case data["gear"] != nil:
+		key = "gear"
+	case data["addons"] != nil:
+		key = "addons"
+	default:
+		return nil, nil
+	}
+
+	items, ok := data[key].([]any)
+	if !ok {
+		return nil, fmt.Errorf("existing %s key is not a list; the wizard will replace it.", key)
+	}
+	values := make([]string, 0, len(items))
+	for _, item := range items {
+		value, ok := item.(string)
+		if !ok {
+			return nil, fmt.Errorf("invalid sand.toml (%s): expected array of strings", key)
+		}
+		values = append(values, value)
+	}
+	return values, nil
 }

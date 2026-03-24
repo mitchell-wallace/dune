@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 
-lookup_addon() {
-  local addon_name="$1"
+lookup_gear() {
+  local gear_name="$1"
 
-  awk -F'\t' -v addon_name="$addon_name" '
+  awk -F'\t' -v gear_name="$gear_name" '
     NR == 1 { next }
     NF < 5 { next }
-    $1 == addon_name { print; found=1; exit }
+    $1 == gear_name { print; found=1; exit }
     END { if (!found) exit 1 }
-  ' "$MANIFEST_PATH"
+  ' "$GEAR_MANIFEST_PATH"
 }
 
-addon_state_path() {
-  local addon_name="$1"
-  printf '%s/%s.installed\n' "$ADDON_STATE_DIR" "$addon_name"
+gear_state_path() {
+  local gear_name="$1"
+  printf '%s/%s.installed\n' "$GEAR_STATE_DIR" "$gear_name"
 }
 
 validate_helper_commands() {
@@ -33,14 +33,14 @@ validate_helper_commands() {
   done
 }
 
-mark_addon_installed() {
-  local addon_name="$1"
+mark_gear_installed() {
+  local gear_name="$1"
   local helper_commands="$2"
   local state_file
-  state_file="$(addon_state_path "$addon_name")"
+  state_file="$(gear_state_path "$gear_name")"
 
-  mkdir -p "$ADDON_STATE_DIR"
-  chmod 0755 "$ADDON_STATE_DIR"
+  mkdir -p "$GEAR_STATE_DIR"
+  chmod 0755 "$GEAR_STATE_DIR"
 
   {
     printf 'installed_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -49,17 +49,17 @@ mark_addon_installed() {
   chmod 0644 "$state_file"
 }
 
-run_addon() {
-  local addon_name row name script description enabled_modes run_as helper_commands script_path mode rc
-  addon_name="${1:-}"
+run_gear() {
+  local gear_name row name script description enabled_modes run_as helper_commands script_path mode rc
+  gear_name="${1:-}"
 
-  if [ -z "$addon_name" ]; then
-    echo "Usage: sand-privileged run-addon <addon-name>" >&2
+  if [ -z "$gear_name" ]; then
+    echo "Usage: sand-privileged run-gear <name>" >&2
     exit 1
   fi
 
-  if [[ ! "$addon_name" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
-    echo "Invalid addon name: $addon_name" >&2
+  if [[ ! "$gear_name" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
+    echo "Invalid gear name: $gear_name" >&2
     exit 1
   fi
 
@@ -67,38 +67,38 @@ run_addon() {
   mode="$(canonicalize_mode "$mode")"
 
   if [ "$mode" = "strict" ]; then
-    echo "addons are disabled in strict mode" >&2
+    echo "gear is disabled in strict mode" >&2
     exit 1
   fi
 
-  row="$(lookup_addon "$addon_name")" || {
-    echo "Unknown addon: $addon_name" >&2
+  row="$(lookup_gear "$gear_name")" || {
+    echo "Unknown gear: $gear_name" >&2
     exit 1
   }
 
   IFS=$'\t' read -r name script description enabled_modes run_as helper_commands <<<"$row"
   helper_commands="${helper_commands:--}"
 
-  if [ "$name" != "$addon_name" ]; then
-    echo "Addon lookup mismatch for $addon_name" >&2
+  if [ "$name" != "$gear_name" ]; then
+    echo "Gear lookup mismatch for $gear_name" >&2
     exit 1
   fi
 
   if [[ "$script" = */* ]]; then
-    echo "Invalid manifest script path for $addon_name" >&2
+    echo "Invalid manifest script path for $gear_name" >&2
     exit 1
   fi
 
   validate_helper_commands "$helper_commands"
 
   if ! mode_enabled "$mode" "$enabled_modes"; then
-    echo "Addon '$addon_name' is not enabled in mode '$mode'" >&2
+    echo "Gear '$gear_name' is not enabled in mode '$mode'" >&2
     exit 1
   fi
 
-  script_path="${ADDON_DIR}/${script}"
+  script_path="${GEAR_DIR}/${script}"
   if [ ! -f "$script_path" ]; then
-    echo "Addon script missing: $script_path" >&2
+    echo "Gear script missing: $script_path" >&2
     exit 1
   fi
 
@@ -121,14 +121,14 @@ run_addon() {
       ;;
     *)
       set -e
-      echo "Invalid run_as in manifest for $addon_name: $run_as" >&2
+      echo "Invalid run_as in manifest for $gear_name: $run_as" >&2
       exit 1
       ;;
   esac
   set -e
 
   if [ "$rc" -eq 0 ]; then
-    mark_addon_installed "$addon_name" "$helper_commands"
+    mark_gear_installed "$gear_name" "$helper_commands"
   fi
 
   exit "$rc"

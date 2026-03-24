@@ -15,7 +15,7 @@ func TestRenderParseLines(t *testing.T) {
 		"mode":            "strict",
 		"workspace_mode":  "copy",
 		"go_version":      "1.26.0",
-		"addons":          []any{"add-go", "add-postgres"},
+		"gear":            []any{"add-go", "add-postgres"},
 		"unexpected_key":  42,
 		"another_unknown": true,
 	})
@@ -64,6 +64,12 @@ func TestUpdateDataKeepsVersionsWhenUnchanged(t *testing.T) {
 	}
 	if got := data["custom_flag"]; got != true {
 		t.Fatalf("custom_flag changed unexpectedly: %v", got)
+	}
+	if got := data["gear"]; !reflect.DeepEqual(got, []string{"add-go"}) {
+		t.Fatalf("gear not written correctly: %#v", got)
+	}
+	if _, ok := data["addons"]; ok {
+		t.Fatalf("legacy addons key should have been removed")
 	}
 }
 

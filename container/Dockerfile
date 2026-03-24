@@ -5,7 +5,7 @@ ENV TZ="$TZ"
 
 ARG CLAUDE_CODE_VERSION=latest
 ARG SAND_BUILD_MODE=std
-ARG SAND_BUILD_ADDONS=
+ARG SAND_BUILD_GEAR=
 ARG SAND_PYTHON_VERSION=
 ARG SAND_UV_VERSION=
 ARG SAND_GO_VERSION=
@@ -132,21 +132,22 @@ COPY runtime/sand-privileged.sh /usr/local/bin/sand-privileged
 COPY runtime/sand-entrypoint.sh /usr/local/bin/sand-entrypoint.sh
 COPY runtime/sand-poststart.sh /usr/local/bin/sand-poststart.sh
 COPY runtime/init-firewall.sh /usr/local/bin/init-firewall.sh
+COPY runtime/gear-cli.sh /usr/local/bin/gear
 COPY runtime/addons-cli.sh /usr/local/bin/addons
 COPY lib/ /usr/local/lib/sand/lib/
 COPY runtime/sand-privileged/ /usr/local/lib/sand/runtime/sand-privileged/
 COPY runtime/firewall-domains.tsv /usr/local/lib/sand/runtime/firewall-domains.tsv
-COPY addons/ /usr/local/lib/sand/addons/
-RUN chmod 0755 /usr/local/bin/setup-agent-persist.sh /usr/local/bin/sand-privileged /usr/local/bin/sand-entrypoint.sh /usr/local/bin/sand-poststart.sh /usr/local/bin/init-firewall.sh /usr/local/bin/addons && \
-  chown root:root /usr/local/bin/setup-agent-persist.sh /usr/local/bin/sand-privileged /usr/local/bin/sand-entrypoint.sh /usr/local/bin/sand-poststart.sh /usr/local/bin/init-firewall.sh /usr/local/bin/addons && \
+COPY gear/ /usr/local/lib/sand/gear/
+RUN chmod 0755 /usr/local/bin/setup-agent-persist.sh /usr/local/bin/sand-privileged /usr/local/bin/sand-entrypoint.sh /usr/local/bin/sand-poststart.sh /usr/local/bin/init-firewall.sh /usr/local/bin/gear /usr/local/bin/addons && \
+  chown root:root /usr/local/bin/setup-agent-persist.sh /usr/local/bin/sand-privileged /usr/local/bin/sand-entrypoint.sh /usr/local/bin/sand-poststart.sh /usr/local/bin/init-firewall.sh /usr/local/bin/gear /usr/local/bin/addons && \
   chown -R root:root /usr/local/lib/sand && \
-  chmod 0755 /usr/local/lib/sand /usr/local/lib/sand/lib /usr/local/lib/sand/runtime /usr/local/lib/sand/runtime/sand-privileged /usr/local/lib/sand/addons && \
+  chmod 0755 /usr/local/lib/sand /usr/local/lib/sand/lib /usr/local/lib/sand/runtime /usr/local/lib/sand/runtime/sand-privileged /usr/local/lib/sand/gear && \
   chmod 0444 /usr/local/lib/sand/lib/utils.sh /usr/local/lib/sand/runtime/firewall-domains.tsv && \
   find /usr/local/lib/sand/runtime/sand-privileged -mindepth 1 -maxdepth 1 -type f -exec chmod 0444 {} \; && \
-  chmod 0444 /usr/local/lib/sand/addons/manifest.tsv && \
-  find /usr/local/lib/sand/addons -mindepth 1 -maxdepth 1 -type f ! -name manifest.tsv -exec chmod 0555 {} \;
+  chmod 0444 /usr/local/lib/sand/gear/manifest.tsv && \
+  find /usr/local/lib/sand/gear -mindepth 1 -maxdepth 1 -type f ! -name manifest.tsv -exec chmod 0555 {} \;
 
-# Install configured addons at build time so network-heavy addons complete before runtime firewall setup.
+# Install configured gear at build time so network-heavy gear completes before runtime firewall setup.
 RUN /bin/bash -lc 'set -euo pipefail; \
   mode="$(printf "%s" "${SAND_BUILD_MODE:-std}" | tr "[:upper:]" "[:lower:]")"; \
   case "$mode" in \
@@ -154,48 +155,48 @@ RUN /bin/bash -lc 'set -euo pipefail; \
     lax|yolo|strict) ;; \
     *) echo "Invalid SAND_BUILD_MODE='\''$mode'\''" >&2; exit 1 ;; \
   esac; \
-  addons_csv="$(printf "%s" "${SAND_BUILD_ADDONS:-}" | tr "[:upper:]" "[:lower:]" | tr -d "[:space:]")"; \
-  if [ -z "$addons_csv" ]; then \
-    echo "No build-time addons requested."; \
+  gear_csv="$(printf "%s" "${SAND_BUILD_GEAR:-${SAND_BUILD_ADDONS:-}}" | tr "[:upper:]" "[:lower:]" | tr -d "[:space:]")"; \
+  if [ -z "$gear_csv" ]; then \
+    echo "No build-time gear requested."; \
     exit 0; \
   fi; \
   if [ "$mode" = "strict" ]; then \
-    echo "Skipping build-time addon install because mode is strict."; \
+    echo "Skipping build-time gear install because mode is strict."; \
     exit 0; \
   fi; \
-  known_addons="$(tail -n +2 /usr/local/lib/sand/addons/manifest.tsv | cut -f1 | sed "/^$/d")"; \
+  known_gear="$(tail -n +2 /usr/local/lib/sand/gear/manifest.tsv | cut -f1 | sed "/^$/d")"; \
   installed_count=0; \
   skipped_unknown_count=0; \
   skipped_invalid_count=0; \
   skipped_duplicate_count=0; \
   seen=","; \
-  IFS="," read -r -a requested_addons <<<"$addons_csv"; \
-  for addon in "${requested_addons[@]}"; do \
-    [ -z "$addon" ] && continue; \
-    if [[ ! "$addon" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then \
-      echo "WARNING: skipping invalid build-time addon name: $addon" >&2; \
+  IFS="," read -r -a requested_gear <<<"$gear_csv"; \
+  for item in "${requested_gear[@]}"; do \
+    [ -z "$item" ] && continue; \
+    if [[ ! "$item" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then \
+      echo "WARNING: skipping invalid build-time gear name: $item" >&2; \
       skipped_invalid_count=$((skipped_invalid_count + 1)); \
       continue; \
     fi; \
-    if [[ "$seen" == *",$addon,"* ]]; then \
+    if [[ "$seen" == *",$item,"* ]]; then \
       skipped_duplicate_count=$((skipped_duplicate_count + 1)); \
       continue; \
     fi; \
-    seen="${seen}${addon},"; \
-    if ! printf "%s\n" "$known_addons" | grep -Fxq "$addon"; then \
-      echo "WARNING: skipping unknown build-time addon: $addon" >&2; \
+    seen="${seen}${item},"; \
+    if ! printf "%s\n" "$known_gear" | grep -Fxq "$item"; then \
+      echo "WARNING: skipping unknown build-time gear: $item" >&2; \
       skipped_unknown_count=$((skipped_unknown_count + 1)); \
       continue; \
     fi; \
-    echo "Installing build-time addon: $addon"; \
-    /usr/local/bin/sand-privileged run-addon "$addon"; \
+    echo "Installing build-time gear: $item"; \
+    /usr/local/bin/sand-privileged run-gear "$item"; \
     installed_count=$((installed_count + 1)); \
   done; \
-  echo "Build-time addon summary: installed=${installed_count} skipped_unknown=${skipped_unknown_count} skipped_invalid=${skipped_invalid_count} skipped_duplicate=${skipped_duplicate_count}"'
+  echo "Build-time gear summary: installed=${installed_count} skipped_unknown=${skipped_unknown_count} skipped_invalid=${skipped_invalid_count} skipped_duplicate=${skipped_duplicate_count}"'
 
 USER node
 RUN \
-  mkdir -p /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defaults/gemini /opt/agent-defaults/opencode/config /opt/agent-defaults/opencode/data /opt/agent-defaults/gh/config /opt/agent-defaults/git /opt/agent-defaults/addons && \
+  mkdir -p /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defaults/gemini /opt/agent-defaults/opencode/config /opt/agent-defaults/opencode/data /opt/agent-defaults/gh/config /opt/agent-defaults/git /opt/agent-defaults/gear && \
   cp -a /home/node/.claude/. /opt/agent-defaults/claude/ && \
   cp -a /home/node/.codex/. /opt/agent-defaults/codex/ && \
   cp -a /home/node/.gemini/. /opt/agent-defaults/gemini/ && \
@@ -204,7 +205,8 @@ RUN \
   if [ -d /home/node/.config/gh ] && [ -n "$(find /home/node/.config/gh -mindepth 1 -print -quit 2>/dev/null)" ]; then cp -a /home/node/.config/gh/. /opt/agent-defaults/gh/config/; fi && \
   if [ -f /home/node/.gitconfig ] && [ -s /home/node/.gitconfig ]; then cp -a /home/node/.gitconfig /opt/agent-defaults/git/.gitconfig; fi && \
   if [ -f /home/node/.git-credentials ] && [ -s /home/node/.git-credentials ]; then cp -a /home/node/.git-credentials /opt/agent-defaults/git/.git-credentials; fi && \
-  if [ -d /persist/agent/addons ] && [ -n "$(find /persist/agent/addons -mindepth 1 -print -quit 2>/dev/null)" ]; then cp -a /persist/agent/addons/. /opt/agent-defaults/addons/; fi && \
+  if [ -d /persist/agent/gear ] && [ -n "$(find /persist/agent/gear -mindepth 1 -print -quit 2>/dev/null)" ]; then cp -a /persist/agent/gear/. /opt/agent-defaults/gear/; fi && \
+  if [ -d /persist/agent/addons ] && [ -n "$(find /persist/agent/addons -mindepth 1 -print -quit 2>/dev/null)" ]; then cp -a /persist/agent/addons/. /opt/agent-defaults/gear/; fi && \
   /usr/local/bin/setup-agent-persist.sh && \
   touch /home/node/.bashrc /home/node/.zshrc && \
   if ! grep -qxF '[ -f ~/.agent-shell-setup.sh ] && source ~/.agent-shell-setup.sh' /home/node/.bashrc; then \
@@ -221,15 +223,16 @@ RUN chmod +x /tmp/configure-agents.sh && \
   rm -f /tmp/configure-agents.sh
 
 # Refresh defaults after setup scripts so empty persisted volumes can be re-seeded.
-RUN rm -rf /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defaults/gemini /opt/agent-defaults/opencode /opt/agent-defaults/gh /opt/agent-defaults/git /opt/agent-defaults/addons && \
-  mkdir -p /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defaults/gemini /opt/agent-defaults/opencode/config /opt/agent-defaults/opencode/data /opt/agent-defaults/gh/config /opt/agent-defaults/git /opt/agent-defaults/addons && \
+RUN rm -rf /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defaults/gemini /opt/agent-defaults/opencode /opt/agent-defaults/gh /opt/agent-defaults/git /opt/agent-defaults/gear && \
+  mkdir -p /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defaults/gemini /opt/agent-defaults/opencode/config /opt/agent-defaults/opencode/data /opt/agent-defaults/gh/config /opt/agent-defaults/git /opt/agent-defaults/gear && \
   cp -a /persist/agent/claude/. /opt/agent-defaults/claude/ && \
   cp -a /persist/agent/codex/. /opt/agent-defaults/codex/ && \
   cp -a /persist/agent/gemini/. /opt/agent-defaults/gemini/ && \
   cp -a /persist/agent/opencode/config/. /opt/agent-defaults/opencode/config/ && \
   cp -a /persist/agent/opencode/data/. /opt/agent-defaults/opencode/data/ && \
   cp -a /persist/agent/gh/config/. /opt/agent-defaults/gh/config/ && \
-  if [ -d /persist/agent/addons ] && [ -n "$(find /persist/agent/addons -mindepth 1 -print -quit 2>/dev/null)" ]; then cp -a /persist/agent/addons/. /opt/agent-defaults/addons/; fi && \
+  if [ -d /persist/agent/gear ] && [ -n "$(find /persist/agent/gear -mindepth 1 -print -quit 2>/dev/null)" ]; then cp -a /persist/agent/gear/. /opt/agent-defaults/gear/; fi && \
+  if [ -d /persist/agent/addons ] && [ -n "$(find /persist/agent/addons -mindepth 1 -print -quit 2>/dev/null)" ]; then cp -a /persist/agent/addons/. /opt/agent-defaults/gear/; fi && \
   if [ -f /persist/agent/git/.gitconfig ] && [ -s /persist/agent/git/.gitconfig ]; then cp -a /persist/agent/git/.gitconfig /opt/agent-defaults/git/.gitconfig; fi && \
   if [ -f /persist/agent/git/.git-credentials ] && [ -s /persist/agent/git/.git-credentials ]; then cp -a /persist/agent/git/.git-credentials /opt/agent-defaults/git/.git-credentials; fi
 

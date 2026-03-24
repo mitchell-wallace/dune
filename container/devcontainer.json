@@ -8,7 +8,7 @@
       "GIT_DELTA_VERSION": "0.18.2",
       "ZSH_IN_DOCKER_VERSION": "1.2.0",
       "SAND_BUILD_MODE": "${localEnv:SAND_BUILD_MODE:std}",
-      "SAND_BUILD_ADDONS": "${localEnv:SAND_BUILD_ADDONS:}",
+      "SAND_BUILD_GEAR": "${localEnv:SAND_BUILD_GEAR:}",
       "SAND_PYTHON_VERSION": "${localEnv:SAND_PYTHON_VERSION:}",
       "SAND_UV_VERSION": "${localEnv:SAND_UV_VERSION:}",
       "SAND_GO_VERSION": "${localEnv:SAND_GO_VERSION:}",

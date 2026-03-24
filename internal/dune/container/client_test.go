@@ -79,7 +79,7 @@ func TestFindCreatedContainerIDReturnsFirstMatch(t *testing.T) {
 
 	client := NewClient(fakeRunner{
 		output: map[string]string{
-			"docker ps -aq --filter label=devcontainer.local_folder=/tmp/demo --filter label=devcontainer.config_file=/tmp/devcontainer.json --filter label=sand.profile=0": "abc123\nxyz789",
+			"docker ps -aq --filter label=devcontainer.local_folder=/tmp/demo --filter label=devcontainer.config_file=/tmp/devcontainer.json --filter label=dune.profile=0": "abc123\nxyz789",
 		},
 	})
 

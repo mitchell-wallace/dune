@@ -133,7 +133,7 @@ func (c *Client) FindCreatedContainerID(ctx context.Context, workspaceDir, confi
 	output, err := c.Runner.Output(ctx, "docker", "ps", "-aq",
 		"--filter", "label=devcontainer.local_folder="+workspaceDir,
 		"--filter", "label=devcontainer.config_file="+configPath,
-		"--filter", "label=sand.profile="+profile,
+		"--filter", "label=dune.profile="+profile,
 	)
 	if err != nil {
 		return "", err

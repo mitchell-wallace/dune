@@ -22,7 +22,7 @@ func ParseManifest(path string) ([]domain.AddonSpec, error) {
 	reader.FieldsPerRecord = -1
 	rows, err := reader.ReadAll()
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse addons manifest: %w", err)
+		return nil, fmt.Errorf("failed to parse gear manifest: %w", err)
 	}
 	if len(rows) == 0 {
 		return nil, nil
@@ -83,7 +83,7 @@ func BuildCSV(addons []domain.AddonName, warn func(string)) string {
 		name := string(addon)
 		if !isValidAddonName(name) {
 			if warn != nil {
-				warn(fmt.Sprintf("Invalid addon name in sand.toml skipped for build-time install: %s", name))
+				warn(fmt.Sprintf("Invalid gear name in sand.toml skipped for build-time install: %s", name))
 			}
 			continue
 		}
