@@ -56,6 +56,16 @@ install_gitui() {
   log "gitui ${GITUI_VERSION} installed"
 }
 
+# dolt - version-controlled database, required by beads
+install_dolt() {
+  if command -v dolt >/dev/null 2>&1; then
+    log "dolt already installed"
+    return 0
+  fi
+  log "Installing dolt"
+  curl -L https://github.com/dolthub/dolt/releases/latest/download/install.sh | sudo bash
+}
+
 # beads - memory system for agents
 install_beads() {
   log "Installing beads"
@@ -79,6 +89,7 @@ if [ "$INSTALL_SYSTEM_TOOLS" = "1" ]; then
 fi
 
 if [ "$INSTALL_USER_TOOLS" = "1" ]; then
+  install_dolt
   install_beads
   install_beads_viewer
   install_mise

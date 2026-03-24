@@ -163,6 +163,16 @@ func (r *Runner) StartOrResumeBatch(iterations int) (state.State, error) {
 	if err != nil {
 		return state.State{}, err
 	}
+	// Finalize stale batches that already completed all iterations (e.g. from
+	// a previous run that was killed after incrementing CompletedIterations but
+	// before cleaning up ActiveBatch).
+	if st.ActiveBatch != nil && st.ActiveBatch.CompletedIterations >= st.ActiveBatch.TargetIterations {
+		if st.ActiveBatch.EndedAt == "" {
+			st.ActiveBatch.EndedAt = time.Now().UTC().Format(time.RFC3339)
+		}
+		st.ActiveBatch = nil
+		st.StopAfterCurrent = false
+	}
 	if st.ActiveBatch == nil {
 		st.ActiveBatch = &state.BatchState{
 			BatchID:          st.NextBatchID,
@@ -229,13 +239,21 @@ func (r *Runner) Run(ctx context.Context) ([]SessionResult, error) {
 		return nil, err
 	}
 
+	fmt.Fprintf(r.cfg.Stderr, "rally: batch %d — %d iteration(s), agents: %s\n",
+		st.ActiveBatch.BatchID, st.ActiveBatch.TargetIterations, mix.Label)
+	if st.ActiveBatch.CompletedIterations > 0 {
+		fmt.Fprintf(r.cfg.Stderr, "rally: resuming from iteration %d\n", st.ActiveBatch.CompletedIterations+1)
+	}
+
 	var results []SessionResult
 	for st.ActiveBatch != nil && st.ActiveBatch.CompletedIterations < st.ActiveBatch.TargetIterations {
 		if ctx.Err() != nil {
+			fmt.Fprintf(r.cfg.Stderr, "rally: cancelled after %d iteration(s)\n", len(results))
 			return results, ctx.Err()
 		}
 		current, err := r.runOne(ctx, &st, mix)
 		if err != nil {
+			fmt.Fprintf(r.cfg.Stderr, "rally: iteration %d failed: %v\n", current.IterationIndex, err)
 			return results, err
 		}
 		results = append(results, current)
@@ -244,9 +262,11 @@ func (r *Runner) Run(ctx context.Context) ([]SessionResult, error) {
 			return results, err
 		}
 		if st.StopAfterCurrent {
+			fmt.Fprintf(r.cfg.Stderr, "rally: stop requested after iteration %d\n", current.IterationIndex)
 			break
 		}
 	}
+	fmt.Fprintf(r.cfg.Stderr, "rally: batch %d complete — %d session(s) ran\n", st.NextBatchID-1, len(results))
 	return results, nil
 }
 
@@ -257,6 +277,9 @@ func (r *Runner) runOne(ctx context.Context, st *state.State, mix AgentMix) (Ses
 	iterationIndex := st.ActiveBatch.CompletedIterations
 	agent := AgentForSession(sessionID, mix)
 	startedAt := time.Now().UTC()
+
+	fmt.Fprintf(r.cfg.Stderr, "rally: [%d/%d] session %d — agent: %s\n",
+		iterationIndex, st.ActiveBatch.TargetIterations, sessionID, agent)
 
 	if err := r.stateStore.Save(*st); err != nil {
 		return SessionResult{}, err
@@ -335,6 +358,8 @@ func (r *Runner) runOne(ctx context.Context, st *state.State, mix AgentMix) (Ses
 		}
 	}
 	runtimeSeconds := int(endedAt.Sub(startedAt).Seconds())
+	fmt.Fprintf(r.cfg.Stderr, "rally: [%d/%d] session %d %s (exit %d, %ds)\n",
+		iterationIndex, st.ActiveBatch.TargetIterations, sessionID, status, exitCode, runtimeSeconds)
 	if err := progress.UpdateSessionMeta(r.cfg.DataDir, sessionID, func(meta *progress.SessionMeta) error {
 		meta.Session.Status = status
 		meta.Session.EndedAt = endedAt.Format(time.RFC3339)
