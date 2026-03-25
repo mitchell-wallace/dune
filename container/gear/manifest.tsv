@@ -11,3 +11,4 @@ add-mailpit	add-mailpit.sh	Install Mailpit local SMTP/UI tool	std,lax,yolo	root	
 add-python-uv	add-python-uv.sh	Install Python + uv via mise	std,lax,yolo	root	python,uv
 add-go	add-go.sh	Install Go via mise	std,lax,yolo	root	go
 add-rust	add-rust.sh	Install Rust toolchain via mise	std,lax,yolo	root	rustc,cargo
+add-tmux	add-tmux.sh	Install tmux terminal multiplexer	std,lax,yolo	root	tmux

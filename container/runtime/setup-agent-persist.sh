@@ -109,7 +109,7 @@ ensure_rally_binary() {
 
   mkdir -p "$(dirname "$persist_bin")"
 
-  if [ ! -x "$persist_bin" ]; then
+  if [ -e "$persist_bin" ] && [ ! -x "$persist_bin" ]; then
     if ! chmod 0755 "$persist_bin" 2>/dev/null; then
       if [ ! -x "$persist_bin" ]; then
         echo "WARNING: ${persist_bin} exists but is not executable, and its mode could not be updated" >&2
@@ -127,8 +127,8 @@ ensure_rally_binary() {
     return 0
   fi
 
-  rm -f "$target_path"
-  ln -s "$persist_bin" "$target_path"
+  rm -f "$target_path" 2>/dev/null || true
+  ln -s "$persist_bin" "$target_path" 2>/dev/null || true
 }
 
 PERSIST_MAPPINGS=(
