@@ -194,7 +194,7 @@ RUN /bin/bash -lc 'set -euo pipefail; \
   echo "Build-time gear summary: installed=${installed_count} skipped_unknown=${skipped_unknown_count} skipped_invalid=${skipped_invalid_count} skipped_duplicate=${skipped_duplicate_count}"'
 
 USER node
-RUN \
+RUN set -x && \
   mkdir -p /opt/agent-defaults/claude /opt/agent-defaults/codex /opt/agent-defaults/gemini /opt/agent-defaults/opencode/config /opt/agent-defaults/opencode/data /opt/agent-defaults/gh/config /opt/agent-defaults/git /opt/agent-defaults/gear && \
   cp -a /home/node/.claude/. /opt/agent-defaults/claude/ && \
   cp -a /home/node/.codex/. /opt/agent-defaults/codex/ && \
