@@ -4,7 +4,7 @@
 - [ ] 1.2 Move `cmd/rally` and `internal/rally` to the new repo (drop `internal/contracts/rally` entirely — no shared types needed)
 - [ ] 1.3 Ensure `go build ./cmd/rally` succeeds independently in the new repo
 - [ ] 1.4 Add `Version` variable with ldflags injection in `main.go`
-- [ ] 1.5 Implement `rally.toml` config reading from `~/.config/rally/rally.toml` for model prefs and beads (same key names as old `dune.toml`)
+- [ ] 1.5 Implement `rally.toml` config reading **and writing** from `~/.config/rally/rally.toml` for model prefs and beads — migrate `rally init` to write beads here instead of `dune.toml`, delete `writeDuneToml()` and `loadModelDefaults()` helpers
 - [ ] 1.6 Create `.goreleaser.yaml` with builds for linux/darwin amd64/arm64
 - [ ] 1.7 Create `.github/workflows/release.yml` that runs `goreleaser release --clean` on `v*` tag push
 - [ ] 1.8 Create `install.sh` that detects OS/arch, downloads latest release, installs to `~/.local/bin/rally`
@@ -31,9 +31,11 @@
 - [ ] 2.14 Install Mailpit
 - [ ] 2.15 Install Claude Code, Codex, Opencode, and Gemini CLIs
 - [ ] 2.16 Install Rally from GitHub Releases via install script (depends on 1.11)
-- [ ] 2.17 Define s6 service directories for PostgreSQL, Redis, and Mailpit under `/etc/s6-overlay/s6-rc.d/` (type `longrun`, with `run` scripts)
-- [ ] 2.18 Build image locally and verify all tools, services, and s6 auto-restart work
-- [ ] 2.19 Create `.github/workflows/image.yml` to build and push to `ghcr.io/mitchell-wallace/dune-base` on main pushes (with `--build-arg BUILDKIT_INLINE_CACHE=1`)
+- [ ] 2.17 Define s6 `longrun` service directories for PostgreSQL, Redis, and Mailpit under `/etc/s6-overlay/s6-rc.d/` (with `run` scripts)
+- [ ] 2.18 Write s6 `oneshot` `setup-persist` service: seed defaults into `/persist/agent` if empty (copy image defaults without overwriting existing files), then create symlinks from home dir paths (`.claude/`, `.codex/`, `.gemini/`, `.config/opencode/`, `.local/share/opencode/`, `.config/gh/`, `.gitconfig`, `.git-credentials`, `.zshrc`, `.p10k.zsh`) into `/persist/agent`
+- [ ] 2.19 Store default `.zshrc` and `.p10k.zsh` in `/opt/home-defaults/` during image build for seeding
+- [ ] 2.20 Build image locally and verify all tools, services, persistence symlinks, and s6 auto-restart work
+- [ ] 2.21 Create `.github/workflows/image.yml` to build and push to `ghcr.io/mitchell-wallace/dune-base` on main pushes (with `--build-arg BUILDKIT_INLINE_CACHE=1`)
 
 ## 3. Pipelock Configuration
 
@@ -49,7 +51,7 @@
 ## 4. Dune CLI Rewrite
 
 - [ ] 4.1 Create new `cmd/dune/main.go` and `internal/dune` package structure from scratch
-- [ ] 4.2 Implement workspace slug derivation: `<folderName>-<2hexhash>` where 2 hex chars come from hash of absolute workspace path
+- [ ] 4.2 Implement workspace root resolution: `git rev-parse --show-toplevel` with cwd fallback; derive slug as `<folderName>-<2hexhash>` from the resolved workspace root path
 - [ ] 4.3 Implement profile resolution: `--profile`/`-p` flag → stored mapping → `default` fallback
 - [ ] 4.4 Implement `~/.config/dune/profiles.json` read/write for directory-to-profile mapping
 - [ ] 4.5 Implement `dune profile set <name>` command (validates: lowercase alphanumeric + hyphens only)
@@ -61,14 +63,14 @@
 - [ ] 4.11 Implement `dune rebuild` command: `docker compose build --no-cache` for agent service, recreate containers
 - [ ] 4.12 Implement `dune logs [service]` command: `docker compose logs -f [service]`
 - [ ] 4.13 Implement first-run Pipelock config generation: run `docker run --rm ghcr.io/luckypipewrench/pipelock:latest generate config --preset balanced`, apply customisations, write to `~/.config/dune/pipelock.yaml`
-- [ ] 4.14 Implement home volume creation (`dune-home-<profile>`) if it doesn't exist
+- [ ] 4.14 Implement persist volume creation (`dune-persist-<profile>`) if it doesn't exist
 - [ ] 4.15 Forward host `TZ` environment variable to agent container
 - [ ] 4.16 Update `dune.sh` entry point to build and run the new CLI
 
 ## 5. Compose Template
 
 - [ ] 5.1 Write Go template for `compose.yaml` with agent and pipelock services
-- [ ] 5.2 Configure agent service: image, proxy env vars (both `http_proxy`/`HTTP_PROXY` and `https_proxy`/`HTTPS_PROXY`, `no_proxy`/`NO_PROXY=localhost,127.0.0.1`), `TZ` forwarding, workspace mount, home volume, internal network only, working_dir, depends_on pipelock
+- [ ] 5.2 Configure agent service: image, proxy env vars (both `http_proxy`/`HTTP_PROXY` and `https_proxy`/`HTTPS_PROXY`, `no_proxy`/`NO_PROXY=localhost,127.0.0.1`), `TZ` forwarding, workspace mount, persist volume at `/persist/agent`, internal network only, working_dir, depends_on pipelock
 - [ ] 5.3 Configure pipelock service: image, config mount (read-only), internal + external networks, command (`run --config /config/pipelock.yaml --listen 0.0.0.0:8888`), restart policy (`unless-stopped`)
 - [ ] 5.4 Define internal network (`internal: true`) and external network
 - [ ] 5.5 Test generated compose file with `docker compose config` validation
@@ -83,7 +85,7 @@
 - [ ] 6.6 Delete devcontainer orchestration code in `internal/dune/devcontainer/`
 - [ ] 6.7 Delete rally binary sync code in `internal/dune/` (rally build/update commands)
 - [ ] 6.8 Delete old `container/Dockerfile` (replaced by new Dockerfile in step 2)
-- [ ] 6.9 Delete runtime scripts no longer needed: `dune-poststart.sh`, `dune-entrypoint.sh`, `setup-agent-persist.sh`
+- [ ] 6.9 Delete runtime scripts no longer needed: `dune-poststart.sh`, `dune-entrypoint.sh`, `setup-agent-persist.sh` (replaced by s6 `setup-persist` oneshot)
 - [ ] 6.10 Delete `internal/dune/tui/` (config wizard)
 - [ ] 6.11 Update CLAUDE.md and AGENTS.md to reflect new architecture
 

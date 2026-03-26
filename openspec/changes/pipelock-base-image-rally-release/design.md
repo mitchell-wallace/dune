@@ -43,6 +43,8 @@ This is being replaced with: Pipelock proxy sidecar for network policy, a batter
 
 **Decision:** The dune CLI generates `compose.yaml` at runtime from an embedded Go template. The generated file is written to a project-specific directory under `~/.local/share/dune/projects/<slug>/compose.yaml`. The slug is `<folderName>-<2hexhash>` where the 2 hex characters are derived from a hash of the absolute workspace path (e.g., `myapp-a3`). This ensures slugs are human-readable and collision-proof.
 
+**Workspace root resolution:** The "workspace path" used for slug derivation, `/workspace` mount target, `Dockerfile.dune` lookup, and Docker build context is defined as the **git repository root** (`git rev-parse --show-toplevel`). If the current directory is not inside a git repo, the workspace path falls back to the current working directory. Running `dune` from any subdirectory within a repo always resolves to the same workspace root. This matches the existing `ResolveRepoRoot()` behaviour in `workspace.go`.
+
 **Rationale:** The compose file needs dynamic values: image name (base vs Dockerfile.dune-built), workspace path, profile-specific volume names, and Pipelock config path. A static file would require sed-style substitution or environment variable interpolation. An embedded template keeps it in Go, testable, and versioned with the CLI binary. The 2-char hash suffix prevents slug collisions when multiple repos share the same folder name (256 possible suffixes is more than sufficient for single-user usage).
 
 **Alternative considered:** Static compose file with `${VAR}` interpolation via a `.env` file. Rejected because compose env interpolation is limited (no conditionals, no computed values) and would still need dune to generate the `.env`. For slug format, `parentDir-folderName` was considered but parent directory names (e.g., `Documents`) are often noise.
@@ -55,13 +57,20 @@ This is being replaced with: Pipelock proxy sidecar for network policy, a batter
 
 **Alternative considered:** Local-only builds with no registry. Rejected because cold start would require building the entire image from scratch (~5-10 min), and `Dockerfile.dune` can't use `--cache-from` without a registry.
 
-### D4: Agent container user is `agent`, home dir persisted per profile
+### D4: Agent container user is `agent`, credentials persisted per profile via symlinks
 
-**Decision:** The image creates a non-root `agent` user with passwordless sudo and zsh as default shell. A named Docker volume per profile (`dune-home-<profile>`) is mounted at `/home/agent`. The default profile is named `default`. No API keys are forwarded as environment variables — all agent CLIs authenticate via OAuth tokens persisted in the home volume.
+**Decision:** The image creates a non-root `agent` user with passwordless sudo and zsh as default shell. A named Docker volume per profile (`dune-persist-<profile>`) is mounted at `/persist/agent` (outside the home directory so the agent only sees symlinks, not the mount). Specific credential and config paths are symlinked from the home directory into the persistent volume:
 
-**Rationale:** Persisting the entire home directory catches all tool credential paths regardless of convention (`~/.config/`, `~/.codex/`, `~/.gemini/`, etc.) without needing explicit mounts for each. Per-profile volumes maintain credential isolation between profiles. OAuth token persistence means no API keys in env vars or compose files.
+- `.claude/`, `.codex/`, `.gemini/` — coding agent auth/config
+- `.config/opencode/`, `.local/share/opencode/` — Opencode auth/config
+- `.config/gh/`, `.gitconfig`, `.git-credentials` — GitHub auth
+- `.zshrc`, `.p10k.zsh` — shell configuration
 
-**Alternative considered:** Mount only `~/.config` with symlinks for non-conforming tools. Rejected because it's fragile — every new tool with a non-standard credential path would need a symlink added to the Dockerfile.
+When a new profile is created, defaults from the image are seeded into the profile's persistent volume (so the user gets working `.zshrc`/`.p10k.zsh` etc.), but subsequent boots never overwrite existing files. The default profile is named `default`. No API keys are forwarded as environment variables — all agent CLIs authenticate via OAuth tokens persisted in the volume.
+
+**Rationale:** The primary purpose of persistence is auth sharing — OAuth tokens and credentials for coding agents and GitHub must survive container restarts and rebuilds. Symlinking specific paths (rather than mounting the entire home dir) means the image's baked-in tools, mise shims, Rally binary, and other home-directory contents remain visible without a seeding step. Shell config (`.zshrc`, `.p10k.zsh`) is included so user customisations persist. Per-profile volumes maintain credential isolation between profiles. If a user wants different configs per repo, they use different profiles.
+
+**Alternative considered:** Mount the entire `/home/agent` as a volume. Rejected because on first boot with an empty volume, all image-baked files (mise shims, Rally binary, shell config, agent CLIs) would be hidden behind the mount, requiring a complex rsync-based seeding step. The symlink approach is simpler and more predictable.
 
 ### D5: Pipelock in balanced mode with seeded API allowlist
 
@@ -154,11 +163,11 @@ The `Dockerfile.dune` must `FROM ghcr.io/mitchell-wallace/dune-base:latest` (or 
 
 ### D10: Entrypoint and service management via s6-overlay
 
-**Decision:** The agent container uses s6-overlay as PID 1 and process supervisor. PostgreSQL, Redis, and Mailpit are defined as s6 service directories under `/etc/s6-overlay/s6-rc.d/`. s6 starts all services on container boot and automatically restarts any that crash. No `dune-privileged.sh`, no mode configuration, no firewall init.
+**Decision:** The agent container uses s6-overlay as PID 1 and process supervisor. PostgreSQL, Redis, and Mailpit are defined as s6 `longrun` service directories under `/etc/s6-overlay/s6-rc.d/`. A `setup-persist` `oneshot` service runs at boot to create symlinks from the home directory into `/persist/agent` and seed defaults for new profiles (see D4). s6 starts all services on container boot and automatically restarts any long-running service that crashes. No `dune-privileged.sh`, no mode configuration, no firewall init.
 
-s6-overlay is installed in the Dockerfile from the official s6-overlay release tarball. Each service gets a `run` script (e.g., `exec postgres -D /var/lib/postgresql/...`) and a `type` file (`longrun`). The container entrypoint is s6's `/init`, which handles PID 1 duties, starts services, then drops to the `agent` user's zsh shell.
+s6-overlay is installed in the Dockerfile from the official s6-overlay release tarball. Each long-running service gets a `run` script (e.g., `exec postgres -D /var/lib/postgresql/...`) and a `type` file (`longrun`). The `setup-persist` oneshot seeds default files into the persist volume if they don't exist, then creates the symlinks. The container entrypoint is s6's `/init`, which handles PID 1 duties (signal forwarding, zombie reaping), starts all services, and then stays running as the container's long-lived foreground process. The user gets an interactive shell via `docker compose exec agent zsh`.
 
-**Rationale:** With everything pre-installed and no mode gating, the entrypoint is dramatically simpler. s6-overlay adds ~1MB to the image and provides automatic service restart — critical for long-running agent sessions where a crashed postgres would otherwise go unnoticed. s6-overlay is the standard for multi-service Docker containers (linuxserver.io uses it across hundreds of images).
+**Rationale:** With everything pre-installed and no mode gating, the entrypoint is dramatically simpler. s6-overlay adds ~1MB to the image and provides automatic service restart — critical for long-running agent sessions where a crashed postgres would otherwise go unnoticed. s6-overlay is the standard for multi-service Docker containers (linuxserver.io uses it across hundreds of images). The `setup-persist` oneshot replaces the old `setup-agent-persist.sh` with a cleaner s6-native approach.
 
 **Alternative considered:** tini as PID 1 with a simple bash entrypoint. Simpler but no automatic restart — if postgres crashes at hour 3 of an agent session, the user doesn't know until work is lost.
 
@@ -180,7 +189,7 @@ s6-overlay is installed in the Dockerfile from the official s6-overlay release t
 
 **[Pipelock as single point of network failure]** → If Pipelock crashes, the agent loses all network access. Mitigated by Docker Compose restart policy (`restart: unless-stopped`) on the Pipelock service. Also mitigated by Pipelock being a mature, purpose-built proxy.
 
-**[Home directory persistence catches too much state]** → Persisting all of `/home/agent` may persist stale tool caches or broken configs between container rebuilds. Mitigated by `dune rebuild` which recreates the container (but preserves the volume). Users can delete the volume for a clean slate. In practice, tool configs and credentials are the main things persisted, and stale caches are rarely harmful.
+**[Persistence symlinks require explicit path list]** → Only the listed paths (agent auth dirs, GitHub creds, shell config) are persisted. A new tool with a non-standard credential path would need to be added to the symlink list in the `setup-persist` oneshot. Mitigated by the fact that the major agent CLIs and GitHub are already covered, and adding a new path is a one-line change in the service script.
 
 **[Rally extraction is a repo split]** → Moving Rally out means two repos to maintain and a dependency between them (container needs Rally releases to exist). Mitigated by the install script being resilient to release unavailability (falls back gracefully) and by `rally update` making it easy to stay current.
 

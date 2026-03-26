@@ -13,7 +13,7 @@ The current container sandboxing architecture has compounding maintenance costs:
 - Move Rally to its own GitHub repository with GoReleaser for cross-platform releases. Container installs Rally from GitHub Releases via install script. Rally gains `rally update` for self-updating without sudo.
 - Introduce `compose.yaml` for multi-container topology (agent + pipelock). The `dune` CLI drives `docker compose` for container lifecycle.
 - Support per-repo `Dockerfile.dune` for repo-specific image extensions (build context is the workspace root), built with layer caching from the base image.
-- Retain the credentials volume approach, now using named volumes per profile mounted at `/home/agent` (entire home directory persisted — OAuth tokens, tool configs, etc. survive restarts without explicit API key forwarding).
+- Retain the credentials persistence approach using a per-profile volume mounted at `/persist/agent` with symlinks from the home directory for specific credential and config paths (`.claude/`, `.codex/`, `.gemini/`, `.config/opencode/`, `.config/gh/`, `.gitconfig`, `.git-credentials`, `.zshrc`, `.p10k.zsh`). OAuth tokens and shell customisations survive restarts without explicit API key forwarding.
 
 ## Capabilities
 
@@ -34,5 +34,5 @@ The current container sandboxing architecture has compounding maintenance costs:
 - **dune CLI**: Clean rewrite — drops devcontainer CLI orchestration, config file parsing, gear system, security modes, `dune config` wizard, `--directory/-d` flag, and rally sync commands. Adds `--profile` flag with string names and compose management. External UX goal: `dune` in a repo should still "just work."
 - **Rally codebase**: Extracted from this repo entirely. Becomes a standalone Go project with its own release pipeline. Container installs from GitHub Releases instead of host binary sync. Model prefs and beads config move to `rally.toml`.
 - **Removed code**: `init-firewall.sh`, `firewall-domains.tsv`, DNS refresh daemon, gear system (manifest.tsv, gear-cli.sh, all `add-*.sh` scripts), security mode logic, `dune.toml` parser, `dune-privileged.sh` mode configuration, `dune config` interactive wizard.
-- **Config migration**: `dune.toml` is eliminated. Model prefs and beads move to `rally.toml`. Gear moves to `Dockerfile.dune` if non-default tools are needed. Profile `0` becomes `default`. Credentials re-authenticated via OAuth on first use (volume path changes from `/persist/agent` to `/home/agent`).
+- **Config migration**: `dune.toml` is eliminated. Model prefs and beads move to `rally.toml` (including `rally init` write path). Gear moves to `Dockerfile.dune` if non-default tools are needed. Profile `0` becomes `default`. Credentials re-authenticated via OAuth on first use (persist volume at `/persist/agent` with symlinks, replacing `/persist/agent` direct mounts).
 - **Dependencies**: New external dependency on Pipelock container image (`ghcr.io/luckypipewrench/pipelock:latest`). New dependency on GoReleaser for Rally releases. New dependency on s6-overlay for container process supervision.

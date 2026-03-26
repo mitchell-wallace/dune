@@ -62,12 +62,17 @@ All Rally source code (`cmd/rally`, `internal/rally`) SHALL be moved to the `mit
 - **THEN** the dune repo contains no Rally Go source files and no `internal/contracts/rally` package
 - **THEN** the rally repo builds independently with `go build ./cmd/rally`
 
-### Requirement: Rally reads configuration from rally.toml
-Rally SHALL read model preferences (`claude_model`, `codex_model`, `gemini_model`, `opencode_model`) and beads configuration from `~/.config/rally/rally.toml`. This replaces the previous approach of receiving these values via environment variables from `dune.toml`. The file format is TOML with the same key names previously used in `dune.toml`.
+### Requirement: Rally reads and writes configuration via rally.toml
+Rally SHALL read model preferences (`claude_model`, `codex_model`, `gemini_model`, `opencode_model`) and beads configuration from `~/.config/rally/rally.toml`. Rally SHALL also write to this file — in particular, `rally init` SHALL write the `beads` setting to `~/.config/rally/rally.toml` (replacing the current behaviour of writing to `dune.toml`). This replaces the previous approach of receiving values via environment variables from `dune.toml`. The file format is TOML with the same key names previously used in `dune.toml`.
 
 #### Scenario: Rally reads model config
 - **WHEN** `~/.config/rally/rally.toml` contains `claude_model = "opus"`
 - **THEN** Rally uses `opus` as the Claude model preference
+
+#### Scenario: rally init writes config
+- **WHEN** a user runs `rally init` and selects beads = true
+- **THEN** `~/.config/rally/rally.toml` contains `beads = "true"`
+- **THEN** `dune.toml` is NOT written to or created
 
 #### Scenario: No rally.toml exists
 - **WHEN** `~/.config/rally/rally.toml` does not exist

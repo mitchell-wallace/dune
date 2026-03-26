@@ -1,7 +1,9 @@
 ## ADDED Requirements
 
 ### Requirement: dune up starts the two-container topology
-The `dune` or `dune up` command SHALL start an agent container and a Pipelock sidecar container using `docker compose up -d`. The compose file SHALL be generated from an embedded Go template and written to `~/.local/share/dune/projects/<slug>/compose.yaml`, where slug is `<folderName>-<2hexhash>` (2 hex chars derived from a hash of the absolute workspace path, e.g., `myapp-a3`). The compose project name SHALL be set explicitly to `dune-<slug>-<profile>` to avoid collisions.
+The `dune` or `dune up` command SHALL start an agent container and a Pipelock sidecar container using `docker compose up -d`. The compose file SHALL be generated from an embedded Go template and written to `~/.local/share/dune/projects/<slug>/compose.yaml`, where slug is `<folderName>-<2hexhash>` (2 hex chars derived from a hash of the absolute workspace root path, e.g., `myapp-a3`). The compose project name SHALL be set explicitly to `dune-<slug>-<profile>` to avoid collisions.
+
+The **workspace root** is defined as the git repository root (`git rev-parse --show-toplevel`). If the current directory is not inside a git repo, the workspace root falls back to the current working directory. Running `dune` from any subdirectory within a repo always resolves to the same workspace root.
 
 #### Scenario: Starting containers in a repo for the first time
 - **WHEN** a user runs `dune` in a repo directory with no running containers
@@ -47,10 +49,10 @@ The agent service in the generated compose file SHALL:
 - Use the appropriate image (base or Dockerfile.dune-built)
 - Set proxy env vars in both cases: `http_proxy=http://pipelock:8888`, `HTTP_PROXY=http://pipelock:8888`, `https_proxy=http://pipelock:8888`, `HTTPS_PROXY=http://pipelock:8888`, `no_proxy=localhost,127.0.0.1`, `NO_PROXY=localhost,127.0.0.1`
 - Forward the host's `TZ` environment variable for timezone support
-- Mount the workspace directory to `/workspace`
-- Mount the profile-specific home volume to `/home/agent`
+- Mount the workspace root to `/workspace`
+- Mount the profile-specific persist volume (`dune-persist-<profile>`) to `/persist/agent`
 - Set `working_dir: /workspace`
-- No API keys SHALL be forwarded — agent CLIs authenticate via OAuth tokens persisted in the home volume
+- No API keys SHALL be forwarded — agent CLIs authenticate via OAuth tokens persisted in the persist volume
 
 #### Scenario: Agent container has correct environment
 - **WHEN** the agent container starts
@@ -72,7 +74,7 @@ The Pipelock service in the generated compose file SHALL:
 - **THEN** Pipelock is using the config from `~/.config/dune/pipelock.yaml`
 
 ### Requirement: Dockerfile.dune detection and build
-When `dune up` or `dune` is run, dune SHALL check for `Dockerfile.dune` in the workspace root. If present, dune SHALL pull the base image first (to ensure cache layers are available), then build it tagged as `dune-local-<slug>:latest` with `--cache-from ghcr.io/mitchell-wallace/dune-base:latest` using the workspace root as the Docker build context. `COPY` commands in `Dockerfile.dune` are relative to the workspace root. If absent, dune SHALL use the base image directly.
+When `dune up` or `dune` is run, dune SHALL check for `Dockerfile.dune` in the workspace root (as resolved by the git-root rule above). If present, dune SHALL pull the base image first (to ensure cache layers are available), then build it tagged as `dune-local-<slug>:latest` with `--cache-from ghcr.io/mitchell-wallace/dune-base:latest` using the workspace root as the Docker build context. `COPY` commands in `Dockerfile.dune` are relative to the workspace root. If absent, dune SHALL use the base image directly.
 
 #### Scenario: Repo has Dockerfile.dune
 - **WHEN** `Dockerfile.dune` exists at the workspace root
@@ -82,10 +84,10 @@ When `dune up` or `dune` is run, dune SHALL check for `Dockerfile.dune` in the w
 - **WHEN** no `Dockerfile.dune` exists at the workspace root
 - **THEN** dune uses `ghcr.io/mitchell-wallace/dune-base:latest` for the agent container
 
-### Requirement: Home directory volume is created per profile
-The dune CLI SHALL create a named Docker volume `dune-home-<profile>` for each profile. This volume SHALL be mounted at `/home/agent` in the agent container, persisting all credentials and tool configuration across container restarts and rebuilds.
+### Requirement: Persist volume is created per profile
+The dune CLI SHALL create a named Docker volume `dune-persist-<profile>` for each profile. This volume SHALL be mounted at `/persist/agent` in the agent container. An s6 oneshot service in the container creates symlinks from the agent's home directory into the persist volume for credential and config paths, persisting auth tokens and shell configuration across container restarts and rebuilds.
 
 #### Scenario: Volume persists across container lifecycle
 - **WHEN** a user runs `dune down` then `dune up`
-- **THEN** the agent container has the same home directory contents as before
-- **THEN** credentials for Claude Code, GitHub CLI, Codex, etc. are still present
+- **THEN** the agent container has the same credentials and shell config as before
+- **THEN** OAuth tokens for Claude Code, GitHub CLI, Codex, etc. are still present via symlinks into `/persist/agent`

@@ -127,8 +127,27 @@ The image SHALL install git-delta for enhanced diff visualization.
 - **WHEN** the container starts
 - **THEN** `delta --version` succeeds
 
+### Requirement: Credential and config paths are persisted per profile via symlinks
+A named Docker volume per profile (`dune-persist-<profile>`) SHALL be mounted at `/persist/agent`. The following home directory paths SHALL be symlinked into the persistent volume:
+- `.claude/`, `.codex/`, `.gemini/` (coding agent auth/config)
+- `.config/opencode/`, `.local/share/opencode/` (Opencode auth/config)
+- `.config/gh/`, `.gitconfig`, `.git-credentials` (GitHub auth)
+- `.zshrc`, `.p10k.zsh` (shell configuration)
+
+When a profile is used for the first time (empty volume), default files from the image SHALL be copied into the persist volume before creating symlinks. Subsequent boots SHALL NOT overwrite existing files in the volume.
+
+#### Scenario: First boot with new profile seeds defaults
+- **WHEN** the container starts with an empty persist volume
+- **THEN** the image's default `.zshrc`, `.p10k.zsh`, and empty directories for agent configs are copied into `/persist/agent`
+- **THEN** symlinks are created from the home directory into `/persist/agent`
+
+#### Scenario: Existing profile preserves user customisations
+- **WHEN** the container starts with a persist volume that already has a modified `.zshrc`
+- **THEN** the existing `.zshrc` is NOT overwritten
+- **THEN** the symlink points to the user's customised version
+
 ### Requirement: s6-overlay manages services with automatic restart
-The image SHALL install s6-overlay from the official release tarball. PostgreSQL, Redis, and Mailpit SHALL be defined as s6 `longrun` services under `/etc/s6-overlay/s6-rc.d/`. The container entrypoint SHALL be s6-overlay's `/init`, which handles PID 1 responsibilities (signal forwarding, zombie reaping), starts all services, and then drops to the `agent` user's zsh shell. s6 SHALL automatically restart any service that crashes.
+The image SHALL install s6-overlay from the official release tarball. PostgreSQL, Redis, and Mailpit SHALL be defined as s6 `longrun` services under `/etc/s6-overlay/s6-rc.d/`. A `setup-persist` `oneshot` service SHALL run at boot to seed defaults and create the persistence symlinks (see above). The container entrypoint SHALL be s6-overlay's `/init`, which handles PID 1 responsibilities (signal forwarding, zombie reaping), starts all services, and stays running as the container's long-lived foreground process. The user gets an interactive shell via `docker compose exec agent zsh`. s6 SHALL automatically restart any long-running service that crashes.
 
 #### Scenario: All services start on container boot
 - **WHEN** the container starts
