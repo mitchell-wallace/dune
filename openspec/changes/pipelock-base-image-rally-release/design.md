@@ -41,15 +41,15 @@ This is being replaced with: Pipelock proxy sidecar for network policy, a batter
 
 ### D2: Compose file is a Go template, not a static file
 
-**Decision:** The dune CLI generates `compose.yaml` at runtime from an embedded Go template. The generated file is written to a project-specific directory under `~/.local/share/dune/projects/<slug>/compose.yaml`.
+**Decision:** The dune CLI generates `compose.yaml` at runtime from an embedded Go template. The generated file is written to a project-specific directory under `~/.local/share/dune/projects/<slug>/compose.yaml`. The slug is `<folderName>-<2hexhash>` where the 2 hex characters are derived from a hash of the absolute workspace path (e.g., `myapp-a3`). This ensures slugs are human-readable and collision-proof.
 
-**Rationale:** The compose file needs dynamic values: image name (base vs Dockerfile.dune-built), workspace path, profile-specific volume names, API key forwarding, and Pipelock config path. A static file would require sed-style substitution or environment variable interpolation. An embedded template keeps it in Go, testable, and versioned with the CLI binary.
+**Rationale:** The compose file needs dynamic values: image name (base vs Dockerfile.dune-built), workspace path, profile-specific volume names, and Pipelock config path. A static file would require sed-style substitution or environment variable interpolation. An embedded template keeps it in Go, testable, and versioned with the CLI binary. The 2-char hash suffix prevents slug collisions when multiple repos share the same folder name (256 possible suffixes is more than sufficient for single-user usage).
 
-**Alternative considered:** Static compose file with `${VAR}` interpolation via a `.env` file. Rejected because compose env interpolation is limited (no conditionals, no computed values) and would still need dune to generate the `.env`.
+**Alternative considered:** Static compose file with `${VAR}` interpolation via a `.env` file. Rejected because compose env interpolation is limited (no conditionals, no computed values) and would still need dune to generate the `.env`. For slug format, `parentDir-folderName` was considered but parent directory names (e.g., `Documents`) are often noise.
 
 ### D3: Base image on debian:12-slim, published to GHCR
 
-**Decision:** Build a `debian:12-slim`-based image with all tools pre-installed. Publish to GHCR via GitHub Actions CI on pushes to main that touch the image definition. Tag as `ghcr.io/mitchell-wallace/dune-base:latest` and `ghcr.io/mitchell-wallace/dune-base:<sha>`.
+**Decision:** Build a `debian:12-slim`-based image with all tools pre-installed. The image uses zsh with Powerlevel10k as the default shell (matching the current container UX). Timezone support is included via `tzdata` package and `TZ` environment variable (defaulting to host timezone forwarded by dune, falling back to `UTC`). Publish to GHCR via GitHub Actions CI on pushes to main that touch the image definition. Tag as `ghcr.io/mitchell-wallace/dune-base:latest` and `ghcr.io/mitchell-wallace/dune-base:<sha>`. The CI build must include `--build-arg BUILDKIT_INLINE_CACHE=1` so that `Dockerfile.dune` builds can use `--cache-from` with BuildKit.
 
 **Rationale:** `debian:12-slim` is smaller than `node:22` (which is Debian-based anyway) and gives full control over what's installed. GHCR publishing means `docker pull` on first use is fast and `Dockerfile.dune` can `FROM ghcr.io/<org>/dune-base:latest` with layer caching. SHA tags allow pinning for reproducibility.
 
@@ -57,19 +57,56 @@ This is being replaced with: Pipelock proxy sidecar for network policy, a batter
 
 ### D4: Agent container user is `agent`, home dir persisted per profile
 
-**Decision:** The image creates a non-root `agent` user with passwordless sudo. A named Docker volume per profile (`dune-home-<profile>`) is mounted at `/home/agent`. The default profile is named `default`.
+**Decision:** The image creates a non-root `agent` user with passwordless sudo and zsh as default shell. A named Docker volume per profile (`dune-home-<profile>`) is mounted at `/home/agent`. The default profile is named `default`. No API keys are forwarded as environment variables — all agent CLIs authenticate via OAuth tokens persisted in the home volume.
 
-**Rationale:** Persisting the entire home directory catches all tool credential paths regardless of convention (`~/.config/`, `~/.codex/`, `~/.gemini/`, etc.) without needing explicit mounts for each. Per-profile volumes maintain credential isolation between profiles.
+**Rationale:** Persisting the entire home directory catches all tool credential paths regardless of convention (`~/.config/`, `~/.codex/`, `~/.gemini/`, etc.) without needing explicit mounts for each. Per-profile volumes maintain credential isolation between profiles. OAuth token persistence means no API keys in env vars or compose files.
 
 **Alternative considered:** Mount only `~/.config` with symlinks for non-conforming tools. Rejected because it's fragile — every new tool with a non-standard credential path would need a symlink added to the Dockerfile.
 
 ### D5: Pipelock in balanced mode with seeded API allowlist
 
-**Decision:** Pipelock runs as a sidecar on both internal and external networks. The agent container only connects to the internal network and routes HTTP(S) via `http_proxy`/`https_proxy` environment variables pointing to `pipelock:8888`. Pipelock config uses balanced mode with `enforce: true`, DLP patterns for common secrets (API keys, AWS creds, GitHub tokens), and an `api_allowlist` seeded from core domains in the current firewall allowlist.
+**Decision:** Pipelock runs as a sidecar on both internal and external networks. The agent container only connects to the internal network and routes HTTP(S) via `http_proxy`/`https_proxy` environment variables pointing to `pipelock:8888`. The proxy env vars are set in both lowercase and `HTTP_PROXY`/`HTTPS_PROXY` uppercase forms. `no_proxy` and `NO_PROXY` are both set to `localhost,127.0.0.1` to avoid proxying local service traffic.
 
-**Core allowlist domains to seed:** `api.anthropic.com`, `statsig.anthropic.com`, `api.openai.com`, `auth.openai.com`, `chatgpt.com`, `generativelanguage.googleapis.com`, `accounts.google.com`, `oauth2.googleapis.com`, `registry.npmjs.org`, `pypi.org`, `files.pythonhosted.org`, `proxy.golang.org`, `crates.io`, `mcp.grep.app`, `mcp.context7.com`, `mcp.exa.ai`.
+The baseline Pipelock config is generated via `docker run --rm ghcr.io/luckypipewrench/pipelock:latest generate config --preset balanced` and then customised. Key config fields (using real Pipelock schema):
 
-**Rationale:** Balanced mode provides DLP scanning and rate limiting without hard-blocking legitimate agent traffic. The allowlist ensures core AI API and package registry traffic is never flagged by heuristics. This is a baseline — logs can be observed and policy tightened later.
+```yaml
+version: 1
+mode: balanced
+enforce: true
+api_allowlist:
+  - "*.anthropic.com"
+  - "*.openai.com"
+  - "*.googleapis.com"
+  - "accounts.google.com"
+  - "oauth2.googleapis.com"
+  - "chatgpt.com"
+  - "registry.npmjs.org"
+  - "pypi.org"
+  - "files.pythonhosted.org"
+  - "proxy.golang.org"
+  - "crates.io"
+  - "mcp.grep.app"
+  - "mcp.context7.com"
+  - "mcp.exa.ai"
+fetch_proxy:
+  monitoring:
+    blocklist:
+      - "*.pastebin.com"
+      - "*.hastebin.com"
+      - "*.transfer.sh"
+      - "file.io"
+      - "requestbin.net"
+dlp:
+  include_defaults: true  # 46 built-in patterns (AWS keys, GitHub tokens, etc.)
+response_scanning:
+  enabled: true
+  action: warn
+logging:
+  format: json
+  output: stdout
+```
+
+**Rationale:** Balanced mode provides DLP scanning and rate limiting without hard-blocking legitimate agent traffic. `dlp.include_defaults: true` gives 46 built-in secret detection patterns out of the box, covering Anthropic keys, AWS creds, GitHub tokens, and more — no need to hand-write regex. The `api_allowlist` with wildcards ensures core AI API and package registry traffic is never flagged by heuristics. This is a baseline — logs can be observed and policy tightened later.
 
 **Alternative considered:** Starting in audit-only mode. Rejected because the user wants real protection from day one, just not strict lockdown.
 
@@ -83,7 +120,9 @@ This is being replaced with: Pipelock proxy sidecar for network policy, a batter
 - `dune profile list` — list profiles and their directory mappings
 - `dune logs [service]` — tail compose logs (useful for `dune logs pipelock`)
 
-Profile-to-directory mapping is stored in `~/.config/dune/profiles.json`. The default profile `default` is used when no mapping exists.
+The only flag is `--profile`/`-p`. The `--directory/-d` flag and `dune config` interactive wizard are dropped — there is nothing to configure beyond profile selection. Profile-to-directory mapping is stored in `~/.config/dune/profiles.json`. The default profile `default` is used when no mapping exists.
+
+No API keys are forwarded as environment variables. Agent CLIs authenticate via OAuth tokens stored in the persisted home volume. The host's `TZ` environment variable is forwarded so container timestamps match the host timezone.
 
 **Rationale:** The existing CLI has ~70% dead code paths after removing gear, modes, dune.toml, devcontainer orchestration, and rally sync. A rewrite is less work than surgical removal and produces cleaner code. The new CLI is small enough (~500 lines) to be written in one pass.
 
@@ -101,23 +140,39 @@ Rally gains a `rally update` subcommand that downloads the latest release to `~/
 
 ### D8: Dockerfile.dune for per-repo extensions
 
-**Decision:** If a `Dockerfile.dune` exists in the repo root, `dune` builds it (tagged as `dune-local-<slug>:latest`) using `--cache-from ghcr.io/mitchell-wallace/dune-base:latest` and uses the resulting image as the agent service image. Otherwise, the base image is used directly.
+**Decision:** If a `Dockerfile.dune` exists in the repo/workspace root, `dune` builds it (tagged as `dune-local-<slug>:latest`) using the workspace root as the build context, with `--cache-from ghcr.io/mitchell-wallace/dune-base:latest`. The base image must have been built with `BUILDKIT_INLINE_CACHE=1` for `--cache-from` to work under BuildKit. Dune pulls the base image before building to ensure cache layers are available. The resulting image is used as the agent service image. Otherwise, the base image is used directly.
 
-The `Dockerfile.dune` must `FROM ghcr.io/mitchell-wallace/dune-base:latest` (or whatever the base image tag is). This is a convention, not enforced.
+The `Dockerfile.dune` must `FROM ghcr.io/mitchell-wallace/dune-base:latest` (or whatever the base image tag is). This is a convention, not enforced. `COPY` commands in the Dockerfile.dune are relative to the workspace root.
 
 **Rationale:** Replaces the gear system for repo-specific tools. Docker layer caching means repo-specific builds are fast (only the added layers rebuild). No runtime install, no gear state files, no need for network access during tool setup.
 
 ### D9: Pipelock config location and management
 
-**Decision:** Pipelock config lives at `~/.config/dune/pipelock.yaml`. It is generated by `dune` on first run from an embedded default config (the balanced-mode template with seeded allowlist). Users can edit it to tighten or loosen policy.
+**Decision:** Pipelock config lives at `~/.config/dune/pipelock.yaml`. On first run, `dune` generates the baseline by running `docker run --rm ghcr.io/luckypipewrench/pipelock:latest generate config --preset balanced`, then applies customisations (api_allowlist additions, blocklist, logging config) and writes the result. This ensures the config stays compatible with the installed Pipelock version. Users can edit the file to tighten or loosen policy. Pipelock supports hot-reload via file watcher, so config changes take effect without container restart.
 
-**Rationale:** Global config means network policy is consistent across all repos/projects. Per-repo overrides are a non-goal for now — this can be added later by allowing a `pipelock.yaml` in the repo root to override or extend the global config.
+**Rationale:** Global config means network policy is consistent across all repos/projects. Using Pipelock's own generator as the baseline avoids maintaining a hand-written config that could drift from the schema. Per-repo overrides are a non-goal for now — this can be added later by allowing a `pipelock.yaml` in the repo root to override or extend the global config.
 
-### D10: Entrypoint and service management
+### D10: Entrypoint and service management via s6-overlay
 
-**Decision:** The agent container entrypoint starts essential services (postgres, redis, mailpit) via a simple init script, then drops to the `agent` user's shell. No `dune-privileged.sh`, no mode configuration, no firewall init. Services are started unconditionally since they're always installed.
+**Decision:** The agent container uses s6-overlay as PID 1 and process supervisor. PostgreSQL, Redis, and Mailpit are defined as s6 service directories under `/etc/s6-overlay/s6-rc.d/`. s6 starts all services on container boot and automatically restarts any that crash. No `dune-privileged.sh`, no mode configuration, no firewall init.
 
-**Rationale:** With everything pre-installed and no mode gating, the entrypoint is dramatically simpler. Services that were conditional on gear presence are now always available.
+s6-overlay is installed in the Dockerfile from the official s6-overlay release tarball. Each service gets a `run` script (e.g., `exec postgres -D /var/lib/postgresql/...`) and a `type` file (`longrun`). The container entrypoint is s6's `/init`, which handles PID 1 duties, starts services, then drops to the `agent` user's zsh shell.
+
+**Rationale:** With everything pre-installed and no mode gating, the entrypoint is dramatically simpler. s6-overlay adds ~1MB to the image and provides automatic service restart — critical for long-running agent sessions where a crashed postgres would otherwise go unnoticed. s6-overlay is the standard for multi-service Docker containers (linuxserver.io uses it across hundreds of images).
+
+**Alternative considered:** tini as PID 1 with a simple bash entrypoint. Simpler but no automatic restart — if postgres crashes at hour 3 of an agent session, the user doesn't know until work is lost.
+
+### D11: Rally config moves to rally.toml
+
+**Decision:** Model preferences (`claude_model`, `codex_model`, `gemini_model`, `opencode_model`) and beads configuration currently in `dune.toml` move to `rally.toml`, read directly by Rally. The file lives at `~/.config/rally/rally.toml` (inside the persisted home volume). Rally reads the same keys it currently receives via environment variables, just from TOML instead.
+
+**Rationale:** Rally is becoming an independent tool. It should own its own configuration rather than receiving it indirectly from dune via env vars. TOML is already a dependency in the codebase and is the format users are familiar with from `dune.toml`.
+
+### D12: Default mise config for language runtimes
+
+**Decision:** The base image includes a global mise config at `/home/agent/.config/mise/config.toml` that pins `latest` for Node.js, Go, Python, and Rust. mise is installed globally during the Docker build. Shims are placed at `/home/agent/.local/share/mise/shims` and added to PATH in the agent's shell profile. During the Docker build, `mise install` is run as the `agent` user to pre-populate the runtimes so first container start has no install delay.
+
+**Rationale:** mise replaces the old version-pin fields in `dune.toml` (`python_version`, `go_version`, etc.). Using `latest` as the default means the base image always ships with current stable versions. Users can override per-project with a `.mise.toml` in their repo. Running `mise install` at build time ensures runtimes are cached in the image layer.
 
 ## Risks / Trade-offs
 
@@ -129,22 +184,23 @@ The `Dockerfile.dune` must `FROM ghcr.io/mitchell-wallace/dune-base:latest` (or 
 
 **[Rally extraction is a repo split]** → Moving Rally out means two repos to maintain and a dependency between them (container needs Rally releases to exist). Mitigated by the install script being resilient to release unavailability (falls back gracefully) and by `rally update` making it easy to stay current.
 
-**[No rollback path for dune.toml users]** → Users with `dune.toml` files lose their config on upgrade. Mitigated by documentation and the fact that the user base is small (single user). Model prefs and beads config move to Rally's own config, which Rally already partially supports.
+**[No rollback path for dune.toml users]** → Users with `dune.toml` files lose their config on upgrade. Mitigated by documentation and the fact that the user base is small (single user). Model prefs and beads config move to `rally.toml`.
 
-**[Proxy-unaware tools]** → Some tools may not respect `http_proxy`/`https_proxy` environment variables (e.g., tools that use raw sockets or have their own DNS resolution). Mitigated by the internal-only network — tools that bypass the proxy simply get no connectivity, which surfaces the issue immediately rather than silently leaking traffic.
+**[Proxy-unaware tools]** → Some tools may not respect `http_proxy`/`https_proxy` environment variables (e.g., tools that use raw sockets or have their own DNS resolution). Mitigated by the internal-only network — tools that bypass the proxy simply get no connectivity, which surfaces the issue immediately rather than silently leaking traffic. Both lowercase and uppercase proxy env vars are set to maximise compatibility.
+
+**[s6-overlay learning curve]** → s6 service directories are a different pattern from simple bash scripts. Mitigated by the fact that there are only 3 services to define, each with a trivial `run` script, and s6-overlay is extensively documented.
 
 ## Migration Plan
 
-1. **Create Rally repo** — move code, set up GoReleaser, publish first release, verify install script works
-2. **Build base image** — write new Dockerfile, build and publish to GHCR, verify all tools work
-3. **Configure Pipelock** — generate balanced-mode config, seed allowlist, test proxy routing
-4. **Rewrite dune CLI** — new compose-driven lifecycle, profile management, Dockerfile.dune support
-5. **Write compose template** — embedded Go template for agent + pipelock topology
-6. **Integration test** — run `dune` end-to-end in a test repo, verify agent can reach APIs through proxy, credentials persist across restarts
-7. **Delete old code** — remove init-firewall.sh, gear system, devcontainer.json, dune.toml parser, security mode logic, rally code from this repo
+1. **Create Rally repo** — move code, set up GoReleaser, add `rally.toml` config reading, publish first release, verify install script works
+2. **Build base image** — write new Dockerfile with s6-overlay, zsh/p10k, mise with default runtimes, all tools pre-installed, timezone support. Build with `BUILDKIT_INLINE_CACHE=1` and publish to GHCR
+3. **Configure Pipelock** — generate balanced-mode baseline via `pipelock generate config --preset balanced`, customise allowlist/blocklist, embed in dune CLI
+4. **Rewrite dune CLI** — new compose-driven lifecycle, profile management (string names, `folder-2hexhash` slugs), Dockerfile.dune support, TZ forwarding
+5. **Write compose template** — embedded Go template for agent + pipelock topology, proxy env vars (both cases), no API key forwarding
+6. **Integration test** — run `dune` end-to-end in a test repo, verify agent can reach APIs through proxy, OAuth credentials persist across restarts, services auto-restart via s6
+7. **Delete old code** — remove init-firewall.sh, gear system, devcontainer.json, dune.toml parser, security mode logic, dune config wizard, rally code from this repo
 
 ## Open Questions
 
 - **Pipelock image tag pinning**: Should we pin to a specific Pipelock version tag rather than `:latest` to avoid surprise breakage? Likely yes, but need to check available tags.
 - **Non-HTTP traffic**: Tools like `git` use SSH for `git@github.com:...` remotes. SSH doesn't go through HTTP proxies. Should we configure git to always use HTTPS, or add SSH passthrough? For now, HTTPS is the default git transport and SSH can be added later.
-- **Compose project naming**: Docker Compose uses the directory name as project name by default. Since compose files are generated to `~/.local/share/dune/projects/<slug>/`, the project name needs to be set explicitly via `-p` to avoid collisions. The slug should include the profile name.

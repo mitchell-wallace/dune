@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: dune up starts the two-container topology
-The `dune` or `dune up` command SHALL start an agent container and a Pipelock sidecar container using `docker compose up -d`. The compose file SHALL be generated from an embedded Go template and written to `~/.local/share/dune/projects/<slug>/compose.yaml`. The compose project name SHALL be set explicitly to `dune-<slug>-<profile>` to avoid collisions.
+The `dune` or `dune up` command SHALL start an agent container and a Pipelock sidecar container using `docker compose up -d`. The compose file SHALL be generated from an embedded Go template and written to `~/.local/share/dune/projects/<slug>/compose.yaml`, where slug is `<folderName>-<2hexhash>` (2 hex chars derived from a hash of the absolute workspace path, e.g., `myapp-a3`). The compose project name SHALL be set explicitly to `dune-<slug>-<profile>` to avoid collisions.
 
 #### Scenario: Starting containers in a repo for the first time
 - **WHEN** a user runs `dune` in a repo directory with no running containers
@@ -45,17 +45,19 @@ The generated compose file SHALL define two services: `agent` and `pipelock`. Th
 ### Requirement: Compose template configures the agent service correctly
 The agent service in the generated compose file SHALL:
 - Use the appropriate image (base or Dockerfile.dune-built)
-- Set `http_proxy=http://pipelock:8888` and `https_proxy=http://pipelock:8888` and `no_proxy=localhost,127.0.0.1`
-- Forward the `ANTHROPIC_API_KEY` environment variable from the host
+- Set proxy env vars in both cases: `http_proxy=http://pipelock:8888`, `HTTP_PROXY=http://pipelock:8888`, `https_proxy=http://pipelock:8888`, `HTTPS_PROXY=http://pipelock:8888`, `no_proxy=localhost,127.0.0.1`, `NO_PROXY=localhost,127.0.0.1`
+- Forward the host's `TZ` environment variable for timezone support
 - Mount the workspace directory to `/workspace`
 - Mount the profile-specific home volume to `/home/agent`
 - Set `working_dir: /workspace`
+- No API keys SHALL be forwarded — agent CLIs authenticate via OAuth tokens persisted in the home volume
 
 #### Scenario: Agent container has correct environment
 - **WHEN** the agent container starts
 - **THEN** `echo $http_proxy` outputs `http://pipelock:8888`
-- **THEN** `echo $ANTHROPIC_API_KEY` outputs the host's API key value
+- **THEN** `echo $HTTP_PROXY` outputs `http://pipelock:8888`
 - **THEN** `/workspace` contains the repo files
+- **THEN** `date +%Z` matches the host timezone
 
 ### Requirement: Compose template configures the Pipelock service correctly
 The Pipelock service in the generated compose file SHALL:
@@ -70,14 +72,14 @@ The Pipelock service in the generated compose file SHALL:
 - **THEN** Pipelock is using the config from `~/.config/dune/pipelock.yaml`
 
 ### Requirement: Dockerfile.dune detection and build
-When `dune up` or `dune` is run, dune SHALL check for `Dockerfile.dune` in the current repo root. If present, dune SHALL build it tagged as `dune-local-<slug>:latest` with `--cache-from ghcr.io/mitchell-wallace/dune-base:latest` and use the resulting image for the agent service. If absent, dune SHALL use the base image directly.
+When `dune up` or `dune` is run, dune SHALL check for `Dockerfile.dune` in the workspace root. If present, dune SHALL pull the base image first (to ensure cache layers are available), then build it tagged as `dune-local-<slug>:latest` with `--cache-from ghcr.io/mitchell-wallace/dune-base:latest` using the workspace root as the Docker build context. `COPY` commands in `Dockerfile.dune` are relative to the workspace root. If absent, dune SHALL use the base image directly.
 
 #### Scenario: Repo has Dockerfile.dune
-- **WHEN** `Dockerfile.dune` exists at the repo root
-- **THEN** dune builds it and uses the custom image for the agent container
+- **WHEN** `Dockerfile.dune` exists at the workspace root
+- **THEN** dune pulls the base image, builds the custom image with cache-from, and uses it for the agent container
 
 #### Scenario: Repo has no Dockerfile.dune
-- **WHEN** no `Dockerfile.dune` exists at the repo root
+- **WHEN** no `Dockerfile.dune` exists at the workspace root
 - **THEN** dune uses `ghcr.io/mitchell-wallace/dune-base:latest` for the agent container
 
 ### Requirement: Home directory volume is created per profile

@@ -17,7 +17,7 @@ The agent container SHALL have no direct internet access. All HTTP and HTTPS tra
 - **THEN** agent HTTP traffic resumes once Pipelock is back
 
 ### Requirement: Pipelock runs in balanced mode with enforcement
-Pipelock SHALL run in balanced mode with `enforce: true`. Response scanning SHALL be enabled with action `warn` (log, do not block). DLP patterns SHALL be configured to detect common secrets: Anthropic API keys, AWS access keys, GitHub tokens.
+Pipelock SHALL run with config fields `version: 1`, `mode: balanced`, `enforce: true`. Response scanning SHALL be enabled with `response_scanning.enabled: true` and `response_scanning.action: warn` (log, do not block). DLP SHALL use `dlp.include_defaults: true` to enable the 46 built-in secret detection patterns (covering Anthropic API keys, AWS access keys, GitHub tokens, and more) without hand-written regex.
 
 #### Scenario: Agent request contains an API key in the body
 - **WHEN** an outbound request body contains a string matching a DLP pattern (e.g. `sk-ant-`)
@@ -28,7 +28,7 @@ Pipelock SHALL run in balanced mode with `enforce: true`. Response scanning SHAL
 - **THEN** Pipelock allows the request (authorization headers are not treated as exfiltration)
 
 ### Requirement: Core domains are allowlisted in Pipelock config
-The Pipelock configuration SHALL include an `api_allowlist` with core domains that MUST NOT be blocked by heuristics. The allowlist SHALL include at minimum: `api.anthropic.com`, `statsig.anthropic.com`, `api.openai.com`, `auth.openai.com`, `chatgpt.com`, `generativelanguage.googleapis.com`, `accounts.google.com`, `oauth2.googleapis.com`, `registry.npmjs.org`, `pypi.org`, `files.pythonhosted.org`, `proxy.golang.org`, `crates.io`, `mcp.grep.app`, `mcp.context7.com`, `mcp.exa.ai`.
+The Pipelock configuration SHALL include an `api_allowlist` with core domains that MUST NOT be blocked by heuristics. The allowlist SHALL use wildcard syntax where appropriate and include at minimum: `*.anthropic.com`, `*.openai.com`, `*.googleapis.com`, `accounts.google.com`, `oauth2.googleapis.com`, `chatgpt.com`, `registry.npmjs.org`, `pypi.org`, `files.pythonhosted.org`, `proxy.golang.org`, `crates.io`, `mcp.grep.app`, `mcp.context7.com`, `mcp.exa.ai`.
 
 #### Scenario: Request to an allowlisted domain
 - **WHEN** the agent makes a request to `registry.npmjs.org`
@@ -39,18 +39,18 @@ The Pipelock configuration SHALL include an `api_allowlist` with core domains th
 - **THEN** Pipelock evaluates the request using balanced-mode heuristics (may allow or block depending on content)
 
 ### Requirement: Known exfiltration targets are blocklisted
-The Pipelock configuration SHALL blocklist known exfiltration targets including `pastebin.com`, `transfer.sh`, `hastebin.com`, and similar paste/file-sharing services.
+The Pipelock configuration SHALL blocklist known exfiltration targets via `fetch_proxy.monitoring.blocklist` including `*.pastebin.com`, `*.hastebin.com`, `*.transfer.sh`, `file.io`, `requestbin.net`, and similar paste/file-sharing services.
 
 #### Scenario: Agent attempts to POST to a blocklisted domain
 - **WHEN** the agent sends a POST request to `pastebin.com`
 - **THEN** Pipelock blocks the request and logs the attempt
 
 ### Requirement: Pipelock config is globally managed
-The Pipelock configuration file SHALL be stored at `~/.config/dune/pipelock.yaml`. The dune CLI SHALL generate a default config from an embedded template on first run if the file does not exist. The config file SHALL be mounted read-only into the Pipelock container.
+The Pipelock configuration file SHALL be stored at `~/.config/dune/pipelock.yaml`. On first run, dune SHALL generate the baseline config by running `docker run --rm ghcr.io/luckypipewrench/pipelock:latest generate config --preset balanced`, then apply customisations (api_allowlist, blocklist, logging) and write the result. The config file SHALL be mounted read-only into the Pipelock container. Pipelock supports hot-reload via file watcher, so config edits take effect without container restart.
 
 #### Scenario: First run with no existing config
 - **WHEN** a user runs `dune` for the first time and `~/.config/dune/pipelock.yaml` does not exist
-- **THEN** dune creates the file from the embedded balanced-mode template with seeded allowlist
+- **THEN** dune generates the baseline from `pipelock generate config --preset balanced`, applies customisations, and writes the file
 
 #### Scenario: User edits Pipelock config
 - **WHEN** a user modifies `~/.config/dune/pipelock.yaml` and runs `dune down && dune up`
@@ -64,7 +64,7 @@ Pipelock SHALL log all request activity to stdout in JSON format. Logs SHALL be 
 - **THEN** they see JSON-formatted log entries showing proxied requests, blocked requests, and DLP warnings
 
 ### Requirement: Rate limiting is enabled
-Pipelock SHALL enforce rate limiting to prevent runaway agents from making excessive requests. The default rate limits SHALL be set to reasonable values for AI agent workloads.
+Pipelock SHALL enforce rate limiting via `fetch_proxy.monitoring.max_requests_per_minute` to prevent runaway agents from making excessive requests. The default rate limit SHALL be set to a reasonable value for AI agent workloads (e.g., 60 requests per minute per domain).
 
 #### Scenario: Agent exceeds rate limit
 - **WHEN** the agent makes requests at a rate exceeding the configured limit

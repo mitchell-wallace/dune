@@ -5,15 +5,15 @@ The current container sandboxing architecture has compounding maintenance costs:
 ## What Changes
 
 - **BREAKING** Replace `init-firewall.sh` (iptables/ipset allowlist + DNS refresh loop) with Pipelock HTTP proxy running as a Docker Compose sidecar in balanced mode. Agent container routes all traffic through `http_proxy`/`https_proxy` env vars. Core domains from the current allowlist are seeded into Pipelock's `api_allowlist`.
-- **BREAKING** Rebase container image from `node:22` to `debian:12-slim` with everything pre-installed: all current gear (postgres server+client, redis, playwright, pnpm, turbo, mailpit, python/uv, go, rust, tmux, boost-cli tools), all agent CLIs (Claude Code, Codex, Opencode, Gemini), and common dev tools (git, jq, ripgrep, mise, etc.).
+- **BREAKING** Rebase container image from `node:22` to `debian:12-slim` with everything pre-installed: all current gear (postgres server+client, redis, playwright, pnpm, turbo, mailpit, python/uv, go, rust, tmux, boost-cli tools), all agent CLIs (Claude Code, Codex, Opencode, Gemini), zsh with Powerlevel10k, and common dev tools (git, jq, ripgrep, mise, etc.). s6-overlay manages services (postgres, redis, mailpit) with automatic restart. A default mise config provides latest stable Node.js, Go, Python, and Rust.
 - **BREAKING** Remove the gear system entirely (manifest.tsv, gear-cli.sh, per-gear install scripts, runtime gear detection). Per-repo tool additions move to `Dockerfile.dune`.
 - **BREAKING** Remove security modes (std/lax/yolo/strict). No more mode gating — Pipelock provides network policy, sudo is always available.
-- **BREAKING** Eliminate `dune.toml`. Model preferences and beads config move to Rally. Version pins are handled by mise or user choice. Profile selection moves to the dune CLI with central storage (folder path → profile name mapping).
-- **BREAKING** Restructure profiles: string names instead of single-character IDs, `--profile`/`-p` CLI flag, default profile named `default`, named Docker volumes per profile (e.g. `dune-credentials-default`).
+- **BREAKING** Eliminate `dune.toml`. Model preferences and beads config move to `rally.toml` (Rally reads directly). Version pins are handled by mise or user choice. Profile selection moves to the dune CLI with central storage (folder path → profile name mapping).
+- **BREAKING** Restructure profiles: string names instead of single-character IDs, `--profile`/`-p` CLI flag, default profile named `default`, named Docker volumes per profile (e.g. `dune-home-default`).
 - Move Rally to its own GitHub repository with GoReleaser for cross-platform releases. Container installs Rally from GitHub Releases via install script. Rally gains `rally update` for self-updating without sudo.
 - Introduce `compose.yaml` for multi-container topology (agent + pipelock). The `dune` CLI drives `docker compose` for container lifecycle.
-- Support per-repo `Dockerfile.dune` for repo-specific image extensions, built with layer caching from the base image.
-- Retain the credentials volume approach, now using named volumes per profile mounted at `/home/agent/.config`.
+- Support per-repo `Dockerfile.dune` for repo-specific image extensions (build context is the workspace root), built with layer caching from the base image.
+- Retain the credentials volume approach, now using named volumes per profile mounted at `/home/agent` (entire home directory persisted — OAuth tokens, tool configs, etc. survive restarts without explicit API key forwarding).
 
 ## Capabilities
 
@@ -30,9 +30,9 @@ The current container sandboxing architecture has compounding maintenance costs:
 ## Impact
 
 - **Container runtime**: Two-container topology replaces single container. Agent loses direct internet access; all HTTP(S) goes through Pipelock proxy.
-- **Container image**: Full rebuild from scratch. Significantly larger base image (all tools pre-installed) but eliminates runtime install delays. Layer caching via `Dockerfile.dune` keeps repo-specific builds fast.
-- **dune CLI**: Major refactor — drops devcontainer CLI orchestration path (or layers compose beneath it — TBD in design), drops config file parsing, adds `--profile` flag with string names, adds compose management. External UX goal: `dune` in a repo should still "just work."
-- **Rally codebase**: Extracted from this repo entirely. Becomes a standalone Go project with its own release pipeline. Container installs from GitHub Releases instead of host binary sync.
-- **Removed code**: `init-firewall.sh`, `firewall-domains.tsv`, DNS refresh daemon, gear system (manifest.tsv, gear-cli.sh, all `add-*.sh` scripts), security mode logic, `dune.toml` parser, `dune-privileged.sh` mode configuration.
-- **Config migration**: Users with existing `dune.toml` files will need to migrate settings — model prefs to Rally config, gear to `Dockerfile.dune` if non-default tools are needed. Profile `0` becomes `default`.
-- **Dependencies**: New external dependency on Pipelock container image (`ghcr.io/luckypipewrench/pipelock:latest`). New dependency on GoReleaser for Rally releases.
+- **Container image**: Full rebuild from scratch. Significantly larger base image (all tools pre-installed) but eliminates runtime install delays. Layer caching via `Dockerfile.dune` keeps repo-specific builds fast. s6-overlay provides process supervision for postgres/redis/mailpit.
+- **dune CLI**: Clean rewrite — drops devcontainer CLI orchestration, config file parsing, gear system, security modes, `dune config` wizard, `--directory/-d` flag, and rally sync commands. Adds `--profile` flag with string names and compose management. External UX goal: `dune` in a repo should still "just work."
+- **Rally codebase**: Extracted from this repo entirely. Becomes a standalone Go project with its own release pipeline. Container installs from GitHub Releases instead of host binary sync. Model prefs and beads config move to `rally.toml`.
+- **Removed code**: `init-firewall.sh`, `firewall-domains.tsv`, DNS refresh daemon, gear system (manifest.tsv, gear-cli.sh, all `add-*.sh` scripts), security mode logic, `dune.toml` parser, `dune-privileged.sh` mode configuration, `dune config` interactive wizard.
+- **Config migration**: `dune.toml` is eliminated. Model prefs and beads move to `rally.toml`. Gear moves to `Dockerfile.dune` if non-default tools are needed. Profile `0` becomes `default`. Credentials re-authenticated via OAuth on first use (volume path changes from `/persist/agent` to `/home/agent`).
+- **Dependencies**: New external dependency on Pipelock container image (`ghcr.io/luckypipewrench/pipelock:latest`). New dependency on GoReleaser for Rally releases. New dependency on s6-overlay for container process supervision.

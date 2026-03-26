@@ -55,12 +55,23 @@ Rally SHALL check for newer versions in the background on startup by querying th
 - **THEN** no version check is performed and no update notice is printed
 
 ### Requirement: Rally code is extracted from the dune repo
-All Rally source code (`cmd/rally`, `internal/rally`, `internal/contracts/rally`) SHALL be moved to the `mitchell-wallace/rally` GitHub repository. The dune repo SHALL NOT contain Rally source code after extraction. The `internal/contracts` package shared between dune and rally SHALL be resolved — rally-specific contracts move to the rally repo; any shared types are duplicated or eliminated.
+All Rally source code (`cmd/rally`, `internal/rally`) SHALL be moved to the `mitchell-wallace/rally` GitHub repository. The `internal/contracts/rally` package SHALL be removed entirely — Rally is installed into the container like any other tool (via GitHub Releases) and dune has no build-time or runtime dependency on Rally types. The dune repo SHALL NOT contain Rally source code after extraction.
 
 #### Scenario: Clean separation
 - **WHEN** the extraction is complete
-- **THEN** the dune repo contains no Rally Go source files
+- **THEN** the dune repo contains no Rally Go source files and no `internal/contracts/rally` package
 - **THEN** the rally repo builds independently with `go build ./cmd/rally`
+
+### Requirement: Rally reads configuration from rally.toml
+Rally SHALL read model preferences (`claude_model`, `codex_model`, `gemini_model`, `opencode_model`) and beads configuration from `~/.config/rally/rally.toml`. This replaces the previous approach of receiving these values via environment variables from `dune.toml`. The file format is TOML with the same key names previously used in `dune.toml`.
+
+#### Scenario: Rally reads model config
+- **WHEN** `~/.config/rally/rally.toml` contains `claude_model = "opus"`
+- **THEN** Rally uses `opus` as the Claude model preference
+
+#### Scenario: No rally.toml exists
+- **WHEN** `~/.config/rally/rally.toml` does not exist
+- **THEN** Rally uses default model settings
 
 ### Requirement: GoReleaser CI workflow
 The Rally repo SHALL include a GitHub Actions workflow (`.github/workflows/release.yml`) that runs `goreleaser release --clean` on tag pushes matching `v*`. The workflow SHALL handle checksums, archives, and GitHub Release creation.
