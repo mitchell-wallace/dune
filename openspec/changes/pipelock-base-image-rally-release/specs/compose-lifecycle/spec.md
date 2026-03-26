@@ -1,0 +1,89 @@
+## ADDED Requirements
+
+### Requirement: dune up starts the two-container topology
+The `dune` or `dune up` command SHALL start an agent container and a Pipelock sidecar container using `docker compose up -d`. The compose file SHALL be generated from an embedded Go template and written to `~/.local/share/dune/projects/<slug>/compose.yaml`. The compose project name SHALL be set explicitly to `dune-<slug>-<profile>` to avoid collisions.
+
+#### Scenario: Starting containers in a repo for the first time
+- **WHEN** a user runs `dune` in a repo directory with no running containers
+- **THEN** dune generates the compose file, runs `docker compose up -d`, and attaches to the agent container shell
+
+#### Scenario: Attaching to already-running containers
+- **WHEN** a user runs `dune` in a repo directory with containers already running
+- **THEN** dune attaches to the existing agent container shell without restarting
+
+### Requirement: dune down stops containers
+The `dune down` command SHALL run `docker compose down` to stop and remove the containers for the current directory's project.
+
+#### Scenario: Stopping running containers
+- **WHEN** a user runs `dune down` in a repo directory with running containers
+- **THEN** both the agent and Pipelock containers are stopped and removed
+- **THEN** the home directory volume is preserved
+
+### Requirement: dune rebuild forces image rebuild
+The `dune rebuild` command SHALL force a rebuild of the agent image (running `docker compose build --no-cache` for the agent service) and recreate the containers. The home directory volume SHALL be preserved.
+
+#### Scenario: Rebuilding after Dockerfile.dune change
+- **WHEN** a user modifies `Dockerfile.dune` and runs `dune rebuild`
+- **THEN** the agent image is rebuilt from scratch and the containers are recreated
+- **THEN** credentials and config in the home directory volume persist
+
+### Requirement: dune logs tails compose logs
+The `dune logs [service]` command SHALL run `docker compose logs -f [service]`. When no service is specified, it SHALL show logs for all services. This is primarily useful for `dune logs pipelock` to view proxy activity.
+
+#### Scenario: Viewing Pipelock logs
+- **WHEN** a user runs `dune logs pipelock`
+- **THEN** they see a live tail of the Pipelock container's JSON log output
+
+### Requirement: Compose template produces correct topology
+The generated compose file SHALL define two services: `agent` and `pipelock`. The `agent` service SHALL connect only to the `internal` network. The `pipelock` service SHALL connect to both `internal` and `external` networks. The `internal` network SHALL be marked as `internal: true` (no external access). The `agent` service SHALL have `depends_on: pipelock`.
+
+#### Scenario: Network isolation is enforced
+- **WHEN** containers are running
+- **THEN** the agent container cannot reach the internet directly
+- **THEN** the agent container can reach the Pipelock container on the internal network
+
+### Requirement: Compose template configures the agent service correctly
+The agent service in the generated compose file SHALL:
+- Use the appropriate image (base or Dockerfile.dune-built)
+- Set `http_proxy=http://pipelock:8888` and `https_proxy=http://pipelock:8888` and `no_proxy=localhost,127.0.0.1`
+- Forward the `ANTHROPIC_API_KEY` environment variable from the host
+- Mount the workspace directory to `/workspace`
+- Mount the profile-specific home volume to `/home/agent`
+- Set `working_dir: /workspace`
+
+#### Scenario: Agent container has correct environment
+- **WHEN** the agent container starts
+- **THEN** `echo $http_proxy` outputs `http://pipelock:8888`
+- **THEN** `echo $ANTHROPIC_API_KEY` outputs the host's API key value
+- **THEN** `/workspace` contains the repo files
+
+### Requirement: Compose template configures the Pipelock service correctly
+The Pipelock service in the generated compose file SHALL:
+- Use the Pipelock image from GHCR (`ghcr.io/luckypipewrench/pipelock:latest`)
+- Mount `~/.config/dune/pipelock.yaml` read-only to `/config/pipelock.yaml`
+- Run with `command: run --config /config/pipelock.yaml --listen 0.0.0.0:8888`
+- Have `restart: unless-stopped` policy
+
+#### Scenario: Pipelock container is correctly configured
+- **WHEN** the containers start
+- **THEN** Pipelock is listening on port 8888 on the internal network
+- **THEN** Pipelock is using the config from `~/.config/dune/pipelock.yaml`
+
+### Requirement: Dockerfile.dune detection and build
+When `dune up` or `dune` is run, dune SHALL check for `Dockerfile.dune` in the current repo root. If present, dune SHALL build it tagged as `dune-local-<slug>:latest` with `--cache-from ghcr.io/mitchell-wallace/dune-base:latest` and use the resulting image for the agent service. If absent, dune SHALL use the base image directly.
+
+#### Scenario: Repo has Dockerfile.dune
+- **WHEN** `Dockerfile.dune` exists at the repo root
+- **THEN** dune builds it and uses the custom image for the agent container
+
+#### Scenario: Repo has no Dockerfile.dune
+- **WHEN** no `Dockerfile.dune` exists at the repo root
+- **THEN** dune uses `ghcr.io/mitchell-wallace/dune-base:latest` for the agent container
+
+### Requirement: Home directory volume is created per profile
+The dune CLI SHALL create a named Docker volume `dune-home-<profile>` for each profile. This volume SHALL be mounted at `/home/agent` in the agent container, persisting all credentials and tool configuration across container restarts and rebuilds.
+
+#### Scenario: Volume persists across container lifecycle
+- **WHEN** a user runs `dune down` then `dune up`
+- **THEN** the agent container has the same home directory contents as before
+- **THEN** credentials for Claude Code, GitHub CLI, Codex, etc. are still present
