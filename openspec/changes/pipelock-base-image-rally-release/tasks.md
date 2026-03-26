@@ -87,7 +87,8 @@
 - [ ] 6.8 Delete old `container/Dockerfile` (replaced by new Dockerfile in step 2)
 - [ ] 6.9 Delete runtime scripts no longer needed: `dune-poststart.sh`, `dune-entrypoint.sh`, `setup-agent-persist.sh` (replaced by s6 `setup-persist` oneshot)
 - [ ] 6.10 Delete `internal/dune/tui/` (config wizard)
-- [ ] 6.11 Update CLAUDE.md and AGENTS.md to reflect new architecture
+- [ ] 6.11 Update CLAUDE.md and AGENTS.md to reflect new architecture (explicitly removing the rule that Rally cannot self-update)
+- [ ] 6.12 Document in README.md that Git via SSH is not natively supported due to container network isolation constraints
 
 ## 7. Integration Testing
 
@@ -102,3 +103,4 @@
 - [ ] 7.9 Kill postgres inside container, verify s6-overlay restarts it automatically
 - [ ] 7.10 Verify timezone matches host (`TZ` forwarded correctly)
 - [ ] 7.11 Verify mise-managed runtimes are available: `node`, `go`, `python`, `rustc`, `uv`
+- [ ] 7.12 Verify Playwright can route through Pipelock by taking a screenshot of google.com
