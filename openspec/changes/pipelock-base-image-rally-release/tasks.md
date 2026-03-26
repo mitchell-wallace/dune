@@ -4,7 +4,7 @@
 - [ ] 1.2 Move `cmd/rally` and `internal/rally` to the new repo (drop `internal/contracts/rally` entirely — no shared types needed)
 - [ ] 1.3 Ensure `go build ./cmd/rally` succeeds independently in the new repo
 - [ ] 1.4 Add `Version` variable with ldflags injection in `main.go`
-- [ ] 1.5 Implement `rally.toml` config reading **and writing** from `~/.config/rally/rally.toml` for model prefs and beads — migrate `rally init` to write beads here instead of `dune.toml`, delete `writeDuneToml()` and `loadModelDefaults()` helpers
+- [ ] 1.5 Implement `rally.toml` config reading **and writing** from `/workspace/rally.toml` for model prefs and beads — migrate `rally init` to write beads here instead of `dune.toml`, delete `writeDuneToml()` and `loadModelDefaults()` helpers
 - [ ] 1.6 Create `.goreleaser.yaml` with builds for linux/darwin amd64/arm64
 - [ ] 1.7 Create `.github/workflows/release.yml` that runs `goreleaser release --clean` on `v*` tag push
 - [ ] 1.8 Create `install.sh` that detects OS/arch, downloads latest release, installs to `~/.local/bin/rally`
@@ -39,14 +39,14 @@
 
 ## 3. Pipelock Configuration
 
-- [ ] 3.1 Generate baseline config via `docker run --rm ghcr.io/luckypipewrench/pipelock:latest generate config --preset balanced`
-- [ ] 3.2 Customise: set `enforce: true`, `response_scanning.enabled: true` with `action: warn`, `dlp.include_defaults: true`
-- [ ] 3.3 Seed `api_allowlist` with core domains using wildcards: `*.anthropic.com`, `*.openai.com`, `*.googleapis.com`, etc.
-- [ ] 3.4 Add `fetch_proxy.monitoring.blocklist` for exfiltration targets: `*.pastebin.com`, `*.hastebin.com`, `*.transfer.sh`, `file.io`, `requestbin.net`
-- [ ] 3.5 Set `fetch_proxy.monitoring.max_requests_per_minute` to reasonable default (e.g., 60)
-- [ ] 3.6 Configure `logging.format: json`, `logging.output: stdout`
-- [ ] 3.7 Embed the customised config as a Go template in the dune CLI source
-- [ ] 3.8 Test Pipelock proxy routing end-to-end: agent → pipelock → external API
+- [ ] 3.1 Determine current Pipelock release tag and pin version (do not use `:latest`)
+- [ ] 3.2 Generate baseline config via `docker run --rm ghcr.io/luckypipewrench/pipelock:<pinned-tag> generate config --preset balanced`
+- [ ] 3.3 Customise: set `enforce: true`, `response_scanning.enabled: true` with `action: warn`, `dlp.include_defaults: true`
+- [ ] 3.4 Seed `api_allowlist` with core domains using wildcards: `*.anthropic.com`, `*.openai.com`, `*.googleapis.com`, etc.
+- [ ] 3.5 Add `fetch_proxy.monitoring.blocklist` for exfiltration targets: `*.pastebin.com`, `*.hastebin.com`, `*.transfer.sh`, `file.io`, `requestbin.net`
+- [ ] 3.6 Set `fetch_proxy.monitoring.max_requests_per_minute` to reasonable default (e.g., 60)
+- [ ] 3.7 Configure `logging.format: json`, `logging.output: stdout`
+- [ ] 3.8 Embed the customised config as a Go template in the dune CLI source
 
 ## 4. Dune CLI Rewrite
 
@@ -62,16 +62,17 @@
 - [ ] 4.10 Implement `dune down` command: `docker compose down`
 - [ ] 4.11 Implement `dune rebuild` command: `docker compose build --no-cache` for agent service, recreate containers
 - [ ] 4.12 Implement `dune logs [service]` command: `docker compose logs -f [service]`
-- [ ] 4.13 Implement first-run Pipelock config generation: run `docker run --rm ghcr.io/luckypipewrench/pipelock:latest generate config --preset balanced`, apply customisations, write to `~/.config/dune/pipelock.yaml`
+- [ ] 4.13 Implement first-run Pipelock config generation: run `docker run --rm ghcr.io/luckypipewrench/pipelock:<pinned-tag> generate config --preset balanced`, apply customisations, write to `~/.config/dune/pipelock.yaml`
 - [ ] 4.14 Implement persist volume creation (`dune-persist-<profile>`) if it doesn't exist
 - [ ] 4.15 Forward host `TZ` environment variable to agent container
 - [ ] 4.16 Update `dune.sh` entry point to build and run the new CLI
+- [ ] 4.17 Implement clear, actionable error messages: validate prerequisites early (Docker running? Compose available?), surface relevant log tail on `docker compose up` failures
 
 ## 5. Compose Template
 
 - [ ] 5.1 Write Go template for `compose.yaml` with agent and pipelock services
 - [ ] 5.2 Configure agent service: image, proxy env vars (both `http_proxy`/`HTTP_PROXY` and `https_proxy`/`HTTPS_PROXY`, `no_proxy`/`NO_PROXY=localhost,127.0.0.1`), `TZ` forwarding, workspace mount, persist volume at `/persist/agent`, internal network only, working_dir, depends_on pipelock
-- [ ] 5.3 Configure pipelock service: image, config mount (read-only), internal + external networks, command (`run --config /config/pipelock.yaml --listen 0.0.0.0:8888`), restart policy (`unless-stopped`)
+- [ ] 5.3 Configure pipelock service: pinned image, config mount (read-only), internal + external networks, command (`run --config /config/pipelock.yaml --listen 0.0.0.0:8888`), restart policy (`unless-stopped`)
 - [ ] 5.4 Define internal network (`internal: true`) and external network
 - [ ] 5.5 Test generated compose file with `docker compose config` validation
 
@@ -90,17 +91,49 @@
 - [ ] 6.11 Update CLAUDE.md and AGENTS.md to reflect new architecture (explicitly removing the rule that Rally cannot self-update)
 - [ ] 6.12 Document in README.md that Git via SSH is not natively supported due to container network isolation constraints
 
-## 7. Integration Testing
+## 7. Code Quality & Linting
 
-- [ ] 7.1 Run `dune` end-to-end in a test repo with no `Dockerfile.dune` — verify containers start, agent gets zsh shell
-- [ ] 7.2 Verify agent can reach `api.anthropic.com` through Pipelock proxy
-- [ ] 7.3 Verify agent cannot reach the internet directly (bypassing proxy)
-- [ ] 7.4 Verify `dune logs pipelock` shows JSON request logs
-- [ ] 7.5 Verify OAuth credentials persist across `dune down` / `dune up` cycle (re-authenticate once, confirm token survives restart)
-- [ ] 7.6 Test `Dockerfile.dune` flow: create one in workspace root, run `dune`, verify custom image is used
-- [ ] 7.7 Test profile switching: `dune --profile work` vs `dune --profile personal` produce isolated containers with separate home volumes
-- [ ] 7.8 Verify `rally --version` works inside the container
-- [ ] 7.9 Kill postgres inside container, verify s6-overlay restarts it automatically
-- [ ] 7.10 Verify timezone matches host (`TZ` forwarded correctly)
-- [ ] 7.11 Verify mise-managed runtimes are available: `node`, `go`, `python`, `rustc`, `uv`
-- [ ] 7.12 Verify Playwright can route through Pipelock by taking a screenshot of google.com
+- [ ] 7.1 Add `.golangci.yml` to dune repo with standard linter set; verify `golangci-lint run` passes
+- [ ] 7.2 Add `shellcheck` validation for all `.sh` files (s6 run scripts, install.sh, dune.sh)
+- [ ] 7.3 Add `hadolint` validation for the base Dockerfile
+- [ ] 7.4 Create `justfile` with `just test` target that runs: golangci-lint, shellcheck, hadolint, Go unit tests
+
+## 8. Unit Tests (Dune CLI)
+
+- [ ] 8.1 Workspace root resolution: git repo → toplevel; non-git → cwd; subdirectory → same root
+- [ ] 8.2 Slug generation: known path → expected `<name>-<2hex>`; verify different paths produce different slugs
+- [ ] 8.3 Profile resolution: flag > stored mapping > default; validation rejects invalid names
+- [ ] 8.4 Compose template rendering: golden-file test — render with known inputs, compare to expected YAML
+- [ ] 8.5 Pipelock config generation: verify customisations are applied to baseline; validate YAML structure
+
+## 9. Test Fixtures
+
+- [ ] 9.1 Create `test/fixtures/sample-project/` with a minimal project directory (e.g. a README, a simple source file, a `Dockerfile.dune` that `FROM`s the base image and `COPY`s a file from the repo)
+- [ ] 9.2 Use this fixture for integration tests involving `Dockerfile.dune` COPY context, workspace resolution, and end-to-end flows
+
+## 10. Integration Testing
+
+Tests are automatable unless marked `[local-only]` (requires Docker socket / real container runtime).
+
+### CI-automatable
+
+- [ ] 10.1 `docker compose config` validates generated compose.yaml (no Docker daemon needed)
+- [ ] 10.2 Image build: build base image in CI, run smoke test container verifying all tools exist
+- [ ] 10.3 Image smoke test: `node --version`, `go version`, `python --version`, `rustc --version`, `uv --version`, `pnpm --version`, `turbo --version`, `mise --version`, `rally --version`, `jq --version`, `rg --version`, `tmux -V`, `fd --version`, `bat --version`, `eza --version`, `delta --version`
+- [ ] 10.4 Agent CLI smoke test: `claude --version`, `codex --version`, `gemini --version`, `opencode version`
+- [ ] 10.5 Service smoke test: `pg_isready`, `redis-cli ping`, verify Mailpit ports
+- [ ] 10.6 s6 auto-restart: kill postgres in smoke container, verify `pg_isready` recovers within seconds
+- [ ] 10.7 Persist seeding: start container with empty volume, verify default `.zshrc` and `.p10k.zsh` are seeded, verify symlinks point to `/persist/agent`
+- [ ] 10.8 Persist preservation: start container with pre-populated volume, verify existing files are NOT overwritten
+- [ ] 10.9 `Dockerfile.dune` COPY context: use `test/fixtures/sample-project/` fixture, verify the COPY'd file exists in the built image
+
+### Local-only (requires Docker socket)
+
+- [ ] 10.10 `[local-only]` End-to-end `dune up` in test repo — verify containers start, agent gets zsh shell
+- [ ] 10.11 `[local-only]` Verify agent can reach `api.anthropic.com` through Pipelock proxy
+- [ ] 10.12 `[local-only]` Verify agent cannot reach the internet directly (bypassing proxy)
+- [ ] 10.13 `[local-only]` Verify `dune logs pipelock` shows JSON request logs
+- [ ] 10.14 `[local-only]` Verify credentials persist across `dune down` / `dune up` cycle and across `dune rebuild`
+- [ ] 10.15 `[local-only]` Test profile switching: `dune --profile work` vs `dune --profile personal` produce isolated containers with separate persist volumes
+- [ ] 10.16 `[local-only]` Verify timezone matches host (`TZ` forwarded correctly)
+- [ ] 10.17 `[local-only]` Verify mise-managed runtimes are available: `node`, `go`, `python`, `rustc`, `uv`

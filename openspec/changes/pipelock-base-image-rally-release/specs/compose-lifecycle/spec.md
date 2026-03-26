@@ -63,7 +63,7 @@ The agent service in the generated compose file SHALL:
 
 ### Requirement: Compose template configures the Pipelock service correctly
 The Pipelock service in the generated compose file SHALL:
-- Use the Pipelock image from GHCR (`ghcr.io/luckypipewrench/pipelock:latest`)
+- Use a pinned Pipelock image from GHCR (`ghcr.io/luckypipewrench/pipelock:<pinned-tag>` — pin to specific version tag at implementation time)
 - Mount `~/.config/dune/pipelock.yaml` read-only to `/config/pipelock.yaml`
 - Run with `command: run --config /config/pipelock.yaml --listen 0.0.0.0:8888`
 - Have `restart: unless-stopped` policy

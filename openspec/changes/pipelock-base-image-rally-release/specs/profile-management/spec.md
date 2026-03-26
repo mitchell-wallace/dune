@@ -47,12 +47,12 @@ The `dune profile list` command SHALL display all stored directory-to-profile ma
 - **THEN** the current directory's effective profile is highlighted
 
 ### Requirement: Each profile has its own Docker volume
-Each profile SHALL have a dedicated named Docker volume `dune-home-<profile>` that is mounted at `/home/agent` in the agent container. Different profiles SHALL NOT share home directory state.
+Each profile SHALL have a dedicated named Docker volume `dune-persist-<profile>` that is mounted at `/persist/agent` in the agent container. Specific credential and config paths are symlinked from the agent's home directory into the persistent volume (see base-image spec for the symlink list). Different profiles SHALL NOT share persist volume state.
 
 #### Scenario: Profile isolation
 - **WHEN** a user has credentials configured under profile `work`
 - **WHEN** the user switches to profile `personal`
-- **THEN** the `personal` profile's container has a separate home directory without the `work` profile's credentials
+- **THEN** the `personal` profile's container has a separate persist volume without the `work` profile's credentials
 
 ### Requirement: Each profile has its own compose project
 Each profile-directory combination SHALL use a distinct Docker Compose project name (`dune-<slug>-<profile>`) to ensure containers for different profiles do not collide.

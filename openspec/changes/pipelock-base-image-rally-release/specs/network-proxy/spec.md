@@ -46,7 +46,7 @@ The Pipelock configuration SHALL blocklist known exfiltration targets via `fetch
 - **THEN** Pipelock blocks the request and logs the attempt
 
 ### Requirement: Pipelock config is globally managed
-The Pipelock configuration file SHALL be stored at `~/.config/dune/pipelock.yaml`. On first run, dune SHALL generate the baseline config by running `docker run --rm ghcr.io/luckypipewrench/pipelock:latest generate config --preset balanced`, then apply customisations (api_allowlist, blocklist, logging) and write the result. The config file SHALL be mounted read-only into the Pipelock container. Pipelock supports hot-reload via file watcher, so config edits take effect without container restart.
+The Pipelock configuration file SHALL be stored at `~/.config/dune/pipelock.yaml`. On first run, dune SHALL generate the baseline config by running `docker run --rm ghcr.io/luckypipewrench/pipelock:<pinned-tag> generate config --preset balanced`, then apply customisations (api_allowlist, blocklist, logging) and write the result. The config file SHALL be mounted read-only into the Pipelock container. Pipelock supports hot-reload via file watcher, so config edits take effect without container restart.
 
 #### Scenario: First run with no existing config
 - **WHEN** a user runs `dune` for the first time and `~/.config/dune/pipelock.yaml` does not exist

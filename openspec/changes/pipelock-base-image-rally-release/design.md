@@ -29,6 +29,13 @@ This is being replaced with: Pipelock proxy sidecar for network policy, a batter
 - Per-repo config files — `dune.toml` is eliminated; all dune config is CLI-driven and centrally stored
 - Rally feature changes — this change extracts Rally as-is; new Rally features are out of scope
 
+## Guiding Principles
+
+When an implementing agent encounters an unforeseen decision during this change, these principles apply:
+
+1. **Every tool must install successfully.** The base image includes a curated, well-refined tool list — boost-cli tools are the only optional category. If a tool install is flaky, consult documentation and use a lightweight ephemeral container (`docker run --rm debian:12-slim ...`) to test the install commands in isolation before running the full image build again. Do not skip or paper over a failing install.
+2. **Fail loud, not silent.** If a service can't start, a tool is missing, or a configuration is invalid, the system must surface that clearly — not silently degrade. Prefer explicit errors and early validation over graceful fallbacks that hide problems.
+
 ## Decisions
 
 ### D1: Docker Compose directly, drop devcontainers
@@ -74,9 +81,9 @@ When a new profile is created, defaults from the image are seeded into the profi
 
 ### D5: Pipelock in balanced mode with seeded API allowlist
 
-**Decision:** Pipelock runs as a sidecar on both internal and external networks. The agent container only connects to the internal network and routes HTTP(S) via `http_proxy`/`https_proxy` environment variables pointing to `pipelock:8888`. The proxy env vars are set in both lowercase and `HTTP_PROXY`/`HTTPS_PROXY` uppercase forms. `no_proxy` and `NO_PROXY` are both set to `localhost,127.0.0.1` to avoid proxying local service traffic.
+**Decision:** Pipelock runs as a sidecar on both internal and external networks, using a pinned image version (`ghcr.io/luckypipewrench/pipelock:0.x` — pin to specific tag at implementation time). The agent container only connects to the internal network and routes HTTP(S) via `http_proxy`/`https_proxy` environment variables pointing to `pipelock:8888`. The proxy env vars are set in both lowercase and `HTTP_PROXY`/`HTTPS_PROXY` uppercase forms. `no_proxy` and `NO_PROXY` are both set to `localhost,127.0.0.1` to avoid proxying local service traffic.
 
-The baseline Pipelock config is generated via `docker run --rm ghcr.io/luckypipewrench/pipelock:latest generate config --preset balanced` and then customised. Key config fields (using real Pipelock schema):
+The baseline Pipelock config is generated via `docker run --rm ghcr.io/luckypipewrench/pipelock:<pinned-tag> generate config --preset balanced` and then customised. Key config fields (using real Pipelock schema):
 
 ```yaml
 version: 1
@@ -157,7 +164,7 @@ The `Dockerfile.dune` must `FROM ghcr.io/mitchell-wallace/dune-base:latest` (or 
 
 ### D9: Pipelock config location and management
 
-**Decision:** Pipelock config lives at `~/.config/dune/pipelock.yaml`. On first run, `dune` generates the baseline by running `docker run --rm ghcr.io/luckypipewrench/pipelock:latest generate config --preset balanced`, then applies customisations (api_allowlist additions, blocklist, logging config) and writes the result. This ensures the config stays compatible with the installed Pipelock version. Users can edit the file to tighten or loosen policy. Pipelock supports hot-reload via file watcher, so config changes take effect without container restart.
+**Decision:** Pipelock config lives at `~/.config/dune/pipelock.yaml`. On first run, `dune` generates the baseline by running `docker run --rm ghcr.io/luckypipewrench/pipelock:<pinned-tag> generate config --preset balanced`, then applies customisations (api_allowlist additions, blocklist, logging config) and writes the result. This ensures the config stays compatible with the installed Pipelock version. Users can edit the file to tighten or loosen policy. Pipelock supports hot-reload via file watcher, so config changes take effect without container restart.
 
 **Rationale:** Global config means network policy is consistent across all repos/projects. Using Pipelock's own generator as the baseline avoids maintaining a hand-written config that could drift from the schema. Per-repo overrides are a non-goal for now — this can be added later by allowing a `pipelock.yaml` in the repo root to override or extend the global config.
 
@@ -173,9 +180,9 @@ s6-overlay is installed in the Dockerfile from the official s6-overlay release t
 
 ### D11: Rally config moves to rally.toml
 
-**Decision:** Model preferences (`claude_model`, `codex_model`, `gemini_model`, `opencode_model`) and beads configuration currently in `dune.toml` move to `rally.toml`, read directly by Rally. The file lives at `~/.config/rally/rally.toml` (inside the persisted home volume). Rally reads the same keys it currently receives via environment variables, just from TOML instead.
+**Decision:** Model preferences (`claude_model`, `codex_model`, `gemini_model`, `opencode_model`) and beads configuration currently in `dune.toml` move to `rally.toml`, read directly by Rally. The file lives at the workspace root (`/workspace/rally.toml`). Rally reads the same keys it currently receives via environment variables, just from TOML instead. This file is part of the project codebase and checked into source control — it is not a per-user home directory config.
 
-**Rationale:** Rally is becoming an independent tool. It should own its own configuration rather than receiving it indirectly from dune via env vars. TOML is already a dependency in the codebase and is the format users are familiar with from `dune.toml`.
+**Rationale:** Rally is becoming an independent tool. It should own its own configuration rather than receiving it indirectly from dune via env vars. Keeping rally.toml at workspace level means it's versioned with the project, trivially inspectable, and requires no persist-volume symlink management. TOML is already a dependency in the codebase and is the format users are familiar with from `dune.toml`.
 
 ### D12: Default mise config for language runtimes
 
@@ -211,5 +218,4 @@ s6-overlay is installed in the Dockerfile from the official s6-overlay release t
 
 ## Open Questions
 
-- **Pipelock image tag pinning**: Should we pin to a specific Pipelock version tag rather than `:latest` to avoid surprise breakage? Likely yes, but need to check available tags.
 - **Non-HTTP traffic**: Tools like `git` use SSH for `git@github.com:...` remotes. SSH doesn't go through HTTP proxies. Should we configure git to always use HTTPS, or add SSH passthrough? For now, HTTPS is the default git transport and SSH can be added later.
