@@ -1,17 +1,17 @@
 ## 1. Rally Extraction
 
 - [ ] 1.1 Create `mitchell-wallace/rally` GitHub repository
-- [ ] 1.2 Move `cmd/rally` and `internal/rally` to the new repo (drop `internal/contracts/rally` entirely — no shared types needed)
-- [ ] 1.3 Ensure `go build ./cmd/rally` succeeds independently in the new repo
-- [ ] 1.4 Add `Version` variable with ldflags injection in `main.go`
-- [ ] 1.5 Implement `rally.toml` config reading **and writing** from `/workspace/rally.toml` for model prefs and beads — migrate `rally init` to write beads here instead of `dune.toml`, delete `writeDuneToml()` and `loadModelDefaults()` helpers
-- [ ] 1.6 Create `.goreleaser.yaml` with builds for linux/darwin amd64/arm64
-- [ ] 1.7 Create `.github/workflows/release.yml` that runs `goreleaser release --clean` on `v*` tag push
-- [ ] 1.8 Create `install.sh` that detects OS/arch, downloads latest release, installs to `~/.local/bin/rally`
-- [ ] 1.9 Implement `rally update` subcommand that downloads latest release and replaces current binary
-- [ ] 1.10 Implement background version check on startup with `RALLY_NO_UPDATE_CHECK=1` suppression
+- [x] 1.2 Move `cmd/rally` and `internal/rally` to the new repo (drop `internal/contracts/rally` entirely — no shared types needed)
+- [x] 1.3 Ensure `go build ./cmd/rally` succeeds independently in the new repo
+- [x] 1.4 Add `Version` variable with ldflags injection in `main.go`
+- [x] 1.5 Implement `rally.toml` config reading **and writing** from `/workspace/rally.toml` for model prefs and beads — migrate `rally init` to write beads here instead of `dune.toml`, delete `writeDuneToml()` and `loadModelDefaults()` helpers
+- [x] 1.6 Create `.goreleaser.yaml` with builds for linux/darwin amd64/arm64
+- [x] 1.7 Create `.github/workflows/release.yml` that runs `goreleaser release --clean` on `v*` tag push
+- [x] 1.8 Create `install.sh` that detects OS/arch, downloads latest release, installs to `~/.local/bin/rally`
+- [x] 1.9 Implement `rally update` subcommand that downloads latest release and replaces current binary
+- [x] 1.10 Implement background version check on startup with `RALLY_NO_UPDATE_CHECK=1` suppression
 - [ ] 1.11 Tag and publish first release (`v0.1.0`), verify install script works on Linux and macOS
-- [ ] 1.12 Remove Rally source code (`cmd/rally`, `internal/rally`, `internal/contracts/rally`) from the dune repo
+- [x] 1.12 Remove Rally source code (`cmd/rally`, `internal/rally`, `internal/contracts/rally`) from the dune repo
 
 ## 2. Base Image
 

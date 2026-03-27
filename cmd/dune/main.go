@@ -11,13 +11,13 @@ import (
 	"strings"
 	"time"
 
-	"claudebox/internal/contracts/rally"
 	"claudebox/internal/dune/cli"
 	"claudebox/internal/dune/config"
 	"claudebox/internal/dune/container"
 	"claudebox/internal/dune/devcontainer"
 	"claudebox/internal/dune/domain"
 	"claudebox/internal/dune/gear"
+	"claudebox/internal/dune/rallysync"
 	"claudebox/internal/dune/tasks"
 	"claudebox/internal/dune/tui"
 	"claudebox/internal/dune/workspace"
@@ -103,15 +103,14 @@ func runRebuild(ctx context.Context, opts cli.Options, paths repoPaths) error {
 
 func runRallyBuild(ctx context.Context, opts cli.Options, paths repoPaths) error {
 	fmt.Println("Building rally binary...")
-	systemBinary, err := contract.HostSystemBinaryPath()
+	systemBinary, err := rallysync.HostSystemBinaryPath()
 	if err != nil {
 		return err
 	}
 	if err := buildRallyBinary(ctx, paths.Root, systemBinary); err != nil {
 		return fmt.Errorf("build failed: %w", err)
 	}
-	ver := readVersion(paths.Root)
-	commit := gitCommitShort(ctx, paths.Root)
+	ver, commit := standaloneRallyBuildInfo(ctx, paths.Root)
 	fmt.Printf("Built rally %s (%s) at %s\n", ver, commit, systemBinary)
 
 	ref, err := workspace.Resolve(defaultWorkspaceInput(opts.WorkspaceInput))
@@ -138,7 +137,7 @@ func runRallyBuild(ctx context.Context, opts cli.Options, paths repoPaths) error
 }
 
 func runRallyUpdate(ctx context.Context, opts cli.Options, paths repoPaths) error {
-	systemBinary, err := contract.HostSystemBinaryPath()
+	systemBinary, err := rallysync.HostSystemBinaryPath()
 	if err != nil {
 		return err
 	}
@@ -168,8 +167,7 @@ func runRallyUpdate(ctx context.Context, opts cli.Options, paths repoPaths) erro
 		return err
 	}
 
-	ver := readVersion(paths.Root)
-	commit := gitCommitShort(ctx, paths.Root)
+	ver, commit := standaloneRallyBuildInfo(ctx, paths.Root)
 	fmt.Printf("Updated %s with system rally %s (%s)\n", identity.Name, ver, commit)
 	return nil
 }
@@ -325,16 +323,23 @@ func runDune(ctx context.Context, opts cli.Options, paths repoPaths) error {
 }
 
 func buildRallyBinary(ctx context.Context, repoRoot, binPath string) error {
+	rallyRepoRoot, err := locateStandaloneRallyRepo(repoRoot)
+	if err != nil {
+		return err
+	}
 	if err := os.MkdirAll(filepath.Dir(binPath), 0o755); err != nil {
 		return err
 	}
 
-	ver := readVersion(repoRoot)
-	commit := gitCommitShort(ctx, repoRoot)
+	ver := readVersion(rallyRepoRoot)
+	commit := gitCommitShort(ctx, rallyRepoRoot)
+	if ver == "" {
+		ver = "dev"
+	}
 
-	cmdArgs := contract.HostBinaryBuildCommandForPath(repoRoot, binPath, ver, commit)
+	cmdArgs := rallysync.HostBinaryBuildCommandForPath(rallyRepoRoot, binPath, ver, commit)
 	cmd := exec.CommandContext(ctx, cmdArgs[0], cmdArgs[1:]...)
-	cmd.Dir = repoRoot
+	cmd.Dir = rallyRepoRoot
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=amd64", "CGO_ENABLED=0")
@@ -342,11 +347,15 @@ func buildRallyBinary(ctx context.Context, repoRoot, binPath string) error {
 }
 
 func ensureRallySystemBinary(ctx context.Context, repoRoot string) (string, error) {
-	binPath, err := contract.HostSystemBinaryPath()
+	binPath, err := rallysync.HostSystemBinaryPath()
 	if err != nil {
 		return "", err
 	}
-	if !rallyBinaryNeedsBuild(repoRoot, binPath) {
+	rallyRepoRoot, err := locateStandaloneRallyRepo(repoRoot)
+	if err != nil {
+		return "", err
+	}
+	if !rallyBinaryNeedsBuild(rallyRepoRoot, binPath) {
 		return binPath, nil
 	}
 	fmt.Println("Building rally system binary...")
@@ -385,11 +394,11 @@ func injectRallyRuntimeConfig(configPath, containerName, beadsMode string) error
 	}
 
 	envMap := asMapAny(cfg["containerEnv"])
-	for key, value := range contract.ContainerEnv(containerName) {
+	for key, value := range rallysync.ContainerEnv(containerName) {
 		envMap[key] = value
 	}
 	if beadsMode != "" {
-		envMap[contract.EnvBeads] = beadsMode
+		envMap[rallysync.EnvBeads] = beadsMode
 	}
 	cfg["containerEnv"] = envMap
 
@@ -417,23 +426,23 @@ func syncRallyBinaryToContainer(ctx context.Context, docker rallyContainer, runn
 	}
 	var legacyBinarySource string
 	for _, mount := range mounts {
-		if mount.Destination == contract.ContainerBinaryPath {
+		if mount.Destination == rallysync.ContainerBinaryPath {
 			legacyBinarySource = mount.Source
 			break
 		}
 	}
 
-	if err := docker.ExecInContainer(ctx, containerName, nil, "mkdir", "-p", contract.PersistentBinaryDir); err != nil {
-		return fmt.Errorf("failed to create %s in container: %w", contract.PersistentBinaryDir, err)
+	if err := docker.ExecInContainer(ctx, containerName, nil, "mkdir", "-p", rallysync.PersistentBinaryDir); err != nil {
+		return fmt.Errorf("failed to create %s in container: %w", rallysync.PersistentBinaryDir, err)
 	}
 
-	tmpPath := contract.PersistentBinaryPath + ".tmp"
+	tmpPath := rallysync.PersistentBinaryPath + ".tmp"
 	if err := runner.Run(ctx, "docker", "cp", hostBinary, containerName+":"+tmpPath); err != nil {
 		return fmt.Errorf("docker cp failed: %w", err)
 	}
 	if err := docker.ExecInContainerAsUser(ctx, containerName, "root", nil, "sh", "-lc",
 		fmt.Sprintf("install -m 0755 %s %s && rm -f %s && /usr/local/bin/setup-agent-persist.sh",
-			shellQuote(tmpPath), shellQuote(contract.PersistentBinaryPath), shellQuote(tmpPath))); err != nil {
+			shellQuote(tmpPath), shellQuote(rallysync.PersistentBinaryPath), shellQuote(tmpPath))); err != nil {
 		return fmt.Errorf("failed to activate rally in container: %w", err)
 	}
 	if legacyBinarySource != "" {
@@ -444,7 +453,7 @@ func syncRallyBinaryToContainer(ctx context.Context, docker rallyContainer, runn
 		if err := runner.Run(ctx, "install", "-m", "0755", hostBinary, legacyBinarySourceHostPath); err != nil {
 			return fmt.Errorf("failed to update legacy rally bind mount source %s: %w", legacyBinarySourceHostPath, err)
 		}
-		fmt.Fprintf(os.Stderr, "WARNING: container %s still bind-mounts %s; updated legacy source %s for compatibility, but run `dune rebuild` to migrate to persisted rally updates\n", containerName, contract.ContainerBinaryPath, legacyBinarySourceHostPath)
+		fmt.Fprintf(os.Stderr, "WARNING: container %s still bind-mounts %s; updated legacy source %s for compatibility, but run `dune rebuild` to migrate to persisted rally updates\n", containerName, rallysync.ContainerBinaryPath, legacyBinarySourceHostPath)
 	}
 	return nil
 }
@@ -490,6 +499,33 @@ func rallyBuildInputs(repoRoot string) []string {
 		})
 	}
 	return paths
+}
+
+func locateStandaloneRallyRepo(repoRoot string) (string, error) {
+	path := filepath.Clean(filepath.Join(repoRoot, "..", "rally"))
+	info, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", fmt.Errorf("standalone rally repo not found at %s", path)
+		}
+		return "", err
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("standalone rally repo path is not a directory: %s", path)
+	}
+	return path, nil
+}
+
+func standaloneRallyBuildInfo(ctx context.Context, repoRoot string) (string, string) {
+	rallyRepoRoot, err := locateStandaloneRallyRepo(repoRoot)
+	if err != nil {
+		return "dev", ""
+	}
+	ver := readVersion(rallyRepoRoot)
+	if ver == "" {
+		ver = "dev"
+	}
+	return ver, gitCommitShort(ctx, rallyRepoRoot)
 }
 
 func asStringSlice(value any) []string {

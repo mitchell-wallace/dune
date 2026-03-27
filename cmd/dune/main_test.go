@@ -8,8 +8,8 @@ import (
 	"reflect"
 	"testing"
 
-	"claudebox/internal/contracts/rally"
 	"claudebox/internal/dune/domain"
+	"claudebox/internal/dune/rallysync"
 )
 
 type fakeGearClient struct {
@@ -120,10 +120,10 @@ func TestInjectRallyRuntimeConfigAddsEnv(t *testing.T) {
 	}
 
 	env := got["containerEnv"].(map[string]any)
-	if env[contract.EnvDataDir] != contract.ContainerDataDir("dune-demo") {
+	if env[rallysync.EnvDataDir] != rallysync.ContainerDataDir("dune-demo") {
 		t.Fatalf("unexpected data dir env: %#v", env)
 	}
-	if env[contract.EnvBeads] != "auto" {
+	if env[rallysync.EnvBeads] != "auto" {
 		t.Fatalf("unexpected beads env: %#v", env)
 	}
 }

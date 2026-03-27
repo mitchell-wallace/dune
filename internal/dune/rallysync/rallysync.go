@@ -1,4 +1,4 @@
-package contract
+package rallysync
 
 import (
 	"fmt"
@@ -7,11 +7,10 @@ import (
 )
 
 const (
-	BinaryName           = "rally"
 	ContainerBinaryPath  = "/usr/local/bin/rally"
 	ContainerDataRoot    = "/persist/agent/rally"
 	PersistentBinaryDir  = "/persist/agent/rally/bin"
-	PersistentBinaryPath = PersistentBinaryDir + "/" + BinaryName
+	PersistentBinaryPath = PersistentBinaryDir + "/rally"
 	DefaultRepoProgress  = "docs/orchestration/rally-progress.yaml"
 	EnvContainerName     = "RALLY_CONTAINER_NAME"
 	EnvDataDir           = "RALLY_DATA_DIR"
@@ -23,8 +22,6 @@ const (
 	EnvSessionDir        = "RALLY_SESSION_DIR"
 	EnvWorkspaceDir      = "RALLY_WORKSPACE_DIR"
 	EnvBeads             = "RALLY_BEADS"
-	SchemaVersion        = 1
-	RepoHistoryWindow    = 50
 )
 
 func ContainerDataDir(containerName string) string {
@@ -45,10 +42,6 @@ func ContainerEnv(containerName string) map[string]string {
 	}
 }
 
-func HostBinaryPath(repoRoot string) string {
-	return filepath.Join(repoRoot, ".bin", "linux", BinaryName)
-}
-
 func HostSystemBinaryPath() (string, error) {
 	if override := filepath.Clean(os.Getenv("DUNE_RALLY_BINARY_PATH")); override != "." && override != "" {
 		return override, nil
@@ -61,24 +54,13 @@ func HostSystemBinaryPath() (string, error) {
 	return filepath.Join(home, ".local", "share", "dune", "bin", "rally-linux-amd64"), nil
 }
 
-func HostBinaryBuildCommand(repoRoot string) []string {
-	return HostBinaryBuildCommandForPath(repoRoot, HostBinaryPath(repoRoot), "", "")
-}
-
-func HostBinaryBuildCommandWithVersion(repoRoot, version, commit string) []string {
-	return HostBinaryBuildCommandForPath(repoRoot, HostBinaryPath(repoRoot), version, commit)
-}
-
-func HostBinaryBuildCommandForPath(repoRoot, outputPath, version, commit string) []string {
+func HostBinaryBuildCommandForPath(repoRoot, outputPath, version, _ string) []string {
 	args := []string{"go", "build"}
-	if version != "" || commit != "" {
-		pkg := "claudebox/internal/version"
+	if version != "" {
+		pkg := "main"
 		var flags []string
 		if version != "" {
 			flags = append(flags, fmt.Sprintf("-X %s.Version=%s", pkg, version))
-		}
-		if commit != "" {
-			flags = append(flags, fmt.Sprintf("-X %s.Commit=%s", pkg, commit))
 		}
 		args = append(args, "-ldflags", joinSpaces(flags))
 	}
@@ -95,8 +77,4 @@ func joinSpaces(ss []string) string {
 		result += s
 	}
 	return result
-}
-
-func SessionDir(dataDir string, sessionID int) string {
-	return filepath.Join(dataDir, "sessions", fmt.Sprintf("session-%d", sessionID))
 }
