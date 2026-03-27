@@ -15,27 +15,27 @@
 
 ## 2. Base Image
 
-- [ ] 2.1 Write new `Dockerfile` based on `debian:12-slim` with locale setup (`en_US.UTF-8`), timezone support (`tzdata`), and `agent` user with passwordless sudo
-- [ ] 2.2 Install s6-overlay from official release tarball
-- [ ] 2.3 Install zsh and Powerlevel10k theme, set as default shell for `agent` user
-- [ ] 2.4 Install system tools: curl, git, sudo, tmux, jq, ripgrep, ca-certificates, gnupg, postgresql-client, vim, nano
-- [ ] 2.5 Install boost CLI tools: fd-find, bat, tree, eza, micro, git-delta
-- [ ] 2.6 Install Node.js 22.x via NodeSource and npm
-- [ ] 2.7 Install pnpm and Turborepo globally via npm
-- [ ] 2.8 Install mise globally, configure PATH for shims in zsh/bash profiles
-- [ ] 2.9 Create default mise config at `/home/agent/.config/mise/config.toml` with `latest` for node, go, python, rust, and uv
-- [ ] 2.10 Run `mise install` as `agent` user during build to pre-populate all runtimes into image layer
-- [ ] 2.11 Install PostgreSQL server and configure for agent user
-- [ ] 2.12 Install Redis server
-- [ ] 2.13 Install Playwright with Chromium and system dependencies
-- [ ] 2.14 Install Mailpit
-- [ ] 2.15 Install Claude Code, Codex, Opencode, and Gemini CLIs
-- [ ] 2.16 **[optional in phase 2]** Install Rally from GitHub Releases via install script (depends on 1.11) — the base image MUST build and be testable without Rally. Rally install becomes a core requirement once the Rally release pipeline (1.11) is proven stable; until then, the Dockerfile should skip Rally gracefully if the install script fails or the release doesn't exist yet
-- [ ] 2.17 Define s6 `longrun` service directories for PostgreSQL, Redis, and Mailpit under `/etc/s6-overlay/s6-rc.d/` (with `run` scripts)
-- [ ] 2.18 Write s6 `oneshot` `setup-persist` service: seed defaults into `/persist/agent` if empty (copy image defaults without overwriting existing files), then create symlinks from home dir paths (`.claude/`, `.codex/`, `.gemini/`, `.config/opencode/`, `.local/share/opencode/`, `.config/gh/`, `.gitconfig`, `.git-credentials`, `.zshrc`, `.p10k.zsh`) into `/persist/agent`
-- [ ] 2.19 Store default `.zshrc` and `.p10k.zsh` in `/opt/home-defaults/` during image build for seeding
-- [ ] 2.20 Build image locally and verify all tools, services, persistence symlinks, and s6 auto-restart work
-- [ ] 2.21 Create `.github/workflows/image.yml` to build and push to `ghcr.io/mitchell-wallace/dune-base` on main pushes (with `--build-arg BUILDKIT_INLINE_CACHE=1`)
+- [x] 2.1 Write new `Dockerfile` based on `debian:12-slim` with locale setup (`en_US.UTF-8`), timezone support (`tzdata`), and `agent` user with passwordless sudo
+- [x] 2.2 Install s6-overlay from official release tarball
+- [x] 2.3 Install zsh and Powerlevel10k theme, set as default shell for `agent` user
+- [x] 2.4 Install system tools: curl, git, sudo, tmux, jq, ripgrep, ca-certificates, gnupg, postgresql-client, vim, nano
+- [x] 2.5 Install boost CLI tools: fd-find, bat, tree, eza, micro, git-delta
+- [x] 2.6 Install Node.js 22.x via NodeSource and npm
+- [x] 2.7 Install pnpm and Turborepo globally via npm
+- [x] 2.8 Install mise globally, configure PATH for shims in zsh/bash profiles
+- [x] 2.9 Create default mise config at `/home/agent/.config/mise/config.toml` with `latest` for node, go, python, rust, and uv
+- [x] 2.10 Run `mise install` as `agent` user during build to pre-populate all runtimes into image layer
+- [x] 2.11 Install PostgreSQL server and configure for agent user
+- [x] 2.12 Install Redis server
+- [x] 2.13 Install Playwright with Chromium and system dependencies
+- [x] 2.14 Install Mailpit
+- [x] 2.15 Install Claude Code, Codex, Opencode, and Gemini CLIs
+- [x] 2.16 **[optional in phase 2]** Install Rally from GitHub Releases via install script (depends on 1.11) — the base image MUST build and be testable without Rally. Rally install becomes a core requirement once the Rally release pipeline (1.11) is proven stable; until then, the Dockerfile should skip Rally gracefully if the install script fails or the release doesn't exist yet
+- [x] 2.17 Define s6 `longrun` service directories for PostgreSQL, Redis, and Mailpit under `/etc/s6-overlay/s6-rc.d/` (with `run` scripts)
+- [x] 2.18 Write s6 `oneshot` `setup-persist` service: seed defaults into `/persist/agent` if empty (copy image defaults without overwriting existing files), then create symlinks from home dir paths (`.claude/`, `.codex/`, `.gemini/`, `.config/opencode/`, `.local/share/opencode/`, `.config/gh/`, `.gitconfig`, `.git-credentials`, `.zshrc`, `.p10k.zsh`) into `/persist/agent`
+- [x] 2.19 Store default `.zshrc` and `.p10k.zsh` in `/opt/home-defaults/` during image build for seeding
+- [x] 2.20 Build image locally and verify all tools, services, persistence symlinks, and s6 auto-restart work
+- [x] 2.21 Create `.github/workflows/image.yml` to build and push to `ghcr.io/mitchell-wallace/dune-base` on main pushes (with `--build-arg BUILDKIT_INLINE_CACHE=1`)
 
 ## 3. Pipelock Configuration
 
