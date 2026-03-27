@@ -1,0 +1,5 @@
+#!/bin/bash
+set -euo pipefail
+
+pg_bin="$(find /usr/lib/postgresql -path '*/bin/postgres' | sort | tail -n 1)"
+exec "${pg_bin}" -D /var/lib/postgresql/data -k /var/run/postgresql
