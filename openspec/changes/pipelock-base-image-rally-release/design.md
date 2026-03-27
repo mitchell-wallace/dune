@@ -146,7 +146,7 @@ No API keys are forwarded as environment variables. Agent CLIs authenticate via 
 
 ### D7: Rally extracted to its own repo with GoReleaser
 
-**Decision:** Move `cmd/rally` and `internal/rally` to a new GitHub repo. Set up GoReleaser to produce cross-platform binaries (linux/darwin, amd64/arm64) published as GitHub Releases. Add an `install.sh` script to the release assets. The container Dockerfile installs Rally via `curl | sh` from the latest release.
+**Decision:** Move `cmd/rally` and `internal/rally` to a new GitHub repo. Set up GoReleaser to produce cross-platform binaries (linux/darwin, amd64/arm64) published as GitHub Releases. Add an `install.sh` script to the release assets. The container Dockerfile installs Rally via `curl | sh` from the latest release. **Rally installation is optional during initial base image development** — the image must build and be fully functional without Rally until the release pipeline is proven stable, at which point Rally becomes a hard requirement.
 
 Rally gains a `rally update` subcommand that downloads the latest release to `~/.local/bin/rally`. A background version check on startup prints a one-line notice if a newer version is available (suppressible via `RALLY_NO_UPDATE_CHECK=1`).
 
@@ -209,9 +209,9 @@ s6-overlay is installed in the Dockerfile from the official s6-overlay release t
 ## Migration Plan
 
 1. **Create Rally repo** — move code, set up GoReleaser, add `rally.toml` config reading, publish first release, verify install script works
-2. **Build base image** — write new Dockerfile with s6-overlay, zsh/p10k, mise with default runtimes, all tools pre-installed, timezone support. Build with `BUILDKIT_INLINE_CACHE=1` and publish to GHCR
+2. **Build base image** — write new Dockerfile with s6-overlay, zsh/p10k, mise with default runtimes, all tools pre-installed, timezone support. Rally installation is optional at this stage (gracefully skip if release pipeline not yet available). Build with `BUILDKIT_INLINE_CACHE=1` and publish to GHCR
 3. **Configure Pipelock** — generate balanced-mode baseline via `pipelock generate config --preset balanced`, customise allowlist/blocklist, embed in dune CLI
-4. **Rewrite dune CLI** — new compose-driven lifecycle, profile management (string names, `folder-2hexhash` slugs), Dockerfile.dune support, TZ forwarding
+4. **Rewrite dune CLI** — new compose-driven lifecycle, profile management (string names, `folder-2hexhash` slugs), Dockerfile.dune support, TZ forwarding. Update `dune.sh` and `scripts/build-dune.sh` — the build script's source-change detection paths need updating for the new module structure, and the full chain (`dune.sh` → build → binary → `docker compose`) must be verified end-to-end
 5. **Write compose template** — embedded Go template for agent + pipelock topology, proxy env vars (both cases), no API key forwarding
 6. **Integration test** — run `dune` end-to-end in a test repo, verify agent can reach APIs through proxy, OAuth credentials persist across restarts, services auto-restart via s6
 7. **Delete old code** — remove init-firewall.sh, gear system, devcontainer.json, dune.toml parser, security mode logic, dune config wizard, rally code from this repo

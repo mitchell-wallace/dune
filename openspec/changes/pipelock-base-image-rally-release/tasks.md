@@ -30,7 +30,7 @@
 - [ ] 2.13 Install Playwright with Chromium and system dependencies
 - [ ] 2.14 Install Mailpit
 - [ ] 2.15 Install Claude Code, Codex, Opencode, and Gemini CLIs
-- [ ] 2.16 Install Rally from GitHub Releases via install script (depends on 1.11)
+- [ ] 2.16 **[optional in phase 2]** Install Rally from GitHub Releases via install script (depends on 1.11) — the base image MUST build and be testable without Rally. Rally install becomes a core requirement once the Rally release pipeline (1.11) is proven stable; until then, the Dockerfile should skip Rally gracefully if the install script fails or the release doesn't exist yet
 - [ ] 2.17 Define s6 `longrun` service directories for PostgreSQL, Redis, and Mailpit under `/etc/s6-overlay/s6-rc.d/` (with `run` scripts)
 - [ ] 2.18 Write s6 `oneshot` `setup-persist` service: seed defaults into `/persist/agent` if empty (copy image defaults without overwriting existing files), then create symlinks from home dir paths (`.claude/`, `.codex/`, `.gemini/`, `.config/opencode/`, `.local/share/opencode/`, `.config/gh/`, `.gitconfig`, `.git-credentials`, `.zshrc`, `.p10k.zsh`) into `/persist/agent`
 - [ ] 2.19 Store default `.zshrc` and `.p10k.zsh` in `/opt/home-defaults/` during image build for seeding
@@ -65,7 +65,7 @@
 - [ ] 4.13 Implement first-run Pipelock config generation: run `docker run --rm ghcr.io/luckypipewrench/pipelock:<pinned-tag> generate config --preset balanced`, apply customisations, write to `~/.config/dune/pipelock.yaml`
 - [ ] 4.14 Implement persist volume creation (`dune-persist-<profile>`) if it doesn't exist
 - [ ] 4.15 Forward host `TZ` environment variable to agent container
-- [ ] 4.16 Update `dune.sh` entry point to build and run the new CLI
+- [ ] 4.16 Update `dune.sh` entry point — the current script calls `scripts/build-dune.sh` (which does incremental Go builds of the old CLI using source-change detection against `cmd/` and `internal/`), sets `DUNE_REPO_ROOT` and `DUNE_CALLER_PWD`, then execs the binary. The rewrite changes the module structure (`internal/dune` is rebuilt from scratch), so `build-dune.sh` needs its change-detection paths updated or replaced. Verify the full chain: `dune.sh` → build script → new binary → `docker compose` works end-to-end from a clean state
 - [ ] 4.17 Implement clear, actionable error messages: validate prerequisites early (Docker running? Compose available?), surface relevant log tail on `docker compose up` failures
 
 ## 5. Compose Template

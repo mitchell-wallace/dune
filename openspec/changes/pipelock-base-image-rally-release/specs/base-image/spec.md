@@ -114,11 +114,17 @@ The image SHALL install Claude Code, Codex, Opencode, and Gemini CLI globally.
 - **THEN** `claude --version`, `codex --version`, `opencode version`, and `gemini --version` all succeed
 
 ### Requirement: Rally is installed from GitHub Releases
-The image SHALL install Rally by downloading the latest release binary from the `mitchell-wallace/rally` GitHub repository. Rally SHALL be installed to `~/.local/bin/rally` and be on PATH.
+The image SHALL install Rally by downloading the latest release binary from the `mitchell-wallace/rally` GitHub repository. Rally SHALL be installed to `~/.local/bin/rally` and be on PATH. **During initial base image development (phase 2), Rally installation is optional** — the Dockerfile MUST build successfully even if the Rally release pipeline is not yet established. Rally installation becomes a hard requirement once the release pipeline (task 1.11) is proven stable.
 
-#### Scenario: Rally is available
-- **WHEN** the container starts
+#### Scenario: Rally is available (post-release pipeline)
+- **WHEN** the container starts and Rally releases exist
 - **THEN** `rally --version` succeeds
+
+#### Scenario: Base image builds without Rally (initial development)
+- **WHEN** the base image is built before the Rally release pipeline exists
+- **THEN** the image builds successfully
+- **THEN** all other tools and services function correctly
+- **THEN** Rally can be installed later via `rally update` or by rebuilding the image
 
 ### Requirement: git-delta is pre-installed
 The image SHALL install git-delta for enhanced diff visualization.

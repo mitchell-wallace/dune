@@ -87,9 +87,14 @@ The Rally repo SHALL include a GitHub Actions workflow (`.github/workflows/relea
 - **THEN** a GitHub Release is created with all assets attached
 
 ### Requirement: Dune container installs Rally from releases
-The dune base image Dockerfile SHALL install Rally by running the install script from the latest GitHub Release. This replaces the previous approach of syncing a host-built binary into the container.
+The dune base image Dockerfile SHALL install Rally by running the install script from the latest GitHub Release. This replaces the previous approach of syncing a host-built binary into the container. **During initial base image development, Rally installation is optional** — the Dockerfile MUST build successfully even if no Rally release exists yet. Rally install becomes a hard requirement once the release pipeline is proven stable.
 
-#### Scenario: Container build installs Rally
-- **WHEN** the base image is built
+#### Scenario: Container build installs Rally (stable pipeline)
+- **WHEN** the base image is built and Rally releases exist
 - **THEN** Rally is installed at `/home/agent/.local/bin/rally`
 - **THEN** `rally --version` works inside the container
+
+#### Scenario: Container build without Rally (initial development)
+- **WHEN** the base image is built before Rally releases exist
+- **THEN** the image builds successfully without Rally
+- **THEN** Rally can be installed later via the install script or `rally update`

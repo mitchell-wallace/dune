@@ -13,3 +13,7 @@ Allow a `pipelock.yaml` in the repo root to extend or override the global `~/.co
 ## SSH Passthrough
 
 Git SSH (`git@github.com:...`) doesn't route through HTTP proxies. Adding SSH agent forwarding or a SOCKS proxy for SSH traffic would enable SSH-based git remotes. Deferred because HTTPS is the default git transport and handles most workflows.
+
+## Compose Extensions for Additional Services
+
+The current compose topology is a fixed two-container setup (agent + pipelock) generated from an embedded Go template. Users who need additional services (Elasticsearch, RabbitMQ, a second database, etc.) have no extension point beyond `Dockerfile.dune` (which only customises the agent image, not the service topology). A future enhancement could support an optional `docker-compose.dune.yaml` in the workspace root that gets merged with the generated compose file via Docker Compose's native `-f` multi-file support. This would let users add per-repo services without modifying the dune CLI. Deferred because the current batteries-included image (postgres, redis, mailpit) covers most agent workflows, and `Dockerfile.dune` handles per-repo tool installation within the agent container.
