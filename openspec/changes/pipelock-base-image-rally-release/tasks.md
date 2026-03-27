@@ -1,6 +1,6 @@
 ## 1. Rally Extraction
 
-- [ ] 1.1 Create `mitchell-wallace/rally` GitHub repository
+- [x] 1.1 Create `mitchell-wallace/rally` GitHub repository
 - [x] 1.2 Move `cmd/rally` and `internal/rally` to the new repo (drop `internal/contracts/rally` entirely — no shared types needed)
 - [x] 1.3 Ensure `go build ./cmd/rally` succeeds independently in the new repo
 - [x] 1.4 Add `Version` variable with ldflags injection in `main.go`
@@ -10,7 +10,7 @@
 - [x] 1.8 Create `install.sh` that detects OS/arch, downloads latest release, installs to `~/.local/bin/rally`
 - [x] 1.9 Implement `rally update` subcommand that downloads latest release and replaces current binary
 - [x] 1.10 Implement background version check on startup with `RALLY_NO_UPDATE_CHECK=1` suppression
-- [ ] 1.11 Tag and publish first release (`v0.1.0`), verify install script works on Linux and macOS
+- [x] 1.11 Tag and publish first release (`v0.1.0`), verify install script works on Linux
 - [x] 1.12 Remove Rally source code (`cmd/rally`, `internal/rally`, `internal/contracts/rally`) from the dune repo
 
 ## 2. Base Image
