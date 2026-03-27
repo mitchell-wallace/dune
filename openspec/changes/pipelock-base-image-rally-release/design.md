@@ -56,11 +56,11 @@ When an implementing agent encounters an unforeseen decision during this change,
 
 **Alternative considered:** Static compose file with `${VAR}` interpolation via a `.env` file. Rejected because compose env interpolation is limited (no conditionals, no computed values) and would still need dune to generate the `.env`. For slug format, `parentDir-folderName` was considered but parent directory names (e.g., `Documents`) are often noise.
 
-### D3: Base image on debian:12-slim, published to GHCR
+### D3: Base image on debian:12-slim, published to GHCR with explicit image versions
 
-**Decision:** Build a `debian:12-slim`-based image with all tools pre-installed. The image uses zsh with Powerlevel10k as the default shell (matching the current container UX). Timezone support is included via `tzdata` package and `TZ` environment variable (defaulting to host timezone forwarded by dune, falling back to `UTC`). Publish to GHCR via GitHub Actions CI on pushes to main that touch the image definition. Tag as `ghcr.io/mitchell-wallace/dune-base:latest` and `ghcr.io/mitchell-wallace/dune-base:<sha>`. The CI build must include `--build-arg BUILDKIT_INLINE_CACHE=1` so that `Dockerfile.dune` builds can use `--cache-from` with BuildKit.
+**Decision:** Build a `debian:12-slim`-based image with all tools pre-installed. The image uses zsh with Powerlevel10k as the default shell (matching the current container UX). Timezone support is included via `tzdata` package and `TZ` environment variable (defaulting to host timezone forwarded by dune, falling back to `UTC`). Publish to GHCR via GitHub Actions CI when a dedicated image version file (`container/base/IMAGE_VERSION`) is bumped. Tag each release as both `ghcr.io/mitchell-wallace/dune-base:<image-version>` and `ghcr.io/mitchell-wallace/dune-base:latest`. The CI build must include `--build-arg BUILDKIT_INLINE_CACHE=1` so that `Dockerfile.dune` builds can use `--cache-from` with BuildKit.
 
-**Rationale:** `debian:12-slim` is smaller than `node:22` (which is Debian-based anyway) and gives full control over what's installed. GHCR publishing means `docker pull` on first use is fast and `Dockerfile.dune` can `FROM ghcr.io/<org>/dune-base:latest` with layer caching. SHA tags allow pinning for reproducibility.
+**Rationale:** `debian:12-slim` is smaller than `node:22` (which is Debian-based anyway) and gives full control over what's installed. GHCR publishing means `docker pull` on first use is fast and `Dockerfile.dune` can `FROM ghcr.io/<org>/dune-base:<image-version>` with layer caching. A dedicated image version keeps base-image releases intentional and decoupled from unrelated pushes or the dune CLI's own version number.
 
 **Alternative considered:** Local-only builds with no registry. Rejected because cold start would require building the entire image from scratch (~5-10 min), and `Dockerfile.dune` can't use `--cache-from` without a registry.
 
@@ -146,7 +146,7 @@ No API keys are forwarded as environment variables. Agent CLIs authenticate via 
 
 ### D7: Rally extracted to its own repo with GoReleaser
 
-**Decision:** Move `cmd/rally` and `internal/rally` to a new GitHub repo. Set up GoReleaser to produce cross-platform binaries (linux/darwin, amd64/arm64) published as GitHub Releases. Add an `install.sh` script to the release assets. The container Dockerfile installs Rally via `curl | sh` from the latest release. **Rally installation is optional during initial base image development** — the image must build and be fully functional without Rally until the release pipeline is proven stable, at which point Rally becomes a hard requirement.
+**Decision:** Move `cmd/rally` and `internal/rally` to a new GitHub repo. Set up GoReleaser to produce cross-platform binaries (linux/darwin, amd64/arm64) published as GitHub Releases. Add an `install.sh` script to the release assets. The container Dockerfile installs Rally via the published installer and Rally is now a hard requirement for the base image build because the release pipeline is established.
 
 Rally gains a `rally update` subcommand that downloads the latest release to `~/.local/bin/rally`. A background version check on startup prints a one-line notice if a newer version is available (suppressible via `RALLY_NO_UPDATE_CHECK=1`).
 
@@ -156,9 +156,9 @@ Rally gains a `rally update` subcommand that downloads the latest release to `~/
 
 ### D8: Dockerfile.dune for per-repo extensions
 
-**Decision:** If a `Dockerfile.dune` exists in the repo/workspace root, `dune` builds it (tagged as `dune-local-<slug>:latest`) using the workspace root as the build context, with `--cache-from ghcr.io/mitchell-wallace/dune-base:latest`. The base image must have been built with `BUILDKIT_INLINE_CACHE=1` for `--cache-from` to work under BuildKit. Dune pulls the base image before building to ensure cache layers are available. The resulting image is used as the agent service image. Otherwise, the base image is used directly.
+**Decision:** If a `Dockerfile.dune` exists in the repo/workspace root, `dune` builds it (tagged as `dune-local-<slug>:latest`) using the workspace root as the build context, with `--cache-from` against the configured published base-image tag. The base image must have been built with `BUILDKIT_INLINE_CACHE=1` for `--cache-from` to work under BuildKit. Dune pulls the base image before building to ensure cache layers are available. The resulting image is used as the agent service image. Otherwise, the base image is used directly.
 
-The `Dockerfile.dune` must `FROM ghcr.io/mitchell-wallace/dune-base:latest` (or whatever the base image tag is). This is a convention, not enforced. `COPY` commands in the Dockerfile.dune are relative to the workspace root.
+The `Dockerfile.dune` should `FROM ghcr.io/mitchell-wallace/dune-base:<image-version>` (or whatever published base image tag dune is configured to use). This is a convention, not enforced. `COPY` commands in the Dockerfile.dune are relative to the workspace root.
 
 **Rationale:** Replaces the gear system for repo-specific tools. Docker layer caching means repo-specific builds are fast (only the added layers rebuild). No runtime install, no gear state files, no need for network access during tool setup.
 
@@ -186,9 +186,9 @@ s6-overlay is installed in the Dockerfile from the official s6-overlay release t
 
 ### D12: Default mise config for language runtimes
 
-**Decision:** The base image includes a global mise config at `/home/agent/.config/mise/config.toml` that pins `latest` for Node.js, Go, Python, and Rust. mise is installed globally during the Docker build. Shims are placed at `/home/agent/.local/share/mise/shims` and added to PATH in the agent's shell profile. During the Docker build, `mise install` is run as the `agent` user to pre-populate the runtimes so first container start has no install delay.
+**Decision:** The base image includes a global mise config at `/home/agent/.config/mise/config.toml` that pins `latest` for Node.js, Go, Python, and Rust. mise is installed globally during the Docker build. Shims are placed at `/home/agent/.local/share/mise/shims` and added to PATH in the agent's shell profile ahead of system binaries, including Node installed from NodeSource. During the Docker build, `mise install` is run as the `agent` user to pre-populate the runtimes so first container start has no install delay.
 
-**Rationale:** mise replaces the old version-pin fields in `dune.toml` (`python_version`, `go_version`, etc.). Using `latest` as the default means the base image always ships with current stable versions. Users can override per-project with a `.mise.toml` in their repo. Running `mise install` at build time ensures runtimes are cached in the image layer.
+**Rationale:** mise replaces the old version-pin fields in `dune.toml` (`python_version`, `go_version`, etc.). Using `latest` as the default means the interactive shell always prefers current stable toolchains, including Node. NodeSource Node 22 remains useful as a stable bootstrap/runtime dependency for npm-based installation during the Docker build. Users can override per-project with a `.mise.toml` in their repo. Running `mise install` at build time ensures runtimes are cached in the image layer.
 
 ## Risks / Trade-offs
 
@@ -209,7 +209,7 @@ s6-overlay is installed in the Dockerfile from the official s6-overlay release t
 ## Migration Plan
 
 1. **Create Rally repo** — move code, set up GoReleaser, add `rally.toml` config reading, publish first release, verify install script works
-2. **Build base image** — write new Dockerfile with s6-overlay, zsh/p10k, mise with default runtimes, all tools pre-installed, timezone support. Rally installation is optional at this stage (gracefully skip if release pipeline not yet available). Build with `BUILDKIT_INLINE_CACHE=1` and publish to GHCR
+2. **Build base image** — write new Dockerfile with s6-overlay, zsh/p10k, mise with default runtimes, all tools pre-installed, timezone support, and required Rally installation. Build with `BUILDKIT_INLINE_CACHE=1` and publish versioned releases to GHCR
 3. **Configure Pipelock** — generate balanced-mode baseline via `pipelock generate config --preset balanced`, customise allowlist/blocklist, embed in dune CLI
 4. **Rewrite dune CLI** — new compose-driven lifecycle, profile management (string names, `folder-2hexhash` slugs), Dockerfile.dune support, TZ forwarding. Update `dune.sh` and `scripts/build-dune.sh` — the build script's source-change detection paths need updating for the new module structure, and the full chain (`dune.sh` → build → binary → `docker compose`) must be verified end-to-end
 5. **Write compose template** — embedded Go template for agent + pipelock topology, proxy env vars (both cases), no API key forwarding

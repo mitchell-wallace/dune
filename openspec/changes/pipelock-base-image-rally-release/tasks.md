@@ -30,12 +30,13 @@
 - [x] 2.13 Install Playwright with Chromium and system dependencies
 - [x] 2.14 Install Mailpit
 - [x] 2.15 Install Claude Code, Codex, Opencode, and Gemini CLIs
-- [x] 2.16 **[optional in phase 2]** Install Rally from GitHub Releases via install script (depends on 1.11) — the base image MUST build and be testable without Rally. Rally install becomes a core requirement once the Rally release pipeline (1.11) is proven stable; until then, the Dockerfile should skip Rally gracefully if the install script fails or the release doesn't exist yet
+- [x] 2.16 Install Rally from GitHub Releases via install script (depends on 1.11). The temporary “skip Rally if releases are not ready yet” fallback is no longer applicable now that the Rally release pipeline is established; Docker builds should fail loudly if Rally cannot be installed
 - [x] 2.17 Define s6 `longrun` service directories for PostgreSQL, Redis, and Mailpit under `/etc/s6-overlay/s6-rc.d/` (with `run` scripts)
 - [x] 2.18 Write s6 `oneshot` `setup-persist` service: seed defaults into `/persist/agent` if empty (copy image defaults without overwriting existing files), then create symlinks from home dir paths (`.claude/`, `.codex/`, `.gemini/`, `.config/opencode/`, `.local/share/opencode/`, `.config/gh/`, `.gitconfig`, `.git-credentials`, `.zshrc`, `.p10k.zsh`) into `/persist/agent`
 - [x] 2.19 Store default `.zshrc` and `.p10k.zsh` in `/opt/home-defaults/` during image build for seeding
 - [x] 2.20 Build image locally and verify all tools, services, persistence symlinks, and s6 auto-restart work
-- [x] 2.21 Create `.github/workflows/image.yml` to build and push to `ghcr.io/mitchell-wallace/dune-base` on main pushes (with `--build-arg BUILDKIT_INLINE_CACHE=1`)
+- [x] 2.21 Create `.github/workflows/image.yml` to build and push versioned tags for `ghcr.io/mitchell-wallace/dune-base` from an explicit image version file, publishing only when that version is bumped (with `--build-arg BUILDKIT_INLINE_CACHE=1`)
+- [x] 2.22 Add dedicated base-image version tracking (`container/base/IMAGE_VERSION`, starting at `0.1.0`) so image releases are semantically versioned independently of the dune CLI version
 
 ## 3. Pipelock Configuration
 

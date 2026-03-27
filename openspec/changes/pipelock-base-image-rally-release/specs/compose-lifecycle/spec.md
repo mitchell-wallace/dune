@@ -74,7 +74,7 @@ The Pipelock service in the generated compose file SHALL:
 - **THEN** Pipelock is using the config from `~/.config/dune/pipelock.yaml`
 
 ### Requirement: Dockerfile.dune detection and build
-When `dune up` or `dune` is run, dune SHALL check for `Dockerfile.dune` in the workspace root (as resolved by the git-root rule above). If present, dune SHALL pull the base image first (to ensure cache layers are available), then build it tagged as `dune-local-<slug>:latest` with `--cache-from ghcr.io/mitchell-wallace/dune-base:latest` using the workspace root as the Docker build context. `COPY` commands in `Dockerfile.dune` are relative to the workspace root. If absent, dune SHALL use the base image directly.
+When `dune up` or `dune` is run, dune SHALL check for `Dockerfile.dune` in the workspace root (as resolved by the git-root rule above). If present, dune SHALL pull the configured published base-image tag first (to ensure cache layers are available), then build it tagged as `dune-local-<slug>:latest` with `--cache-from` against that same published base-image tag using the workspace root as the Docker build context. `COPY` commands in `Dockerfile.dune` are relative to the workspace root. If absent, dune SHALL use the configured published base-image tag directly.
 
 #### Scenario: Repo has Dockerfile.dune
 - **WHEN** `Dockerfile.dune` exists at the workspace root
@@ -82,7 +82,7 @@ When `dune up` or `dune` is run, dune SHALL check for `Dockerfile.dune` in the w
 
 #### Scenario: Repo has no Dockerfile.dune
 - **WHEN** no `Dockerfile.dune` exists at the workspace root
-- **THEN** dune uses `ghcr.io/mitchell-wallace/dune-base:latest` for the agent container
+- **THEN** dune uses the configured published base-image tag for the agent container
 
 ### Requirement: Persist volume is created per profile
 The dune CLI SHALL create a named Docker volume `dune-persist-<profile>` for each profile. This volume SHALL be mounted at `/persist/agent` in the agent container. An s6 oneshot service in the container creates symlinks from the agent's home directory into the persist volume for credential and config paths, persisting auth tokens and shell configuration across container restarts and rebuilds.

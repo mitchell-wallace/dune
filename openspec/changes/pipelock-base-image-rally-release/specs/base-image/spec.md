@@ -40,11 +40,12 @@ The image SHALL include enhanced CLI tools: `fd-find`, `bat`, `tree`, `eza`, `mi
 - **THEN** `fd --version`, `bat --version`, `tree --version`, `eza --version`, `micro --version` all succeed
 
 ### Requirement: Node.js is pre-installed
-The image SHALL install Node.js 22.x via NodeSource. npm SHALL be available globally.
+The image SHALL install Node.js 22.x via NodeSource so core npm-based tooling has a stable bootstrap environment during the image build. npm SHALL be available globally. The interactive agent shell MAY prefer the mise-managed Node runtime on PATH, and that runtime is allowed to differ from the bootstrap NodeSource version.
 
 #### Scenario: Node.js is available
 - **WHEN** the container starts
-- **THEN** `node --version` shows v22.x
+- **THEN** `node --version` succeeds
+- **THEN** `/usr/bin/node --version` shows v22.x
 - **THEN** `npm --version` succeeds
 
 ### Requirement: pnpm is pre-installed
@@ -114,17 +115,11 @@ The image SHALL install Claude Code, Codex, Opencode, and Gemini CLI globally.
 - **THEN** `claude --version`, `codex --version`, `opencode version`, and `gemini --version` all succeed
 
 ### Requirement: Rally is installed from GitHub Releases
-The image SHALL install Rally by downloading the latest release binary from the `mitchell-wallace/rally` GitHub repository. Rally SHALL be installed to `~/.local/bin/rally` and be on PATH. **During initial base image development (phase 2), Rally installation is optional** — the Dockerfile MUST build successfully even if the Rally release pipeline is not yet established. Rally installation becomes a hard requirement once the release pipeline (task 1.11) is proven stable.
+The image SHALL install Rally by downloading the latest release binary from the `mitchell-wallace/rally` GitHub repository. Rally SHALL be installed to `~/.local/bin/rally` and be on PATH. Now that the Rally release pipeline is established, Rally installation is a hard requirement for the base image build and the Dockerfile SHALL fail loudly if Rally cannot be installed.
 
-#### Scenario: Rally is available (post-release pipeline)
-- **WHEN** the container starts and Rally releases exist
+#### Scenario: Rally is available
+- **WHEN** the container starts
 - **THEN** `rally --version` succeeds
-
-#### Scenario: Base image builds without Rally (initial development)
-- **WHEN** the base image is built before the Rally release pipeline exists
-- **THEN** the image builds successfully
-- **THEN** all other tools and services function correctly
-- **THEN** Rally can be installed later via `rally update` or by rebuilding the image
 
 ### Requirement: git-delta is pre-installed
 The image SHALL install git-delta for enhanced diff visualization.
@@ -165,19 +160,21 @@ The image SHALL install s6-overlay from the official release tarball. PostgreSQL
 - **THEN** `pg_isready` succeeds again within seconds
 
 ### Requirement: Image is published to GHCR with BuildKit inline cache
-The base image SHALL be published to `ghcr.io/mitchell-wallace/dune-base` via GitHub Actions. Images SHALL be tagged with both `latest` and the git commit SHA. The CI build SHALL include `--build-arg BUILDKIT_INLINE_CACHE=1` so that `Dockerfile.dune` builds can use `--cache-from` with BuildKit. The CI workflow SHALL trigger on pushes to main that modify the Dockerfile or related build files.
+The base image SHALL be published to `ghcr.io/mitchell-wallace/dune-base` via GitHub Actions. The published image version SHALL be controlled by a dedicated semantic version file (`container/base/IMAGE_VERSION`) independent of the dune CLI version. Each image release SHALL publish both `ghcr.io/mitchell-wallace/dune-base:<image-version>` and `ghcr.io/mitchell-wallace/dune-base:latest`. The CI build SHALL include `--build-arg BUILDKIT_INLINE_CACHE=1` so that `Dockerfile.dune` builds can use `--cache-from` with BuildKit. The CI workflow SHALL only push a new image when the tracked image version is bumped.
 
 #### Scenario: Image is pullable from GHCR
+- **WHEN** a user runs `docker pull ghcr.io/mitchell-wallace/dune-base:0.1.0`
+- **THEN** the image is downloaded successfully
 - **WHEN** a user runs `docker pull ghcr.io/mitchell-wallace/dune-base:latest`
 - **THEN** the image is downloaded successfully
 
 ### Requirement: Dockerfile.dune extends the base image
-Users SHALL be able to create a `Dockerfile.dune` in their repo root that uses `FROM ghcr.io/mitchell-wallace/dune-base:latest` to add repo-specific tools. When present, `dune` SHALL build this file and use the resulting image instead of the base image.
+Users SHALL be able to create a `Dockerfile.dune` in their repo root that uses a published `ghcr.io/mitchell-wallace/dune-base:<image-version>` tag to add repo-specific tools. When present, `dune` SHALL build this file and use the resulting image instead of the base image.
 
 #### Scenario: Repo with Dockerfile.dune
 - **WHEN** a repo contains a `Dockerfile.dune` at its root
-- **THEN** `dune up` builds the custom image with `--cache-from ghcr.io/mitchell-wallace/dune-base:latest` and starts the container using the custom image
+- **THEN** `dune up` builds the custom image with `--cache-from` against the configured published base-image tag and starts the container using the custom image
 
 #### Scenario: Repo without Dockerfile.dune
 - **WHEN** a repo does not contain a `Dockerfile.dune`
-- **THEN** `dune up` uses `ghcr.io/mitchell-wallace/dune-base:latest` directly
+- **THEN** `dune up` uses the configured published base-image tag directly
