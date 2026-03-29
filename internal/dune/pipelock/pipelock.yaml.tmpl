@@ -1,0 +1,22 @@
+version: 1
+mode: balanced
+enforce: true
+api_allowlist:
+{{- range .APIAllowlist }}
+  - {{ . | printf "%q" }}
+{{- end }}
+fetch_proxy:
+  monitoring:
+    max_requests_per_minute: {{ .MaxRequestsPerMinute }}
+    blocklist:
+{{- range .Blocklist }}
+      - {{ . | printf "%q" }}
+{{- end }}
+dlp:
+  include_defaults: true
+response_scanning:
+  enabled: true
+  action: warn
+logging:
+  format: json
+  output: stdout

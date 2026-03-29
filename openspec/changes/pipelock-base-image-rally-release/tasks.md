@@ -40,14 +40,14 @@
 
 ## 3. Pipelock Configuration
 
-- [ ] 3.1 Determine current Pipelock release tag and pin version (do not use `:latest`)
-- [ ] 3.2 Generate baseline config via `docker run --rm ghcr.io/luckypipewrench/pipelock:<pinned-tag> generate config --preset balanced`
-- [ ] 3.3 Customise: set `enforce: true`, `response_scanning.enabled: true` with `action: warn`, `dlp.include_defaults: true`
-- [ ] 3.4 Seed `api_allowlist` with core domains using wildcards: `*.anthropic.com`, `*.openai.com`, `*.googleapis.com`, etc.
-- [ ] 3.5 Add `fetch_proxy.monitoring.blocklist` for exfiltration targets: `*.pastebin.com`, `*.hastebin.com`, `*.transfer.sh`, `file.io`, `requestbin.net`
-- [ ] 3.6 Set `fetch_proxy.monitoring.max_requests_per_minute` to reasonable default (e.g., 60)
-- [ ] 3.7 Configure `logging.format: json`, `logging.output: stdout`
-- [ ] 3.8 Embed the customised config as a Go template in the dune CLI source
+- [x] 3.1 Determine current Pipelock release tag and pin version (do not use `:latest`)
+- [x] 3.2 Generate baseline config via `docker run --rm ghcr.io/luckypipewrench/pipelock:<pinned-tag> generate config --preset balanced`
+- [x] 3.3 Customise: set `enforce: true`, `response_scanning.enabled: true` with `action: warn`, `dlp.include_defaults: true`
+- [x] 3.4 Seed `api_allowlist` with core domains using wildcards: `*.anthropic.com`, `*.openai.com`, `*.googleapis.com`, etc.
+- [x] 3.5 Add `fetch_proxy.monitoring.blocklist` for exfiltration targets: `*.pastebin.com`, `*.hastebin.com`, `*.transfer.sh`, `file.io`, `requestbin.net`
+- [x] 3.6 Set `fetch_proxy.monitoring.max_requests_per_minute` to reasonable default (e.g., 60)
+- [x] 3.7 Configure `logging.format: json`, `logging.output: stdout`
+- [x] 3.8 Embed the customised config as a Go template in the dune CLI source
 
 ## 4. Dune CLI Rewrite
 
