@@ -116,6 +116,8 @@
 
 Tests are automatable unless marked `[local-only]` (requires Docker socket / real container runtime).
 
+Note: while this change is developed on a feature branch, `ghcr.io/mitchell-wallace/dune-base:<image-version>` may not exist yet because the publish workflow only runs from `main` when `container/base/IMAGE_VERSION` is bumped. Local validation during Phases 4-10 may therefore use a locally built image tagged with the expected GHCR name, but the final merge flow must publish from `main` and verify remote pulls against the real GHCR package.
+
 ### CI-automatable
 
 - [ ] 10.1 `docker compose config` validates generated compose.yaml (no Docker daemon needed)
@@ -138,3 +140,10 @@ Tests are automatable unless marked `[local-only]` (requires Docker socket / rea
 - [ ] 10.15 `[local-only]` Test profile switching: `dune --profile work` vs `dune --profile personal` produce isolated containers with separate persist volumes
 - [ ] 10.16 `[local-only]` Verify timezone matches host (`TZ` forwarded correctly)
 - [ ] 10.17 `[local-only]` Verify mise-managed runtimes are available: `node`, `go`, `python`, `rustc`, `uv`
+
+## 11. Publish & Verify
+
+- [ ] 11.1 Merge the base-image publish workflow and image version bump to `main`, then publish `ghcr.io/mitchell-wallace/dune-base:<image-version>` from GitHub Actions
+- [ ] 11.2 Verify the published GHCR package is linked to the repo with the intended visibility/access settings for dune users
+- [ ] 11.3 Verify a clean host can `docker pull ghcr.io/mitchell-wallace/dune-base:<image-version>` without relying on a locally tagged fallback image
+- [ ] 11.4 Re-run `dune up` end-to-end against the remotely published base image and confirm the local fallback path is no longer needed for normal verification
