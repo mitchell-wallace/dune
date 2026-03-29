@@ -11,11 +11,11 @@ import (
 func TestPinnedImageMetadata(t *testing.T) {
 	t.Parallel()
 
-	if got := PinnedTag(); got != "v2.0.0" {
-		t.Fatalf("PinnedTag() = %q, want %q", got, "v2.0.0")
+	if got := PinnedTag(); got != "2.0.0" {
+		t.Fatalf("PinnedTag() = %q, want %q", got, "2.0.0")
 	}
 
-	if got := ImageRef(); got != "ghcr.io/luckypipewrench/pipelock:v2.0.0" {
+	if got := ImageRef(); got != "ghcr.io/luckypipewrench/pipelock:2.0.0" {
 		t.Fatalf("ImageRef() = %q", got)
 	}
 
@@ -23,7 +23,7 @@ func TestPinnedImageMetadata(t *testing.T) {
 		"docker",
 		"run",
 		"--rm",
-		"ghcr.io/luckypipewrench/pipelock:v2.0.0",
+		"ghcr.io/luckypipewrench/pipelock:2.0.0",
 		"generate",
 		"config",
 		"--preset",
@@ -64,7 +64,7 @@ func TestRenderCustomizationYAML(t *testing.T) {
 func TestApplyCustomizations(t *testing.T) {
 	t.Parallel()
 
-	baselinePath := filepath.Join("testdata", "balanced-v2.0.0.yaml")
+	baselinePath := filepath.Join("testdata", "balanced-2.0.0.yaml")
 	baseline, err := os.ReadFile(baselinePath)
 	if err != nil {
 		t.Fatalf("ReadFile(%q) error = %v", baselinePath, err)

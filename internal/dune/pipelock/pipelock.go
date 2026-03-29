@@ -12,7 +12,8 @@ import (
 
 const (
 	imageRepository = "ghcr.io/luckypipewrench/pipelock"
-	pinnedTag       = "v2.0.0"
+	// GHCR publishes semver image tags without the GitHub release's "v" prefix.
+	pinnedTag = "2.0.0"
 )
 
 var (
