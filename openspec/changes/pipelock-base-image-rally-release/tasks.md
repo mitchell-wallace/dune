@@ -51,23 +51,23 @@
 
 ## 4. Dune CLI Rewrite
 
-- [ ] 4.1 Create new `cmd/dune/main.go` and `internal/dune` package structure from scratch
-- [ ] 4.2 Implement workspace root resolution: `git rev-parse --show-toplevel` with cwd fallback; derive slug as `<folderName>-<2hexhash>` from the resolved workspace root path
-- [ ] 4.3 Implement profile resolution: `--profile`/`-p` flag → stored mapping → `default` fallback
-- [ ] 4.4 Implement `~/.config/dune/profiles.json` read/write for directory-to-profile mapping
-- [ ] 4.5 Implement `dune profile set <name>` command (validates: lowercase alphanumeric + hyphens only)
-- [ ] 4.6 Implement `dune profile list` command
-- [ ] 4.7 Implement compose.yaml generation from embedded Go template
-- [ ] 4.8 Implement `Dockerfile.dune` detection: pull base image first, then `docker build --cache-from` with workspace root as build context
-- [ ] 4.9 Implement `dune` / `dune up` command: generate compose, `docker compose up -d`, `docker compose exec agent zsh`
-- [ ] 4.10 Implement `dune down` command: `docker compose down`
-- [ ] 4.11 Implement `dune rebuild` command: `docker compose build --no-cache` for agent service, recreate containers
-- [ ] 4.12 Implement `dune logs [service]` command: `docker compose logs -f [service]`
-- [ ] 4.13 Implement first-run Pipelock config generation: run `docker run --rm ghcr.io/luckypipewrench/pipelock:<pinned-tag> generate config --preset balanced`, apply customisations, write to `~/.config/dune/pipelock.yaml`
-- [ ] 4.14 Implement persist volume creation (`dune-persist-<profile>`) if it doesn't exist
-- [ ] 4.15 Forward host `TZ` environment variable to agent container
-- [ ] 4.16 Update `dune.sh` entry point — the current script calls `scripts/build-dune.sh` (which does incremental Go builds of the old CLI using source-change detection against `cmd/` and `internal/`), sets `DUNE_REPO_ROOT` and `DUNE_CALLER_PWD`, then execs the binary. The rewrite changes the module structure (`internal/dune` is rebuilt from scratch), so `build-dune.sh` needs its change-detection paths updated or replaced. Verify the full chain: `dune.sh` → build script → new binary → `docker compose` works end-to-end from a clean state
-- [ ] 4.17 Implement clear, actionable error messages: validate prerequisites early (Docker running? Compose available?), surface relevant log tail on `docker compose up` failures
+- [x] 4.1 Create new `cmd/dune/main.go` and `internal/dune` package structure from scratch
+- [x] 4.2 Implement workspace root resolution: `git rev-parse --show-toplevel` with cwd fallback; derive slug as `<folderName>-<2hexhash>` from the resolved workspace root path
+- [x] 4.3 Implement profile resolution: `--profile`/`-p` flag → stored mapping → `default` fallback
+- [x] 4.4 Implement `~/.config/dune/profiles.json` read/write for directory-to-profile mapping
+- [x] 4.5 Implement `dune profile set <name>` command (validates: lowercase alphanumeric + hyphens only)
+- [x] 4.6 Implement `dune profile list` command
+- [x] 4.7 Implement compose.yaml generation from embedded Go template
+- [x] 4.8 Implement `Dockerfile.dune` detection: pull base image first, then `docker build --cache-from` with workspace root as build context
+- [x] 4.9 Implement `dune` / `dune up` command: generate compose, `docker compose up -d`, `docker compose exec agent zsh`
+- [x] 4.10 Implement `dune down` command: `docker compose down`
+- [x] 4.11 Implement `dune rebuild` command: `docker compose build --no-cache` for agent service, recreate containers
+- [x] 4.12 Implement `dune logs [service]` command: `docker compose logs -f [service]`
+- [x] 4.13 Implement first-run Pipelock config generation: run `docker run --rm ghcr.io/luckypipewrench/pipelock:<pinned-tag> generate config --preset balanced`, apply customisations, write to `~/.config/dune/pipelock.yaml`
+- [x] 4.14 Implement persist volume creation (`dune-persist-<profile>`) if it doesn't exist
+- [x] 4.15 Forward host `TZ` environment variable to agent container
+- [x] 4.16 Update `dune.sh` entry point — the current script calls `scripts/build-dune.sh` (which does incremental Go builds of the old CLI using source-change detection against `cmd/` and `internal/`), sets `DUNE_REPO_ROOT` and `DUNE_CALLER_PWD`, then execs the binary. The rewrite changes the module structure (`internal/dune` is rebuilt from scratch), so `build-dune.sh` needs its change-detection paths updated or replaced. Verify the full chain: `dune.sh` → build script → new binary → `docker compose` works end-to-end from a clean state
+- [x] 4.17 Implement clear, actionable error messages: validate prerequisites early (Docker running? Compose available?), surface relevant log tail on `docker compose up` failures
 
 ## 5. Compose Template
 
