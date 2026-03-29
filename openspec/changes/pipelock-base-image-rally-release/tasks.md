@@ -71,11 +71,11 @@
 
 ## 5. Compose Template
 
-- [ ] 5.1 Write Go template for `compose.yaml` with agent and pipelock services
-- [ ] 5.2 Configure agent service: image, proxy env vars (both `http_proxy`/`HTTP_PROXY` and `https_proxy`/`HTTPS_PROXY`, `no_proxy`/`NO_PROXY=localhost,127.0.0.1`), `TZ` forwarding, workspace mount, persist volume at `/persist/agent`, internal network only, working_dir, depends_on pipelock
-- [ ] 5.3 Configure pipelock service: pinned image, config mount (read-only), internal + external networks, command (`run --config /config/pipelock.yaml --listen 0.0.0.0:8888`), restart policy (`unless-stopped`)
-- [ ] 5.4 Define internal network (`internal: true`) and external network
-- [ ] 5.5 Test generated compose file with `docker compose config` validation
+- [x] 5.1 Write Go template for `compose.yaml` with agent and pipelock services
+- [x] 5.2 Configure agent service: image, proxy env vars (both `http_proxy`/`HTTP_PROXY` and `https_proxy`/`HTTPS_PROXY`, `no_proxy`/`NO_PROXY=localhost,127.0.0.1`), `TZ` forwarding, workspace mount, persist volume at `/persist/agent`, internal network only, working_dir, depends_on pipelock
+- [x] 5.3 Configure pipelock service: pinned image, config mount (read-only), internal + external networks, command (`run --config /config/pipelock.yaml --listen 0.0.0.0:8888`), restart policy (`unless-stopped`)
+- [x] 5.4 Define internal network (`internal: true`) and external network
+- [x] 5.5 Test generated compose file with `docker compose config` validation
 
 ## 6. Cleanup
 

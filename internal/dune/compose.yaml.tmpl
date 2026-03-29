@@ -24,7 +24,7 @@ services:
         source: {{ printf "%q" .WorkspaceRoot }}
         target: /workspace
       - type: volume
-        source: "persist"
+        source: "agent_persist"
         target: /persist/agent
     depends_on:
       - pipelock
@@ -55,5 +55,5 @@ networks:
   external: {}
 
 volumes:
-  persist:
+  agent_persist:
     name: {{ printf "%q" .PersistVolume }}

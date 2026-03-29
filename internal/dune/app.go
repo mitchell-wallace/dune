@@ -45,19 +45,19 @@ type Environment struct {
 type profileStore map[string]string
 
 type project struct {
-	WorkspaceRoot     string
-	WorkspaceSlug     string
-	Profile           string
-	ComposeProject    string
-	ComposeDir        string
-	ComposePath       string
-	PersistVolume     string
-	BaseImage         string
-	AgentImage        string
-	UseBuild          bool
-	PipelockImage     string
+	WorkspaceRoot      string
+	WorkspaceSlug      string
+	Profile            string
+	ComposeProject     string
+	ComposeDir         string
+	ComposePath        string
+	PersistVolume      string
+	BaseImage          string
+	AgentImage         string
+	UseBuild           bool
+	PipelockImage      string
 	PipelockConfigPath string
-	TZ                string
+	TZ                 string
 }
 
 func Run(ctx context.Context, argv []string, env Environment, stdout, stderr io.Writer) error {
@@ -148,7 +148,7 @@ func Run(ctx context.Context, argv []string, env Environment, stdout, stderr io.
 		if err := validateDockerPrerequisites(ctx); err != nil {
 			return err
 		}
-		if err := ensureComposeFile(proj); err != nil {
+		if err := ensureComposeFile(ctx, proj); err != nil {
 			return err
 		}
 		return runStreaming(ctx, "", stdout, stderr, "docker", composeArgs(proj, "down")...)
@@ -156,7 +156,7 @@ func Run(ctx context.Context, argv []string, env Environment, stdout, stderr io.
 		if err := validateDockerPrerequisites(ctx); err != nil {
 			return err
 		}
-		if err := ensureComposeFile(proj); err != nil {
+		if err := ensureComposeFile(ctx, proj); err != nil {
 			return err
 		}
 		args := append(composeArgs(proj, "logs", "-f"), opts.LogService)
@@ -168,7 +168,7 @@ func Run(ctx context.Context, argv []string, env Environment, stdout, stderr io.
 		if err := ensurePipelockConfig(ctx, proj.PipelockConfigPath); err != nil {
 			return err
 		}
-		if err := ensureComposeFile(proj); err != nil {
+		if err := ensureComposeFile(ctx, proj); err != nil {
 			return err
 		}
 		if err := ensureVolume(ctx, proj.PersistVolume); err != nil {
@@ -185,7 +185,7 @@ func Run(ctx context.Context, argv []string, env Environment, stdout, stderr io.
 		if err := ensurePipelockConfig(ctx, proj.PipelockConfigPath); err != nil {
 			return err
 		}
-		if err := ensureComposeFile(proj); err != nil {
+		if err := ensureComposeFile(ctx, proj); err != nil {
 			return err
 		}
 		if err := ensureVolume(ctx, proj.PersistVolume); err != nil {
@@ -286,16 +286,58 @@ func ensurePipelockConfig(ctx context.Context, path string) error {
 	return nil
 }
 
-func ensureComposeFile(proj project) error {
+func ensureComposeFile(ctx context.Context, proj project) error {
 	if err := os.MkdirAll(proj.ComposeDir, 0o755); err != nil {
 		return fmt.Errorf("create compose directory: %w", err)
 	}
+	rendered, err := renderComposeFile(proj)
+	if err != nil {
+		return err
+	}
+
+	tmpFile, err := os.CreateTemp(proj.ComposeDir, "compose-*.yaml")
+	if err != nil {
+		return fmt.Errorf("create temporary compose file: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+	defer func() {
+		_ = os.Remove(tmpPath)
+	}()
+
+	if _, err := tmpFile.Write(rendered); err != nil {
+		_ = tmpFile.Close()
+		return fmt.Errorf("write temporary compose file: %w", err)
+	}
+	if err := tmpFile.Close(); err != nil {
+		return fmt.Errorf("close temporary compose file: %w", err)
+	}
+
+	if err := validateComposeFile(ctx, proj, tmpPath); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpPath, proj.ComposePath); err != nil {
+		return fmt.Errorf("write compose file: %w", err)
+	}
+	return nil
+}
+
+func renderComposeFile(proj project) ([]byte, error) {
 	var rendered bytes.Buffer
 	if err := composeTemplate.Execute(&rendered, proj); err != nil {
-		return fmt.Errorf("render compose template: %w", err)
+		return nil, fmt.Errorf("render compose template: %w", err)
 	}
-	if err := os.WriteFile(proj.ComposePath, rendered.Bytes(), 0o644); err != nil {
-		return fmt.Errorf("write compose file: %w", err)
+	return rendered.Bytes(), nil
+}
+
+func validateComposeFile(ctx context.Context, proj project, path string) error {
+	args := []string{"compose", "-f", path, "-p", proj.ComposeProject, "config"}
+	output, err := capture(ctx, "", "docker", args...)
+	if err != nil {
+		detail := strings.TrimSpace(string(output))
+		if detail != "" {
+			return fmt.Errorf("validate compose file: %s", detail)
+		}
+		return fmt.Errorf("validate compose file: %w", err)
 	}
 	return nil
 }
