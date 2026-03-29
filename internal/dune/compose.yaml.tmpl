@@ -1,0 +1,59 @@
+services:
+  agent:
+    image: {{ printf "%q" .AgentImage }}
+{{- if .UseBuild }}
+    build:
+      context: {{ printf "%q" .WorkspaceRoot }}
+      dockerfile: "Dockerfile.dune"
+      cache_from:
+        - {{ printf "%q" .BaseImage }}
+{{- end }}
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    environment:
+      http_proxy: "http://pipelock:8888"
+      HTTP_PROXY: "http://pipelock:8888"
+      https_proxy: "http://pipelock:8888"
+      HTTPS_PROXY: "http://pipelock:8888"
+      no_proxy: "localhost,127.0.0.1"
+      NO_PROXY: "localhost,127.0.0.1"
+      TZ: {{ printf "%q" .TZ }}
+    volumes:
+      - type: bind
+        source: {{ printf "%q" .WorkspaceRoot }}
+        target: /workspace
+      - type: volume
+        source: "persist"
+        target: /persist/agent
+    depends_on:
+      - pipelock
+    networks:
+      - internal
+
+  pipelock:
+    image: {{ printf "%q" .PipelockImage }}
+    command:
+      - run
+      - --config
+      - /config/pipelock.yaml
+      - --listen
+      - 0.0.0.0:8888
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: {{ printf "%q" .PipelockConfigPath }}
+        target: /config/pipelock.yaml
+        read_only: true
+    networks:
+      - internal
+      - external
+
+networks:
+  internal:
+    internal: true
+  external: {}
+
+volumes:
+  persist:
+    name: {{ printf "%q" .PersistVolume }}

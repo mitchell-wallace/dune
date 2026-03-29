@@ -37,8 +37,13 @@ needs_rebuild() {
       return 0
     fi
   done < <(
-    find "$REPO_ROOT/cmd" "$REPO_ROOT/internal" -type f -name '*.go' | sort
-    printf '%s\n' "$REPO_ROOT/go.mod" "$REPO_ROOT/go.sum"
+    find \
+      "$REPO_ROOT/cmd/dune" \
+      "$REPO_ROOT/internal/dune" \
+      "$REPO_ROOT/internal/version" \
+      -type f \
+      \( -name '*.go' -o -name '*.tmpl' \) | sort
+    printf '%s\n' "$REPO_ROOT/go.mod" "$REPO_ROOT/go.sum" "$REPO_ROOT/container/base/IMAGE_VERSION"
   )
 
   return 1

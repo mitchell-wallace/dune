@@ -2,41 +2,62 @@ package workspace
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 )
 
-func TestFindDuneTomlNearestAncestor(t *testing.T) {
+func TestResolveFallsBackToDirectoryWhenNotGitRepo(t *testing.T) {
 	t.Parallel()
 
-	root := t.TempDir()
-	deep := filepath.Join(root, "a", "b", "c")
-	if err := os.MkdirAll(deep, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	target := filepath.Join(root, "a", "dune.toml")
-	if err := os.WriteFile(target, []byte("mode = \"std\"\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	got, err := FindDuneToml(deep)
+	dir := t.TempDir()
+	ref, err := Resolve(dir)
 	if err != nil {
-		t.Fatalf("FindDuneToml returned error: %v", err)
+		t.Fatalf("Resolve() error = %v", err)
 	}
-	if got != target {
-		t.Fatalf("unexpected config path: got %s want %s", got, target)
+	if ref.Root != dir {
+		t.Fatalf("Root = %q, want %q", ref.Root, dir)
 	}
 }
 
-func TestContainerIdentityStable(t *testing.T) {
+func TestResolveUsesGitRootFromSubdirectory(t *testing.T) {
 	t.Parallel()
 
-	ref, err := Resolve(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
+	root := t.TempDir()
+	runGit(t, root, "init")
+
+	subdir := filepath.Join(root, "a", "b")
+	if err := os.MkdirAll(subdir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
 	}
-	identity := ContainerIdentity(ref, "a")
-	if identity.Name == "" {
-		t.Fatal("expected container name to be populated")
+
+	ref, err := Resolve(subdir)
+	if err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+	if ref.Root != root {
+		t.Fatalf("Root = %q, want %q", ref.Root, root)
+	}
+}
+
+func TestSlugIncludesTwoHexCharacters(t *testing.T) {
+	t.Parallel()
+
+	got := Slug("/tmp/My Project")
+	if got[:11] != "my-project-" {
+		t.Fatalf("Slug() = %q", got)
+	}
+	if len(got) != len("my-project-")+2 {
+		t.Fatalf("Slug() length = %d", len(got))
+	}
+}
+
+func runGit(t *testing.T, dir string, args ...string) {
+	t.Helper()
+
+	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %v failed: %v\n%s", args, err, output)
 	}
 }

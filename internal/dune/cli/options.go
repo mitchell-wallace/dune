@@ -5,174 +5,164 @@ import (
 	"flag"
 	"fmt"
 	"io"
-
-	"claudebox/internal/dune/config"
-	"claudebox/internal/dune/domain"
+	"strings"
 )
 
 type Command string
 
 const (
-	CommandRun         Command = "run"
-	CommandConfig      Command = "config"
-	CommandRebuild     Command = "rebuild"
-	CommandRallyBuild  Command = "rally-build"
-	CommandRallyUpdate Command = "rally-update"
+	CommandUp         Command = "up"
+	CommandDown       Command = "down"
+	CommandRebuild    Command = "rebuild"
+	CommandLogs       Command = "logs"
+	CommandProfileSet Command = "profile-set"
+	CommandProfileList Command = "profile-list"
 )
 
 type Options struct {
-	Command         Command
-	WorkspaceInput  string
-	Profile         domain.Profile
-	Mode            domain.Mode
+	Command       Command
+	WorkspaceInput string
+	Profile        string
 	ProfileExplicit bool
-	ModeExplicit    bool
+	LogService     string
+	SetProfileName string
 }
 
 func Parse(argv []string) (Options, error) {
-	if len(argv) > 0 {
-		switch argv[0] {
-		case "config":
-			return parseConfig(argv[1:])
-		case "rebuild":
-			return parseRebuild(argv[1:])
-		case "rally":
-			return parseRally(argv[1:])
-		}
-	}
-	return parseRun(argv)
-}
-
-func parseConfig(argv []string) (Options, error) {
-	fs := flag.NewFlagSet("dune config", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-	var opts Options
-	opts.Command = CommandConfig
-	fs.StringVar(&opts.WorkspaceInput, "directory", "", "")
-	fs.StringVar(&opts.WorkspaceInput, "d", "", "")
-	if err := fs.Parse(argv); err != nil {
-		return Options{}, err
-	}
-	args := fs.Args()
-	if len(args) > 1 {
-		return Options{}, errors.New("unexpected arguments for dune config")
-	}
-	if len(args) == 1 {
-		opts.WorkspaceInput = args[0]
-	}
-	return opts, nil
-}
-
-func parseRebuild(argv []string) (Options, error) {
-	fs := flag.NewFlagSet("dune rebuild", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-	var opts Options
-	opts.Command = CommandRebuild
-	fs.StringVar(&opts.WorkspaceInput, "directory", "", "")
-	fs.StringVar(&opts.WorkspaceInput, "d", "", "")
-	if err := fs.Parse(argv); err != nil {
-		return Options{}, err
-	}
-	args := fs.Args()
-	if len(args) > 1 {
-		return Options{}, errors.New("unexpected arguments for dune rebuild")
-	}
-	if len(args) == 1 {
-		opts.WorkspaceInput = args[0]
-	}
-	return opts, nil
-}
-
-func parseRally(argv []string) (Options, error) {
 	if len(argv) == 0 {
-		return Options{}, fmt.Errorf("usage: dune rally <build|update> [-d directory]")
-	}
-	commandName := argv[0]
-	var command Command
-	switch commandName {
-	case "build":
-		command = CommandRallyBuild
-	case "update":
-		command = CommandRallyUpdate
-	default:
-		return Options{}, fmt.Errorf("usage: dune rally <build|update> [-d directory]")
+		return parseContainerCommand(CommandUp, "dune", nil)
 	}
 
-	fs := flag.NewFlagSet("dune rally "+commandName, flag.ContinueOnError)
+	switch argv[0] {
+	case "up":
+		return parseContainerCommand(CommandUp, "dune up", argv[1:])
+	case "down":
+		return parseContainerCommand(CommandDown, "dune down", argv[1:])
+	case "rebuild":
+		return parseContainerCommand(CommandRebuild, "dune rebuild", argv[1:])
+	case "logs":
+		return parseLogs(argv[1:])
+	case "profile":
+		return parseProfile(argv[1:])
+	default:
+		return parseContainerCommand(CommandUp, "dune", argv)
+	}
+}
+
+func parseContainerCommand(command Command, name string, argv []string) (Options, error) {
+	fs := flag.NewFlagSet(name, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	var opts Options
-	opts.Command = command
+
+	opts := Options{Command: command}
 	fs.StringVar(&opts.WorkspaceInput, "directory", "", "")
 	fs.StringVar(&opts.WorkspaceInput, "d", "", "")
-	if err := fs.Parse(argv[1:]); err != nil {
+	fs.StringVar(&opts.Profile, "profile", "", "")
+	fs.StringVar(&opts.Profile, "p", "", "")
+	if err := fs.Parse(argv); err != nil {
 		return Options{}, err
 	}
+
 	args := fs.Args()
 	if len(args) > 1 {
-		return Options{}, fmt.Errorf("unexpected arguments for dune rally %s", commandName)
+		return Options{}, fmt.Errorf("unexpected arguments for %s", name)
 	}
 	if len(args) == 1 {
+		if opts.WorkspaceInput != "" {
+			return Options{}, fmt.Errorf("unexpected arguments for %s", name)
+		}
+		opts.WorkspaceInput = args[0]
+	}
+	opts.ProfileExplicit = opts.Profile != ""
+	return opts, nil
+}
+
+func parseLogs(argv []string) (Options, error) {
+	fs := flag.NewFlagSet("dune logs", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	opts := Options{Command: CommandLogs}
+	fs.StringVar(&opts.WorkspaceInput, "directory", "", "")
+	fs.StringVar(&opts.WorkspaceInput, "d", "", "")
+	fs.StringVar(&opts.Profile, "profile", "", "")
+	fs.StringVar(&opts.Profile, "p", "", "")
+	if err := fs.Parse(argv); err != nil {
+		return Options{}, err
+	}
+
+	args := fs.Args()
+	if len(args) > 1 {
+		return Options{}, errors.New("usage: dune logs [service] [-d directory] [-p profile]")
+	}
+	if len(args) == 1 {
+		opts.LogService = args[0]
+	}
+	opts.ProfileExplicit = opts.Profile != ""
+	return opts, nil
+}
+
+func parseProfile(argv []string) (Options, error) {
+	if len(argv) == 0 {
+		return Options{}, errors.New("usage: dune profile <set|list> [args]")
+	}
+
+	switch argv[0] {
+	case "set":
+		return parseProfileSet(argv[1:])
+	case "list":
+		return parseProfileList(argv[1:])
+	default:
+		return Options{}, errors.New("usage: dune profile <set|list> [args]")
+	}
+}
+
+func parseProfileSet(argv []string) (Options, error) {
+	if len(argv) == 0 {
+		return Options{}, errors.New("usage: dune profile set <name> [-d directory]")
+	}
+
+	opts := Options{Command: CommandProfileSet}
+	if !strings.HasPrefix(argv[0], "-") {
+		opts.SetProfileName = argv[0]
+		argv = argv[1:]
+	}
+
+	fs := flag.NewFlagSet("dune profile set", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	fs.StringVar(&opts.WorkspaceInput, "directory", "", "")
+	fs.StringVar(&opts.WorkspaceInput, "d", "", "")
+	if err := fs.Parse(argv); err != nil {
+		return Options{}, err
+	}
+
+	args := fs.Args()
+	if opts.SetProfileName == "" {
+		if len(args) < 1 || len(args) > 2 {
+			return Options{}, errors.New("usage: dune profile set <name> [-d directory]")
+		}
+		opts.SetProfileName = args[0]
+		if len(args) == 2 {
+			opts.WorkspaceInput = args[1]
+		}
+	} else if len(args) > 1 {
+		return Options{}, errors.New("usage: dune profile set <name> [-d directory]")
+	} else if len(args) == 1 {
 		opts.WorkspaceInput = args[0]
 	}
 	return opts, nil
 }
 
-func parseRun(argv []string) (Options, error) {
-	fs := flag.NewFlagSet("dune", flag.ContinueOnError)
+func parseProfileList(argv []string) (Options, error) {
+	fs := flag.NewFlagSet("dune profile list", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
-	var (
-		workspaceInput string
-		profileRaw     string
-		modeRaw        string
-	)
-
-	fs.StringVar(&workspaceInput, "directory", "", "")
-	fs.StringVar(&workspaceInput, "d", "", "")
-	fs.StringVar(&profileRaw, "profile", "", "")
-	fs.StringVar(&profileRaw, "p", "", "")
-	fs.StringVar(&modeRaw, "mode", "", "")
-	fs.StringVar(&modeRaw, "m", "", "")
+	opts := Options{Command: CommandProfileList}
+	fs.StringVar(&opts.WorkspaceInput, "directory", "", "")
+	fs.StringVar(&opts.WorkspaceInput, "d", "", "")
 	if err := fs.Parse(argv); err != nil {
 		return Options{}, err
 	}
-
-	opts := Options{Command: CommandRun, WorkspaceInput: workspaceInput}
-	if profileRaw != "" {
-		profile, ok := config.NormalizeProfile(profileRaw)
-		if !ok {
-			return Options{}, fmt.Errorf("invalid profile %q", profileRaw)
-		}
-		opts.Profile = profile
-		opts.ProfileExplicit = true
+	if len(fs.Args()) != 0 {
+		return Options{}, errors.New("usage: dune profile list [-d directory]")
 	}
-	if modeRaw != "" {
-		mode, ok := config.CanonicalizeMode(modeRaw)
-		if !ok {
-			return Options{}, fmt.Errorf("invalid mode %q", modeRaw)
-		}
-		opts.Mode = mode
-		opts.ModeExplicit = true
-	}
-
-	for _, token := range fs.Args() {
-		if !opts.ProfileExplicit && opts.Profile == "" && config.IsProfileToken(token) {
-			profile, _ := config.NormalizeProfile(token)
-			opts.Profile = profile
-			opts.ProfileExplicit = true
-			continue
-		}
-		if mode, ok := config.CanonicalizeMode(token); ok {
-			opts.Mode = mode
-			opts.ModeExplicit = true
-			continue
-		}
-		if opts.WorkspaceInput == "" {
-			opts.WorkspaceInput = token
-			continue
-		}
-		return Options{}, fmt.Errorf("unexpected argument: %s", token)
-	}
-
 	return opts, nil
 }
