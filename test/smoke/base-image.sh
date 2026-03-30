@@ -34,6 +34,13 @@ FIXTURE_IMAGE="dune-sample-project-smoke:$$"
 
 cleanup() {
   docker rm -f "${CONTAINER_NAME}" >/dev/null 2>&1 || true
+  if [ -d "${WORK_DIR}" ]; then
+    docker run --rm \
+      -v "${WORK_DIR}:/work" \
+      --entrypoint /bin/sh \
+      alpine:3.22 \
+      -c "chown -R $(id -u):$(id -g) /work" >/dev/null 2>&1 || true
+  fi
   rm -rf "${WORK_DIR}"
 }
 trap cleanup EXIT
