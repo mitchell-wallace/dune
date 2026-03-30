@@ -36,3 +36,4 @@ append_alias_if_missing "$HOME/.bashrc" "alias dune='$DUNE_SCRIPT'"
 append_alias_if_missing "$HOME/.zshrc" "alias dune='$DUNE_SCRIPT'"
 
 echo "Done. Restart your shell or run: source ~/.bashrc (or source ~/.zshrc)"
+echo "Note: this alias points dune to the repo-local dune.sh wrapper and will override any standalone dune binary on your PATH."

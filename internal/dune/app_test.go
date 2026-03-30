@@ -257,3 +257,60 @@ exit 1
 		t.Fatalf("expected agent exec invocation, got log:\n%s", logText)
 	}
 }
+
+func TestPrepareAgentImageReportsProgress(t *testing.T) {
+	binDir := filepath.Join(t.TempDir(), "bin")
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll(binDir) error = %v", err)
+	}
+
+	dockerShimPath := filepath.Join(binDir, "docker")
+	dockerShim := `#!/usr/bin/env bash
+set -euo pipefail
+
+if [ "$#" -ge 2 ] && [ "$1" = "pull" ] && [ "$2" = "ghcr.io/mitchell-wallace/dune-base:0.2.0" ]; then
+  echo "pull ok"
+  exit 0
+fi
+
+if [ "$#" -ge 1 ] && [ "$1" = "compose" ]; then
+  for arg in "$@"; do
+    case "$arg" in
+      build)
+        echo "build ok"
+        exit 0
+        ;;
+    esac
+  done
+fi
+
+echo "unexpected docker invocation: $*" >&2
+exit 1
+`
+	if err := os.WriteFile(dockerShimPath, []byte(dockerShim), 0o755); err != nil {
+		t.Fatalf("WriteFile(docker shim) error = %v", err)
+	}
+
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	proj := project{
+		WorkspaceSlug: "demo-app-96",
+		BaseImage:     "ghcr.io/mitchell-wallace/dune-base:0.2.0",
+		UseBuild:      true,
+		ComposePath:   "/tmp/dune/projects/demo-app-96/compose.yaml",
+	}
+
+	var stdout, stderr strings.Builder
+	err := prepareAgentImage(context.Background(), proj, false, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("prepareAgentImage() error = %v", err)
+	}
+
+	stderrText := stderr.String()
+	if !strings.Contains(stderrText, "Pulling base image ghcr.io/mitchell-wallace/dune-base:0.2.0...") {
+		t.Fatalf("expected base image progress output, got:\n%s", stderrText)
+	}
+	if !strings.Contains(stderrText, "Building agent image from Dockerfile.dune...") {
+		t.Fatalf("expected Dockerfile.dune build progress output, got:\n%s", stderrText)
+	}
+}

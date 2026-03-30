@@ -165,7 +165,7 @@ func Run(ctx context.Context, argv []string, env Environment, stdout, stderr io.
 		if err := ensureVolume(ctx, proj.PersistVolume); err != nil {
 			return err
 		}
-		if err := prepareAgentImage(ctx, proj, true); err != nil {
+		if err := prepareAgentImage(ctx, proj, true, stdout, stderr); err != nil {
 			return err
 		}
 		return runStreaming(ctx, "", stdout, stderr, "docker", composeArgs(proj, "up", "-d", "--force-recreate")...)
@@ -188,7 +188,7 @@ func Run(ctx context.Context, argv []string, env Environment, stdout, stderr io.
 			return err
 		}
 		if !running {
-			if err := prepareAgentImage(ctx, proj, false); err != nil {
+			if err := prepareAgentImage(ctx, proj, false, stdout, stderr); err != nil {
 				return err
 			}
 			if err := composeUp(ctx, proj, stderr); err != nil {
@@ -340,22 +340,25 @@ func ensureVolume(ctx context.Context, name string) error {
 	return nil
 }
 
-func prepareAgentImage(ctx context.Context, proj project, noCache bool) error {
-	if _, err := capture(ctx, "", "docker", "pull", proj.BaseImage); err != nil {
+func prepareAgentImage(ctx context.Context, proj project, noCache bool, stdout, stderr io.Writer) error {
+	_, _ = fmt.Fprintf(stderr, "Pulling base image %s...\n", proj.BaseImage)
+	if err := runStreaming(ctx, "", stdout, stderr, "docker", "pull", proj.BaseImage); err != nil {
 		if !localImageExists(ctx, proj.BaseImage) {
 			return fmt.Errorf("pull base image %q: %w", proj.BaseImage, err)
 		}
+		_, _ = fmt.Fprintf(stderr, "Base image pull failed, using existing local image %s.\n", proj.BaseImage)
 	}
 	if !proj.UseBuild {
 		return nil
 	}
 
+	_, _ = fmt.Fprintln(stderr, "Building agent image from Dockerfile.dune...")
 	args := composeArgs(proj, "build")
 	if noCache {
 		args = append(args, "--no-cache")
 	}
 	args = append(args, "agent")
-	if _, err := capture(ctx, "", "docker", args...); err != nil {
+	if err := runStreaming(ctx, "", stdout, stderr, "docker", args...); err != nil {
 		return fmt.Errorf("build Dockerfile.dune image: %w", err)
 	}
 	return nil

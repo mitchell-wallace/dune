@@ -15,6 +15,8 @@ For local development from this repo, install the alias with `./install-dune-ali
 
 For release builds, download the standalone `dune` binary for your platform from GitHub Releases and place it on your `PATH`.
 
+If `dune` seems to be running the wrong thing on your machine, check `type -a dune`. A shell alias created by `./install-dune-alias.sh` will override a standalone binary on `PATH`.
+
 Then run:
 
 ```sh
