@@ -72,3 +72,15 @@ func TestParseProfileListRejectsExtraArgs(t *testing.T) {
 		t.Fatal("expected parse error")
 	}
 }
+
+func TestParseVersion(t *testing.T) {
+	t.Parallel()
+
+	opts, err := Parse([]string{"version"})
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if opts.Command != CommandVersion {
+		t.Fatalf("Command = %q, want %q", opts.Command, CommandVersion)
+	}
+}

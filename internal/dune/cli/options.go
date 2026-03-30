@@ -15,6 +15,7 @@ const (
 	CommandDown        Command = "down"
 	CommandRebuild     Command = "rebuild"
 	CommandLogs        Command = "logs"
+	CommandVersion     Command = "version"
 	CommandProfileSet  Command = "profile-set"
 	CommandProfileList Command = "profile-list"
 )
@@ -42,6 +43,8 @@ func Parse(argv []string) (Options, error) {
 		return parseContainerCommand(CommandRebuild, "dune rebuild", argv[1:])
 	case "logs":
 		return parseLogs(argv[1:])
+	case "version":
+		return parseVersion(argv[1:])
 	case "profile":
 		return parseProfile(argv[1:])
 	default:
@@ -165,4 +168,11 @@ func parseProfileList(argv []string) (Options, error) {
 		return Options{}, errors.New("usage: dune profile list [-d directory]")
 	}
 	return opts, nil
+}
+
+func parseVersion(argv []string) (Options, error) {
+	if len(argv) != 0 {
+		return Options{}, errors.New("usage: dune version")
+	}
+	return Options{Command: CommandVersion}, nil
 }

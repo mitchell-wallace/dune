@@ -13,6 +13,5 @@ fi
 BINARY_PATH="$("$BUILD_SCRIPT" --print-path)"
 
 exec env \
-  DUNE_REPO_ROOT="$SCRIPT_DIR" \
   DUNE_CALLER_PWD="$CALLER_PWD" \
   "$BINARY_PATH" "$@"

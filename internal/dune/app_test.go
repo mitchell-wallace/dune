@@ -197,7 +197,6 @@ exit 1
 
 	var stdout, stderr strings.Builder
 	err = Run(context.Background(), []string{}, Environment{
-		RepoRoot:  filepath.Clean(filepath.Join("..", "..")),
 		CallerPWD: subdir,
 	}, &stdout, &stderr)
 	if err != nil {

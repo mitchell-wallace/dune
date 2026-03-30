@@ -12,7 +12,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"sort"
 	"strings"
 	"text/template"
@@ -20,11 +19,11 @@ import (
 	"claudebox/internal/dune/cli"
 	"claudebox/internal/dune/pipelock"
 	"claudebox/internal/dune/workspace"
+	"claudebox/internal/version"
 )
 
 const (
 	defaultProfile   = "default"
-	baseImageRepo    = "ghcr.io/mitchell-wallace/dune-base"
 	composeShell     = "zsh"
 	logTailLineCount = "60"
 )
@@ -38,7 +37,6 @@ var (
 )
 
 type Environment struct {
-	RepoRoot  string
 	CallerPWD string
 }
 
@@ -73,11 +71,6 @@ func Run(ctx context.Context, argv []string, env Environment, stdout, stderr io.
 		stderr = io.Discard
 	}
 
-	repoRoot, err := locateRepoRoot(env)
-	if err != nil {
-		return err
-	}
-
 	workspaceInput := defaultWorkspaceInput(opts.WorkspaceInput, env.CallerPWD)
 	ws, err := workspace.Resolve(workspaceInput)
 	if err != nil {
@@ -100,6 +93,9 @@ func Run(ctx context.Context, argv []string, env Environment, stdout, stderr io.
 	}
 
 	switch opts.Command {
+	case cli.CommandVersion:
+		_, err := fmt.Fprintf(stdout, "dune %s\n", version.String())
+		return err
 	case cli.CommandProfileSet:
 		if err := validateProfileName(opts.SetProfileName); err != nil {
 			return err
@@ -119,11 +115,6 @@ func Run(ctx context.Context, argv []string, env Environment, stdout, stderr io.
 		return err
 	}
 
-	baseImage, err := loadBaseImageRef(repoRoot)
-	if err != nil {
-		return err
-	}
-
 	proj := project{
 		WorkspaceRoot:      ws.Root,
 		WorkspaceSlug:      ws.Slug,
@@ -132,8 +123,8 @@ func Run(ctx context.Context, argv []string, env Environment, stdout, stderr io.
 		ComposeDir:         filepath.Join(dataHome, "dune", "projects", ws.Slug),
 		ComposePath:        filepath.Join(dataHome, "dune", "projects", ws.Slug, "compose.yaml"),
 		PersistVolume:      "dune-persist-" + profile,
-		BaseImage:          baseImage,
-		AgentImage:         baseImage,
+		BaseImage:          version.BaseImageRef(),
+		AgentImage:         version.BaseImageRef(),
 		UseBuild:           fileExists(filepath.Join(ws.Root, "Dockerfile.dune")),
 		PipelockImage:      pipelock.ImageRef(),
 		PipelockConfigPath: filepath.Join(configDir, "dune", "pipelock.yaml"),
@@ -473,30 +464,6 @@ func saveProfileStore(path string, store profileStore) error {
 		return fmt.Errorf("write profile mappings: %w", err)
 	}
 	return nil
-}
-
-func locateRepoRoot(env Environment) (string, error) {
-	if root := strings.TrimSpace(env.RepoRoot); root != "" {
-		return root, nil
-	}
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		return "", errors.New("failed to locate dune repository root")
-	}
-	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..")), nil
-}
-
-func loadBaseImageRef(repoRoot string) (string, error) {
-	versionPath := filepath.Join(repoRoot, "container", "base", "IMAGE_VERSION")
-	raw, err := os.ReadFile(versionPath)
-	if err != nil {
-		return "", fmt.Errorf("read image version from %s: %w", versionPath, err)
-	}
-	version := strings.TrimSpace(string(raw))
-	if version == "" {
-		return "", fmt.Errorf("image version file %s is empty", versionPath)
-	}
-	return baseImageRepo + ":" + version, nil
 }
 
 func defaultWorkspaceInput(explicit, callerPWD string) string {
