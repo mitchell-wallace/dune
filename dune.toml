@@ -1,3 +1,0 @@
-profile = "0"
-mode = "std"
-gear = ["add-postgres", "add-mailpit", "add-tmux"]
