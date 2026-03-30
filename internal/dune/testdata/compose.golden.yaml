@@ -5,7 +5,7 @@ services:
       context: "/workspace/demo-app"
       dockerfile: "Dockerfile.dune"
       cache_from:
-        - "ghcr.io/mitchell-wallace/dune-base:0.1.0"
+        - "ghcr.io/mitchell-wallace/dune-base:0.1.1"
     working_dir: /workspace
     stdin_open: true
     tty: true
