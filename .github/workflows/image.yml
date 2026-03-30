@@ -7,7 +7,6 @@ on:
       - Dockerfile
       - cmd/dune/**
       - container/base/**
-      - dune.sh
       - go.mod
       - go.sum
       - internal/**

@@ -3,20 +3,14 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
-DUNE_SCRIPT="$REPO_ROOT/dune.sh"
 BUILD_SCRIPT="$SCRIPT_DIR/build-dune.sh"
-
-if [ ! -f "$DUNE_SCRIPT" ]; then
-  echo "Missing script: $DUNE_SCRIPT" >&2
-  exit 1
-fi
 
 if [ ! -x "$BUILD_SCRIPT" ]; then
   echo "Missing build helper: $BUILD_SCRIPT" >&2
   exit 1
 fi
 
-"$BUILD_SCRIPT" >/dev/null
+DUNE_BIN_PATH="$("$BUILD_SCRIPT" --force --print-path)"
 
 append_alias_if_missing() {
   local rc_file="$1"
@@ -32,8 +26,8 @@ append_alias_if_missing() {
   echo "Added alias to $rc_file"
 }
 
-append_alias_if_missing "$HOME/.bashrc" "alias dune='$DUNE_SCRIPT'"
-append_alias_if_missing "$HOME/.zshrc" "alias dune='$DUNE_SCRIPT'"
+append_alias_if_missing "$HOME/.bashrc" "alias dune='$DUNE_BIN_PATH'"
+append_alias_if_missing "$HOME/.zshrc" "alias dune='$DUNE_BIN_PATH'"
 
 echo "Done. Restart your shell or run: source ~/.bashrc (or source ~/.zshrc)"
-echo "Note: this alias points dune to the repo-local dune.sh wrapper and will override any standalone dune binary on your PATH."
+echo "Note: this alias points dune to the repo-local compiled Go binary and will override any standalone dune binary on your PATH."

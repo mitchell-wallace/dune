@@ -11,7 +11,7 @@ The `agent` container comes with a batteries-included base image for AI-assisted
 
 ## Usage
 
-For local development from this repo, install the alias with `./install-dune-alias.sh`.
+For local development from this repo, build the binary with `./scripts/build-dune.sh --force --print-path` or install the alias with `./install-dune-alias.sh`.
 
 For release builds, download the standalone `dune` binary for your platform from GitHub Releases and place it on your `PATH`.
 
@@ -150,5 +150,5 @@ Useful checks:
 ```sh
 go test ./...
 go build ./cmd/dune
-./dune.sh profile list
+./.bin/dune profile list
 ```

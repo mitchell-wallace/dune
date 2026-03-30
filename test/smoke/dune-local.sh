@@ -35,7 +35,7 @@ cp -R "${REPO_ROOT}/test/fixtures/sample-project" "${FIXTURE_ROOT}"
 )
 
 docker image inspect "${IMAGE_REF}" >/dev/null 2>&1 || docker build --build-arg BUILDKIT_INLINE_CACHE=1 -t "${IMAGE_REF}" "${REPO_ROOT}" >/dev/null
-"${REPO_ROOT}/scripts/build-dune.sh" --force >/dev/null
+DUNE_BIN="$("${REPO_ROOT}/scripts/build-dune.sh" --force --print-path)"
 
 run_dune() {
   (
@@ -49,7 +49,7 @@ run_dune() {
 }
 
 run_dune_with_shell() {
-  run_dune bash -lc "printf 'exit\n' | script -qec '${REPO_ROOT}/dune.sh $*' /dev/null"
+  run_dune bash -lc "printf 'exit\n' | script -qec '${DUNE_BIN} $*' /dev/null"
 }
 
 run_dune_with_shell up
@@ -94,7 +94,7 @@ fi
 
 LOG_FILE="${WORK_DIR}/pipelock.log"
 status=0
-run_dune timeout 10s "${REPO_ROOT}/dune.sh" logs pipelock >"${LOG_FILE}" 2>&1 || status=$?
+run_dune timeout 10s "${DUNE_BIN}" logs pipelock >"${LOG_FILE}" 2>&1 || status=$?
 if [ "${status}" -ne 0 ] && [ "${status}" -ne 124 ]; then
   cat "${LOG_FILE}" >&2
   exit "${status}"
@@ -102,18 +102,18 @@ fi
 grep -q '{' "${LOG_FILE}"
 
 docker compose -f "${COMPOSE_PATH}" -p "${COMPOSE_PROJECT}" exec -T agent bash -lc "printf 'persisted=true\n' > ~/.gitconfig"
-run_dune "${REPO_ROOT}/dune.sh" down
+run_dune "${DUNE_BIN}" down
 run_dune_with_shell up
 wait_for_agent "grep -qx 'persisted=true' ~/.gitconfig"
-run_dune "${REPO_ROOT}/dune.sh" rebuild
+run_dune "${DUNE_BIN}" rebuild
 wait_for_agent "grep -qx 'persisted=true' ~/.gitconfig"
 
-run_dune "${REPO_ROOT}/dune.sh" down
+run_dune "${DUNE_BIN}" down
 run_dune_with_shell -p work
 WORK_COMPOSE_PATH="$(find "${XDG_DATA_HOME}/dune/projects" -name compose.yaml -print -quit)"
 WORK_COMPOSE_PROJECT="dune-$(basename "$(dirname "${WORK_COMPOSE_PATH}")")-work"
 docker compose -f "${WORK_COMPOSE_PATH}" -p "${WORK_COMPOSE_PROJECT}" exec -T agent bash -lc "printf 'work-profile\n' > ~/.gitconfig"
-run_dune "${REPO_ROOT}/dune.sh" down -p work
+run_dune "${DUNE_BIN}" down -p work
 
 run_dune_with_shell -p personal
 PERSONAL_COMPOSE_PATH="$(find "${XDG_DATA_HOME}/dune/projects" -name compose.yaml -print -quit)"
