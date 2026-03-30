@@ -1,0 +1,41 @@
+version: 2
+
+project_name: dune
+
+before:
+  hooks:
+    - go test ./...
+
+builds:
+  - id: dune
+    main: ./cmd/dune
+    binary: dune
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - >-
+        -s -w
+        -X claudebox/internal/version.Version={{ .Version }}
+        -X claudebox/internal/version.Commit={{ .ShortCommit }}
+        -X claudebox/internal/version.BaseImageVersion={{ .Env.BASE_IMAGE_VERSION }}
+
+archives:
+  - id: dune
+    ids:
+      - dune
+    formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+

@@ -1,0 +1,44 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Read release metadata
+        run: |
+          echo "DUNE_VERSION=$(tr -d '\n' < VERSION)" >> "$GITHUB_ENV"
+          echo "BASE_IMAGE_VERSION=$(tr -d '\n' < container/base/IMAGE_VERSION)" >> "$GITHUB_ENV"
+
+      - name: Verify tag matches VERSION
+        if: github.event_name == 'push'
+        run: |
+          test "v${DUNE_VERSION}" = "${GITHUB_REF_NAME}"
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_IMAGE_VERSION: ${{ env.BASE_IMAGE_VERSION }}
+

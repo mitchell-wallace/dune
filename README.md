@@ -11,7 +11,11 @@ The `agent` container comes with a batteries-included base image for AI-assisted
 
 ## Usage
 
-Install the alias with `./install-dune-alias.sh`, then run:
+For local development from this repo, install the alias with `./install-dune-alias.sh`.
+
+For release builds, download the standalone `dune` binary for your platform from GitHub Releases and place it on your `PATH`.
+
+Then run:
 
 ```sh
 dune
@@ -20,6 +24,7 @@ dune down
 dune rebuild
 dune logs
 dune logs pipelock
+dune version
 dune profile set work
 dune profile list
 ```
@@ -34,6 +39,7 @@ dune profile list
 - `dune rebuild` rebuilds the `agent` image for the current workspace, then recreates the workspace containers
 - `dune logs` tails logs for the current workspace
 - `dune logs pipelock` tails just the proxy logs, which is useful when checking outbound requests or policy decisions
+- `dune version` prints the dune version, commit, and release build metadata
 - `dune profile set <name>` stores a profile mapping for the current workspace root
 - `dune profile list` shows the effective profile for the current workspace and any stored mappings
 
