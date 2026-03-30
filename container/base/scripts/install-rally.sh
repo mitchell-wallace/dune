@@ -7,8 +7,5 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if curl -fsSL https://raw.githubusercontent.com/mitchell-wallace/rally/main/install.sh -o "${tmpdir}/install.sh"; then
-  bash "${tmpdir}/install.sh"
-else
-  echo "[install-rally] skipping Rally install; installer unavailable" >&2
-fi
+curl -fsSL https://raw.githubusercontent.com/mitchell-wallace/rally/main/install.sh -o "${tmpdir}/install.sh"
+bash "${tmpdir}/install.sh"

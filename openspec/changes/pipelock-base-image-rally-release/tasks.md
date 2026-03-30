@@ -120,26 +120,26 @@ Note: while this change is developed on a feature branch, `ghcr.io/mitchell-wall
 
 ### CI-automatable
 
-- [ ] 10.1 `docker compose config` validates generated compose.yaml (no Docker daemon needed)
-- [ ] 10.2 Image build: build base image in CI, run smoke test container verifying all tools exist
-- [ ] 10.3 Image smoke test: `node --version`, `go version`, `python --version`, `rustc --version`, `uv --version`, `pnpm --version`, `turbo --version`, `mise --version`, `rally --version`, `jq --version`, `rg --version`, `tmux -V`, `fd --version`, `bat --version`, `eza --version`, `delta --version`
-- [ ] 10.4 Agent CLI smoke test: `claude --version`, `codex --version`, `gemini --version`, `opencode version`
-- [ ] 10.5 Service smoke test: `pg_isready`, `redis-cli ping`, verify Mailpit ports
-- [ ] 10.6 s6 auto-restart: kill postgres in smoke container, verify `pg_isready` recovers within seconds
-- [ ] 10.7 Persist seeding: start container with empty volume, verify default `.zshrc` and `.p10k.zsh` are seeded, verify symlinks point to `/persist/agent`
-- [ ] 10.8 Persist preservation: start container with pre-populated volume, verify existing files are NOT overwritten
-- [ ] 10.9 `Dockerfile.dune` COPY context: use `test/fixtures/sample-project/` fixture, verify the COPY'd file exists in the built image
+- [x] 10.1 `docker compose config` validates generated compose.yaml (no Docker daemon needed)
+- [x] 10.2 Image build: build base image in CI, run smoke test container verifying all tools exist
+- [x] 10.3 Image smoke test: `node --version`, `go version`, `python --version`, `rustc --version`, `uv --version`, `pnpm --version`, `turbo --version`, `mise --version`, `rally --version`, `jq --version`, `rg --version`, `tmux -V`, `fd --version`, `bat --version`, `eza --version`, `delta --version`
+- [x] 10.4 Agent CLI smoke test: `claude --version`, `codex --version`, `gemini --version`, `opencode version`
+- [x] 10.5 Service smoke test: `pg_isready`, `redis-cli ping`, verify Mailpit ports
+- [x] 10.6 s6 auto-restart: kill postgres in smoke container, verify `pg_isready` recovers within seconds
+- [x] 10.7 Persist seeding: start container with empty volume, verify default `.zshrc` and `.p10k.zsh` are seeded, verify symlinks point to `/persist/agent`
+- [x] 10.8 Persist preservation: start container with pre-populated volume, verify existing files are NOT overwritten
+- [x] 10.9 `Dockerfile.dune` COPY context: use `test/fixtures/sample-project/` fixture, verify the COPY'd file exists in the built image
 
 ### Local-only (requires Docker socket)
 
-- [ ] 10.10 `[local-only]` End-to-end `dune up` in test repo — verify containers start, agent gets zsh shell
-- [ ] 10.11 `[local-only]` Verify agent can reach `api.anthropic.com` through Pipelock proxy
-- [ ] 10.12 `[local-only]` Verify agent cannot reach the internet directly (bypassing proxy)
-- [ ] 10.13 `[local-only]` Verify `dune logs pipelock` shows JSON request logs
-- [ ] 10.14 `[local-only]` Verify credentials persist across `dune down` / `dune up` cycle and across `dune rebuild`
-- [ ] 10.15 `[local-only]` Test profile switching: `dune --profile work` vs `dune --profile personal` produce isolated containers with separate persist volumes
-- [ ] 10.16 `[local-only]` Verify timezone matches host (`TZ` forwarded correctly)
-- [ ] 10.17 `[local-only]` Verify mise-managed runtimes are available: `node`, `go`, `python`, `rustc`, `uv`
+- [x] 10.10 `[local-only]` End-to-end `dune up` in test repo — verify containers start, agent gets zsh shell
+- [x] 10.11 `[local-only]` Verify agent can reach `api.anthropic.com` through Pipelock proxy
+- [x] 10.12 `[local-only]` Verify agent cannot reach the internet directly (bypassing proxy)
+- [x] 10.13 `[local-only]` Verify `dune logs pipelock` shows JSON request logs
+- [x] 10.14 `[local-only]` Verify credentials persist across `dune down` / `dune up` cycle and across `dune rebuild`
+- [x] 10.15 `[local-only]` Test profile switching: `dune --profile work` vs `dune --profile personal` produce isolated containers with separate persist volumes
+- [x] 10.16 `[local-only]` Verify timezone matches host (`TZ` forwarded correctly)
+- [x] 10.17 `[local-only]` Verify mise-managed runtimes are available: `node`, `go`, `python`, `rustc`, `uv`
 
 ## 11. Publish & Verify
 

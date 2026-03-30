@@ -44,6 +44,8 @@ vendor/
 test/*
 !test/fixtures/
 !test/fixtures/**
+!test/smoke/
+!test/smoke/**
 dist/
 build/
 *.tgz

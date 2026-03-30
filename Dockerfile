@@ -157,6 +157,7 @@ RUN install -d -m 0755 /tmp/mailpit \
   && chown -R agent:agent /home/agent /opt/home-defaults /workspace /persist/agent /tmp/mailpit /var/lib/postgresql /var/lib/redis /var/log/redis /var/run/postgresql
 
 RUN runuser -u agent -- bash -lc 'git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ~/.powerlevel10k' \
+  && runuser -u agent -- bash -lc '~/.powerlevel10k/gitstatus/install' \
   && runuser -u agent -- bash -lc 'curl -fsSL https://mise.run | sh' \
   && runuser -u agent -- bash -lc 'mise --version && mise install' \
   && runuser -u agent -- bash -lc 'curl -fsSL https://claude.ai/install.sh | bash' \

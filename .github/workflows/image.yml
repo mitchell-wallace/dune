@@ -1,6 +1,19 @@
 name: image
 
 on:
+  pull_request:
+    paths:
+      - .github/workflows/image.yml
+      - Dockerfile
+      - cmd/dune/**
+      - container/base/**
+      - dune.sh
+      - go.mod
+      - go.sum
+      - internal/**
+      - scripts/build-dune.sh
+      - test/fixtures/sample-project/**
+      - test/smoke/**
   push:
     branches: [main]
     paths:
@@ -12,7 +25,21 @@ permissions:
   packages: write
 
 jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run compose validation tests
+        run: go test ./internal/dune/...
+
+      - name: Build and smoke-test image
+        run: ./test/smoke/base-image.sh
+
   build-and-push:
+    needs: verify
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

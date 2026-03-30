@@ -12,6 +12,8 @@ fetch_proxy:
 {{- range .Blocklist }}
       - {{ . | printf "%q" }}
 {{- end }}
+forward_proxy:
+  enabled: true
 dlp:
   include_defaults: true
 response_scanning:

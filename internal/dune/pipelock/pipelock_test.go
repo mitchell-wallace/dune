@@ -54,6 +54,7 @@ func TestRenderCustomizationYAML(t *testing.T) {
 	assertEqual(t, getNestedValue(t, cfg, "response_scanning", "action"), "warn")
 	assertEqual(t, getNestedValue(t, cfg, "dlp", "include_defaults"), true)
 	assertEqual(t, getNestedValue(t, cfg, "fetch_proxy", "monitoring", "max_requests_per_minute"), 60)
+	assertEqual(t, getNestedValue(t, cfg, "forward_proxy", "enabled"), true)
 
 	assertContains(t, getStringSliceAt(t, cfg, "api_allowlist"), "*.googleapis.com")
 	assertContains(t, getStringSliceAt(t, cfg, "api_allowlist"), "mcp.context7.com")
@@ -83,6 +84,7 @@ func TestApplyCustomizations(t *testing.T) {
 	assertEqual(t, getNestedValue(t, cfg, "response_scanning", "action"), "warn")
 	assertEqual(t, getNestedValue(t, cfg, "dlp", "include_defaults"), true)
 	assertEqual(t, getNestedValue(t, cfg, "fetch_proxy", "monitoring", "max_requests_per_minute"), 60)
+	assertEqual(t, getNestedValue(t, cfg, "forward_proxy", "enabled"), true)
 	assertEqual(t, getNestedValue(t, cfg, "logging", "format"), "json")
 	assertEqual(t, getNestedValue(t, cfg, "logging", "output"), "stdout")
 
@@ -139,6 +141,9 @@ func TestApplyCustomizationsProducesStructuredYAML(t *testing.T) {
 				Blocklist            []string `yaml:"blocklist"`
 			} `yaml:"monitoring"`
 		} `yaml:"fetch_proxy"`
+		ForwardProxy struct {
+			Enabled bool `yaml:"enabled"`
+		} `yaml:"forward_proxy"`
 	}
 
 	if err := yaml.Unmarshal(rendered, &cfg); err != nil {
@@ -154,6 +159,7 @@ func TestApplyCustomizationsProducesStructuredYAML(t *testing.T) {
 	assertEqual(t, cfg.Logging.Format, "json")
 	assertEqual(t, cfg.Logging.Output, "stdout")
 	assertEqual(t, cfg.FetchProxy.Monitoring.MaxRequestsPerMinute, 60)
+	assertEqual(t, cfg.ForwardProxy.Enabled, true)
 	assertContains(t, cfg.APIAllowlist, "*.anthropic.com")
 	assertContains(t, cfg.FetchProxy.Monitoring.Blocklist, "*.transfer.sh")
 }
