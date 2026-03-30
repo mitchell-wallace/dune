@@ -24,6 +24,21 @@ trap cleanup EXIT
 
 mkdir -p "${HOME_DIR}" "${XDG_CONFIG_HOME}" "${XDG_DATA_HOME}"
 cp -R "${REPO_ROOT}/test/fixtures/sample-project" "${FIXTURE_ROOT}"
+mkdir -p "${XDG_CONFIG_HOME}/dune"
+cat > "${XDG_CONFIG_HOME}/dune/pipelock.yaml" <<'EOF'
+version: 1
+mode: balanced
+enforce: true
+api_allowlist:
+  - github.com
+  - "*.github.com"
+  - "*.githubusercontent.com"
+logging:
+  format: json
+  output: stdout
+forward_proxy:
+  enabled: false
+EOF
 
 (
   cd "${FIXTURE_ROOT}"
@@ -85,7 +100,8 @@ wait_for_agent "pg_isready"
 docker compose -f "${COMPOSE_PATH}" -p "${COMPOSE_PROJECT}" ps | grep -q agent
 docker compose -f "${COMPOSE_PATH}" -p "${COMPOSE_PROJECT}" ps | grep -q pipelock
 
-wait_for_agent "test \"\$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 https://api.anthropic.com)\" != '000'"
+grep -q 'enabled: true' "${XDG_CONFIG_HOME}/dune/pipelock.yaml"
+wait_for_agent "curl -sSI --max-time 20 https://github.com | grep -q '^HTTP/'"
 if docker compose -f "${COMPOSE_PATH}" -p "${COMPOSE_PROJECT}" exec -T agent bash -lc \
   "env -u http_proxy -u HTTP_PROXY -u https_proxy -u HTTPS_PROXY -u no_proxy -u NO_PROXY curl -fsSI --max-time 10 https://api.anthropic.com >/dev/null"; then
   echo "Agent unexpectedly reached the internet without proxy settings" >&2
@@ -99,7 +115,7 @@ if [ "${status}" -ne 0 ] && [ "${status}" -ne 124 ]; then
   cat "${LOG_FILE}" >&2
   exit "${status}"
 fi
-grep -q '{' "${LOG_FILE}"
+grep -q '"event":"tunnel_open"' "${LOG_FILE}"
 
 docker compose -f "${COMPOSE_PATH}" -p "${COMPOSE_PROJECT}" exec -T agent bash -lc "printf 'persisted=true\n' > ~/.gitconfig"
 run_dune "${DUNE_BIN}" down

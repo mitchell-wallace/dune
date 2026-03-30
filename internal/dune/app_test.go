@@ -70,7 +70,7 @@ func TestRenderComposeFileGolden(t *testing.T) {
 		ComposeDir:         "/tmp/dune/projects/demo-app-96",
 		ComposePath:        "/tmp/dune/projects/demo-app-96/compose.yaml",
 		PersistVolume:      "dune-persist-work",
-		BaseImage:          "ghcr.io/mitchell-wallace/dune-base:0.2.0",
+		BaseImage:          "ghcr.io/mitchell-wallace/dune-base:0.2.1",
 		AgentImage:         "dune-local-demo-app-96:latest",
 		UseBuild:           true,
 		PipelockImage:      "ghcr.io/luckypipewrench/pipelock:2.0.0",
@@ -244,7 +244,7 @@ exit 1
 	if !strings.Contains(logText, "run --rm ghcr.io/luckypipewrench/pipelock:2.0.0 generate config --preset balanced") {
 		t.Fatalf("expected pipelock baseline generation, got log:\n%s", logText)
 	}
-	if !strings.Contains(logText, "pull ghcr.io/mitchell-wallace/dune-base:0.2.0") {
+	if !strings.Contains(logText, "pull ghcr.io/mitchell-wallace/dune-base:0.2.1") {
 		t.Fatalf("expected base image pull before build, got log:\n%s", logText)
 	}
 	if !strings.Contains(logText, "compose -f "+composePath) || !strings.Contains(logText, " build agent") {
@@ -268,7 +268,7 @@ func TestPrepareAgentImageReportsProgress(t *testing.T) {
 	dockerShim := `#!/usr/bin/env bash
 set -euo pipefail
 
-if [ "$#" -ge 2 ] && [ "$1" = "pull" ] && [ "$2" = "ghcr.io/mitchell-wallace/dune-base:0.2.0" ]; then
+if [ "$#" -ge 2 ] && [ "$1" = "pull" ] && [ "$2" = "ghcr.io/mitchell-wallace/dune-base:0.2.1" ]; then
   echo "pull ok"
   exit 0
 fi
@@ -295,7 +295,7 @@ exit 1
 
 	proj := project{
 		WorkspaceSlug: "demo-app-96",
-		BaseImage:     "ghcr.io/mitchell-wallace/dune-base:0.2.0",
+		BaseImage:     "ghcr.io/mitchell-wallace/dune-base:0.2.1",
 		UseBuild:      true,
 		ComposePath:   "/tmp/dune/projects/demo-app-96/compose.yaml",
 	}
@@ -307,10 +307,76 @@ exit 1
 	}
 
 	stderrText := stderr.String()
-	if !strings.Contains(stderrText, "Pulling base image ghcr.io/mitchell-wallace/dune-base:0.2.0...") {
+	if !strings.Contains(stderrText, "Pulling base image ghcr.io/mitchell-wallace/dune-base:0.2.1...") {
 		t.Fatalf("expected base image progress output, got:\n%s", stderrText)
 	}
 	if !strings.Contains(stderrText, "Building agent image from Dockerfile.dune...") {
 		t.Fatalf("expected Dockerfile.dune build progress output, got:\n%s", stderrText)
+	}
+}
+
+func TestEnsurePipelockConfigReconcilesExistingConfig(t *testing.T) {
+	configDir := filepath.Join(t.TempDir(), "config")
+	configPath := filepath.Join(configDir, "dune", "pipelock.yaml")
+	if err := os.MkdirAll(filepath.Dir(configPath), 0o755); err != nil {
+		t.Fatalf("MkdirAll(config dir) error = %v", err)
+	}
+
+	staleConfig := `version: 1
+mode: balanced
+enforce: true
+api_allowlist:
+  - github.com
+forward_proxy:
+  enabled: false
+logging:
+  format: json
+  output: stdout
+`
+	if err := os.WriteFile(configPath, []byte(staleConfig), 0o644); err != nil {
+		t.Fatalf("WriteFile(configPath) error = %v", err)
+	}
+
+	binDir := filepath.Join(t.TempDir(), "bin")
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll(binDir) error = %v", err)
+	}
+
+	commandLog := filepath.Join(t.TempDir(), "docker.log")
+	dockerShimPath := filepath.Join(binDir, "docker")
+	dockerShim := fmt.Sprintf(`#!/usr/bin/env bash
+set -euo pipefail
+printf '%%s\n' "$*" >> %q
+echo "unexpected docker invocation: $*" >&2
+exit 1
+`, commandLog)
+	if err := os.WriteFile(dockerShimPath, []byte(dockerShim), 0o755); err != nil {
+		t.Fatalf("WriteFile(docker shim) error = %v", err)
+	}
+
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	if err := ensurePipelockConfig(context.Background(), configPath); err != nil {
+		t.Fatalf("ensurePipelockConfig() error = %v", err)
+	}
+
+	configData, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("ReadFile(configPath) error = %v", err)
+	}
+	configText := string(configData)
+	if !strings.Contains(configText, "forward_proxy:") || !strings.Contains(configText, "enabled: true") {
+		t.Fatalf("expected forward proxy to be enabled in reconciled config:\n%s", configText)
+	}
+	if !strings.Contains(configText, "accounts.google.com") {
+		t.Fatalf("expected reconciled config to include dune allowlist additions:\n%s", configText)
+	}
+
+	logData, err := os.ReadFile(commandLog)
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatalf("ReadFile(commandLog) error = %v", err)
+	}
+	if len(logData) != 0 {
+		t.Fatalf("expected existing config reconciliation to avoid docker calls, got log:\n%s", logData)
 	}
 }

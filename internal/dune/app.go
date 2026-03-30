@@ -256,20 +256,31 @@ func validateProfileName(name string) error {
 }
 
 func ensurePipelockConfig(ctx context.Context, path string) error {
-	if fileExists(path) {
-		return nil
-	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("create pipelock config directory: %w", err)
 	}
 
-	baseline, err := capture(ctx, "", "docker", pipelock.GenerateConfigCommand()[1:]...)
-	if err != nil {
-		return fmt.Errorf("generate pipelock baseline config: %w", err)
+	var source []byte
+	existing, err := os.ReadFile(path)
+	switch {
+	case err == nil:
+		source = existing
+	case os.IsNotExist(err):
+		baseline, baselineErr := capture(ctx, "", "docker", pipelock.GenerateConfigCommand()[1:]...)
+		if baselineErr != nil {
+			return fmt.Errorf("generate pipelock baseline config: %w", baselineErr)
+		}
+		source = baseline
+	default:
+		return fmt.Errorf("read pipelock config: %w", err)
 	}
-	rendered, err := pipelock.ApplyCustomizations(baseline)
+
+	rendered, err := pipelock.ApplyCustomizations(source)
 	if err != nil {
 		return err
+	}
+	if bytes.Equal(existing, rendered) {
+		return nil
 	}
 	if err := os.WriteFile(path, rendered, 0o644); err != nil {
 		return fmt.Errorf("write pipelock config: %w", err)
