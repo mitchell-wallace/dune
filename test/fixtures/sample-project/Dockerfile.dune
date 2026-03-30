@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=ghcr.io/mitchell-wallace/dune-base:0.1.1
+ARG BASE_IMAGE=ghcr.io/mitchell-wallace/dune-base:0.2.0
 FROM ${BASE_IMAGE}
 
 COPY app/message.txt /opt/sample-project/message.txt

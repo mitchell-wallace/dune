@@ -5,7 +5,7 @@ var (
 	Version          = "dev"
 	Commit           = "unknown"
 	BaseImageRepo    = "ghcr.io/mitchell-wallace/dune-base"
-	BaseImageVersion = "0.1.1"
+	BaseImageVersion = "0.2.0"
 )
 
 func String() string {

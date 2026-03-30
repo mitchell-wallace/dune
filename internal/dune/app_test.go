@@ -70,7 +70,7 @@ func TestRenderComposeFileGolden(t *testing.T) {
 		ComposeDir:         "/tmp/dune/projects/demo-app-96",
 		ComposePath:        "/tmp/dune/projects/demo-app-96/compose.yaml",
 		PersistVolume:      "dune-persist-work",
-		BaseImage:          "ghcr.io/mitchell-wallace/dune-base:0.1.1",
+		BaseImage:          "ghcr.io/mitchell-wallace/dune-base:0.2.0",
 		AgentImage:         "dune-local-demo-app-96:latest",
 		UseBuild:           true,
 		PipelockImage:      "ghcr.io/luckypipewrench/pipelock:2.0.0",
@@ -244,7 +244,7 @@ exit 1
 	if !strings.Contains(logText, "run --rm ghcr.io/luckypipewrench/pipelock:2.0.0 generate config --preset balanced") {
 		t.Fatalf("expected pipelock baseline generation, got log:\n%s", logText)
 	}
-	if !strings.Contains(logText, "pull ghcr.io/mitchell-wallace/dune-base:0.1.1") {
+	if !strings.Contains(logText, "pull ghcr.io/mitchell-wallace/dune-base:0.2.0") {
 		t.Fatalf("expected base image pull before build, got log:\n%s", logText)
 	}
 	if !strings.Contains(logText, "compose -f "+composePath) || !strings.Contains(logText, " build agent") {
