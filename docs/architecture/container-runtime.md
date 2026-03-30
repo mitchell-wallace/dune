@@ -1,13 +1,15 @@
 # Container Runtime
 
-Container-native behavior remains shell-based under `container/runtime/`.
+The runtime is now centered on the base image, s6 services, and a small set of setup
+scripts under `container/base/`.
 
 Responsibilities:
 
-- entrypoint and post-start setup
-- agent persistence symlinks and default seeding
-- privileged root command dispatch
-- firewall initialization
-- gear installation plumbing and local service helpers
+- seed default home-directory files into `/persist/agent` on first boot
+- create the persisted symlinks used by agent CLIs and shell config
+- install Rally from GitHub Releases during image build
+- configure in-container agent tools during the image build
+- run PostgreSQL, Redis, and Mailpit under s6 supervision
 
-The host CLI treats these scripts as stable runtime contracts rather than reimplementing them in Go.
+The host-side `dune` CLI generates compose config and starts containers, while the
+container image owns its own boot-time setup and supervised services.
