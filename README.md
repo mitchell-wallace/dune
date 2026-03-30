@@ -82,6 +82,43 @@ If a repo contains `Dockerfile.dune` at the workspace root, `dune` builds it and
 
 If no `Dockerfile.dune` is present, `dune` uses the published base image directly.
 
+## Included Tools
+
+The base image is meant to be ready to use without a separate bootstrap step. It includes:
+
+- `claude`: Anthropic's Claude Code CLI for agentic coding workflows
+- `codex`: OpenAI Codex CLI for coding and automation tasks
+- `gemini`: Google's Gemini CLI for model-assisted development work
+- `opencode`: Opencode CLI for agent-driven coding workflows
+- `rally`: Ralph-loop based agent runner that ships with dune
+- `gh`: GitHub CLI for repository, auth, PR, and release workflows
+- `git`: source control inside the container
+- `delta`: syntax-highlighted Git pager for diffs
+- `tmux`: terminal multiplexer for long-lived sessions
+- `zsh` with Powerlevel10k: the default interactive shell and prompt
+- `vim`, `nano`, `micro`: terminal editors with different levels of complexity
+- `ripgrep`: fast recursive code search
+- `fd`: friendly file finder
+- `fzf`: fuzzy finder for shell navigation and filtering
+- `bat`: `cat` with syntax highlighting and paging
+- `eza`: modern replacement for `ls`
+- `tree`: directory tree viewer
+- `jq`: JSON query and formatting tool
+- `curl`: HTTP client for APIs and downloads
+- `Node.js` and `npm`: JavaScript runtime and package manager used by several CLIs and builds
+- `pnpm`: fast JavaScript package manager
+- `turbo`: Turborepo build orchestration CLI
+- `mise`: runtime manager used to provide current language toolchains in the shell
+- `go`: Go toolchain installed through `mise`
+- `python`: Python runtime installed through `mise`
+- `rust` and `cargo`: Rust toolchain installed through `mise`
+- `uv`: fast Python package and environment tool installed through `mise`
+- `playwright` with Chromium: browser automation and web testing stack
+- `postgresql`: local PostgreSQL server and client tools
+- `redis-server`: local Redis server for app development and caching tests
+- `mailpit`: local SMTP capture server and web UI for email testing
+- `sudo`: passwordless sudo for the `agent` user when elevated commands are needed
+
 ## Rally
 
 [Rally](https://github.com/mitchell-wallace/rally) ships in the base image and is available inside every dune workspace.
