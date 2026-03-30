@@ -1,0 +1,57 @@
+services:
+  agent:
+    image: "dune-local-demo-app-96:latest"
+    build:
+      context: "/workspace/demo-app"
+      dockerfile: "Dockerfile.dune"
+      cache_from:
+        - "ghcr.io/mitchell-wallace/dune-base:0.1.0"
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    environment:
+      http_proxy: "http://pipelock:8888"
+      HTTP_PROXY: "http://pipelock:8888"
+      https_proxy: "http://pipelock:8888"
+      HTTPS_PROXY: "http://pipelock:8888"
+      no_proxy: "localhost,127.0.0.1"
+      NO_PROXY: "localhost,127.0.0.1"
+      TZ: "Australia/Melbourne"
+    volumes:
+      - type: bind
+        source: "/workspace/demo-app"
+        target: /workspace
+      - type: volume
+        source: "agent_persist"
+        target: /persist/agent
+    depends_on:
+      - pipelock
+    networks:
+      - internal
+
+  pipelock:
+    image: "ghcr.io/luckypipewrench/pipelock:2.0.0"
+    command:
+      - run
+      - --config
+      - /config/pipelock.yaml
+      - --listen
+      - 0.0.0.0:8888
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: "/home/agent/.config/dune/pipelock.yaml"
+        target: /config/pipelock.yaml
+        read_only: true
+    networks:
+      - internal
+      - external
+
+networks:
+  internal:
+    internal: true
+  external: {}
+
+volumes:
+  agent_persist:
+    name: "dune-persist-work"

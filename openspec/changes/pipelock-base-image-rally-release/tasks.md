@@ -101,11 +101,11 @@
 
 ## 8. Unit Tests (Dune CLI)
 
-- [ ] 8.1 Workspace root resolution: git repo → toplevel; non-git → cwd; subdirectory → same root
-- [ ] 8.2 Slug generation: known path → expected `<name>-<2hex>`; verify different paths produce different slugs
-- [ ] 8.3 Profile resolution: flag > stored mapping > default; validation rejects invalid names
-- [ ] 8.4 Compose template rendering: golden-file test — render with known inputs, compare to expected YAML
-- [ ] 8.5 Pipelock config generation: verify customisations are applied to baseline; validate YAML structure
+- [x] 8.1 Workspace root resolution: git repo → toplevel; non-git → cwd; subdirectory → same root
+- [x] 8.2 Slug generation: known path → expected `<name>-<2hex>`; verify different paths produce different slugs
+- [x] 8.3 Profile resolution: flag > stored mapping > default; validation rejects invalid names
+- [x] 8.4 Compose template rendering: golden-file test — render with known inputs, compare to expected YAML
+- [x] 8.5 Pipelock config generation: verify customisations are applied to baseline; validate YAML structure
 
 ## 9. Test Fixtures
 

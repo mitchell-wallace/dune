@@ -103,6 +103,61 @@ func TestApplyCustomizations(t *testing.T) {
 	}
 }
 
+func TestApplyCustomizationsProducesStructuredYAML(t *testing.T) {
+	t.Parallel()
+
+	baselinePath := filepath.Join("testdata", "balanced-2.0.0.yaml")
+	baseline, err := os.ReadFile(baselinePath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q) error = %v", baselinePath, err)
+	}
+
+	rendered, err := ApplyCustomizations(baseline)
+	if err != nil {
+		t.Fatalf("ApplyCustomizations() error = %v", err)
+	}
+
+	var cfg struct {
+		Version          int    `yaml:"version"`
+		Mode             string `yaml:"mode"`
+		Enforce          bool   `yaml:"enforce"`
+		ResponseScanning struct {
+			Enabled bool   `yaml:"enabled"`
+			Action  string `yaml:"action"`
+		} `yaml:"response_scanning"`
+		DLP struct {
+			IncludeDefaults bool `yaml:"include_defaults"`
+		} `yaml:"dlp"`
+		Logging struct {
+			Format string `yaml:"format"`
+			Output string `yaml:"output"`
+		} `yaml:"logging"`
+		APIAllowlist []string `yaml:"api_allowlist"`
+		FetchProxy   struct {
+			Monitoring struct {
+				MaxRequestsPerMinute int      `yaml:"max_requests_per_minute"`
+				Blocklist            []string `yaml:"blocklist"`
+			} `yaml:"monitoring"`
+		} `yaml:"fetch_proxy"`
+	}
+
+	if err := yaml.Unmarshal(rendered, &cfg); err != nil {
+		t.Fatalf("yaml.Unmarshal() structured error = %v", err)
+	}
+
+	assertEqual(t, cfg.Version, 1)
+	assertEqual(t, cfg.Mode, "balanced")
+	assertEqual(t, cfg.Enforce, true)
+	assertEqual(t, cfg.ResponseScanning.Enabled, true)
+	assertEqual(t, cfg.ResponseScanning.Action, "warn")
+	assertEqual(t, cfg.DLP.IncludeDefaults, true)
+	assertEqual(t, cfg.Logging.Format, "json")
+	assertEqual(t, cfg.Logging.Output, "stdout")
+	assertEqual(t, cfg.FetchProxy.Monitoring.MaxRequestsPerMinute, 60)
+	assertContains(t, cfg.APIAllowlist, "*.anthropic.com")
+	assertContains(t, cfg.FetchProxy.Monitoring.Blocklist, "*.transfer.sh")
+}
+
 func parseYAMLMap(t *testing.T, raw []byte) map[string]any {
 	t.Helper()
 

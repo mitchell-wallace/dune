@@ -20,6 +20,21 @@ func TestResolveFallsBackToDirectoryWhenNotGitRepo(t *testing.T) {
 	}
 }
 
+func TestResolveUsesGitRootWhenRunFromRepoRoot(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	runGit(t, root, "init")
+
+	ref, err := Resolve(root)
+	if err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+	if ref.Root != root {
+		t.Fatalf("Root = %q, want %q", ref.Root, root)
+	}
+}
+
 func TestResolveUsesGitRootFromSubdirectory(t *testing.T) {
 	t.Parallel()
 
@@ -43,12 +58,18 @@ func TestResolveUsesGitRootFromSubdirectory(t *testing.T) {
 func TestSlugIncludesTwoHexCharacters(t *testing.T) {
 	t.Parallel()
 
-	got := Slug("/tmp/My Project")
-	if got[:11] != "my-project-" {
-		t.Fatalf("Slug() = %q", got)
+	if got := Slug("/tmp/My Project"); got != "my-project-e3" {
+		t.Fatalf("Slug() = %q, want %q", got, "my-project-e3")
 	}
-	if len(got) != len("my-project-")+2 {
-		t.Fatalf("Slug() length = %d", len(got))
+}
+
+func TestSlugDiffersForDifferentPaths(t *testing.T) {
+	t.Parallel()
+
+	first := Slug("/workspace/demo-app")
+	second := Slug("/tmp/demo-app")
+	if first == second {
+		t.Fatalf("Slug() should differ for distinct paths, got %q and %q", first, second)
 	}
 }
 
