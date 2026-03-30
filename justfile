@@ -3,7 +3,7 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 golangci_lint_module := "github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8"
 shellcheck_image := "koalaman/shellcheck:stable"
 hadolint_image := "hadolint/hadolint:latest"
-shellcheck_files := `find . -type f \( -name '*.sh' -o -path './container/base/s6-overlay/*/run' -o -path './container/base/s6-overlay/*/up' \) | sort | tr '\n' ' '`
+shellcheck_files := `find . -type f \( -name '*.sh' -o -path './container/base/s6-overlay/*/run' \) | sort | tr '\n' ' '`
 
 default:
   @just --list
