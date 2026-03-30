@@ -79,18 +79,18 @@
 
 ## 6. Cleanup
 
-- [ ] 6.1 Delete `container/devcontainer.json`
-- [ ] 6.2 Delete `container/runtime/init-firewall.sh` and `container/runtime/firewall-domains.tsv`
-- [ ] 6.3 Delete gear system: `container/gear/manifest.tsv`, `container/gear/*.sh`, `container/runtime/gear-cli.sh`
-- [ ] 6.4 Delete security mode logic: `container/runtime/dune-privileged.sh` and related mode scripts in `container/runtime/dune-privileged/`
-- [ ] 6.5 Delete `dune.toml` and `internal/dune/config/` (config parser)
-- [ ] 6.6 Delete devcontainer orchestration code in `internal/dune/devcontainer/`
-- [ ] 6.7 Delete rally binary sync code in `internal/dune/` (rally build/update commands)
-- [ ] 6.8 Delete old `container/Dockerfile` (replaced by new Dockerfile in step 2)
-- [ ] 6.9 Delete runtime scripts no longer needed: `dune-poststart.sh`, `dune-entrypoint.sh`, `setup-agent-persist.sh` (replaced by s6 `setup-persist` oneshot)
-- [ ] 6.10 Delete `internal/dune/tui/` (config wizard)
-- [ ] 6.11 Update CLAUDE.md and AGENTS.md to reflect new architecture (explicitly removing the rule that Rally cannot self-update)
-- [ ] 6.12 Document in README.md that Git via SSH is not natively supported due to container network isolation constraints
+- [x] 6.1 Delete `container/devcontainer.json`
+- [x] 6.2 Delete `container/runtime/init-firewall.sh` and `container/runtime/firewall-domains.tsv`
+- [x] 6.3 Delete gear system: `container/gear/manifest.tsv`, `container/gear/*.sh`, `container/runtime/gear-cli.sh`
+- [x] 6.4 Delete security mode logic: `container/runtime/dune-privileged.sh` and related mode scripts in `container/runtime/dune-privileged/`
+- [x] 6.5 Delete `dune.toml` and `internal/dune/config/` (config parser)
+- [x] 6.6 Delete devcontainer orchestration code in `internal/dune/devcontainer/`
+- [x] 6.7 Delete rally binary sync code in `internal/dune/`
+- [x] 6.8 Delete old `container/Dockerfile` (replaced by new Dockerfile in step 2)
+- [x] 6.9 Delete runtime scripts no longer needed: `dune-poststart.sh`, `dune-entrypoint.sh`, `setup-agent-persist.sh` (replaced by s6 `setup-persist` oneshot)
+- [x] 6.10 Delete `internal/dune/tui/` (config wizard)
+- [x] 6.11 Update CLAUDE.md and AGENTS.md to reflect new architecture (explicitly removing the rule that Rally cannot self-update)
+- [x] 6.12 Document in README.md that Git via SSH is not natively supported due to container network isolation constraints
 
 ## 7. Code Quality & Linting
 
