@@ -11,21 +11,21 @@ import (
 type Command string
 
 const (
-	CommandUp         Command = "up"
-	CommandDown       Command = "down"
-	CommandRebuild    Command = "rebuild"
-	CommandLogs       Command = "logs"
-	CommandProfileSet Command = "profile-set"
+	CommandUp          Command = "up"
+	CommandDown        Command = "down"
+	CommandRebuild     Command = "rebuild"
+	CommandLogs        Command = "logs"
+	CommandProfileSet  Command = "profile-set"
 	CommandProfileList Command = "profile-list"
 )
 
 type Options struct {
-	Command       Command
-	WorkspaceInput string
-	Profile        string
+	Command         Command
+	WorkspaceInput  string
+	Profile         string
 	ProfileExplicit bool
-	LogService     string
-	SetProfileName string
+	LogService      string
+	SetProfileName  string
 }
 
 func Parse(argv []string) (Options, error) {

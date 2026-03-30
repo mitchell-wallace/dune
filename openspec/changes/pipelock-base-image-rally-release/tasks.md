@@ -94,10 +94,10 @@
 
 ## 7. Code Quality & Linting
 
-- [ ] 7.1 Add `.golangci.yml` to dune repo with standard linter set; verify `golangci-lint run` passes
-- [ ] 7.2 Add `shellcheck` validation for all `.sh` files (s6 run scripts, install.sh, dune.sh)
-- [ ] 7.3 Add `hadolint` validation for the base Dockerfile
-- [ ] 7.4 Create `justfile` with `just test` target that runs: golangci-lint, shellcheck, hadolint, Go unit tests
+- [x] 7.1 Add `.golangci.yml` to dune repo with standard linter set; verify `golangci-lint run` passes
+- [x] 7.2 Add `shellcheck` validation for all `.sh` files (s6 run scripts, install.sh, dune.sh)
+- [x] 7.3 Add `hadolint` validation for the base Dockerfile
+- [x] 7.4 Create `justfile` with `just test` target that runs: golangci-lint, shellcheck, hadolint, Go unit tests
 
 ## 8. Unit Tests (Dune CLI)
 
