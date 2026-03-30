@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"claudebox/internal/testutil"
 )
 
 func TestResolveFallsBackToDirectoryWhenNotGitRepo(t *testing.T) {
@@ -46,6 +48,22 @@ func TestResolveUsesGitRootFromSubdirectory(t *testing.T) {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
 
+	ref, err := Resolve(subdir)
+	if err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+	if ref.Root != root {
+		t.Fatalf("Root = %q, want %q", ref.Root, root)
+	}
+}
+
+func TestResolveUsesFixtureGitRootFromSubdirectory(t *testing.T) {
+	t.Parallel()
+
+	root := testutil.CopyProjectFixture(t, "sample-project")
+	testutil.InitGitRepo(t, root)
+
+	subdir := filepath.Join(root, "src")
 	ref, err := Resolve(subdir)
 	if err != nil {
 		t.Fatalf("Resolve() error = %v", err)

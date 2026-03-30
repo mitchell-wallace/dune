@@ -41,7 +41,9 @@ vendor/
 /.bin/
 
 # Test/build artifacts
-test/
+test/*
+!test/fixtures/
+!test/fixtures/**
 dist/
 build/
 *.tgz

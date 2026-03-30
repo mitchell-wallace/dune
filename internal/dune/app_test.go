@@ -3,9 +3,11 @@ package dune
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"claudebox/internal/dune/cli"
+	"claudebox/internal/testutil"
 )
 
 func TestResolveProfilePrecedence(t *testing.T) {
@@ -86,5 +88,26 @@ func TestRenderComposeFileGolden(t *testing.T) {
 
 	if string(got) != string(want) {
 		t.Fatalf("renderComposeFile() mismatch\n--- got ---\n%s\n--- want ---\n%s", got, want)
+	}
+}
+
+func TestSampleProjectFixtureSupportsDockerfileBuildContext(t *testing.T) {
+	t.Parallel()
+
+	root := testutil.ProjectFixturePath(t, "sample-project")
+
+	if !fileExists(filepath.Join(root, "Dockerfile.dune")) {
+		t.Fatalf("fixture %q is missing Dockerfile.dune", root)
+	}
+	if !fileExists(filepath.Join(root, "app", "message.txt")) {
+		t.Fatalf("fixture %q is missing the COPY source file", root)
+	}
+
+	data, err := os.ReadFile(filepath.Join(root, "Dockerfile.dune"))
+	if err != nil {
+		t.Fatalf("ReadFile(Dockerfile.dune) error = %v", err)
+	}
+	if !strings.Contains(string(data), "COPY app/message.txt /opt/sample-project/message.txt") {
+		t.Fatalf("Dockerfile.dune does not copy the fixture file from the workspace root:\n%s", data)
 	}
 }

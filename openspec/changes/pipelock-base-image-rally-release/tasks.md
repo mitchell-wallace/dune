@@ -109,8 +109,8 @@
 
 ## 9. Test Fixtures
 
-- [ ] 9.1 Create `test/fixtures/sample-project/` with a minimal project directory (e.g. a README, a simple source file, a `Dockerfile.dune` that `FROM`s the base image and `COPY`s a file from the repo)
-- [ ] 9.2 Use this fixture for integration tests involving `Dockerfile.dune` COPY context, workspace resolution, and end-to-end flows
+- [x] 9.1 Create `test/fixtures/sample-project/` with a minimal project directory (e.g. a README, a simple source file, a `Dockerfile.dune` that `FROM`s the base image and `COPY`s a file from the repo)
+- [x] 9.2 Use this fixture for integration tests involving `Dockerfile.dune` COPY context, workspace resolution, and end-to-end flows
 
 ## 10. Integration Testing
 
