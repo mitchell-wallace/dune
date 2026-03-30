@@ -143,7 +143,7 @@ Note: while this change is developed on a feature branch, `ghcr.io/mitchell-wall
 
 ## 11. Publish & Verify
 
-- [ ] 11.1 Merge the base-image publish workflow and image version bump to `main`, then publish `ghcr.io/mitchell-wallace/dune-base:<image-version>` from GitHub Actions
-- [ ] 11.2 Verify the published GHCR package is linked to the repo with the intended visibility/access settings for dune users
-- [ ] 11.3 Verify a clean host can `docker pull ghcr.io/mitchell-wallace/dune-base:<image-version>` without relying on a locally tagged fallback image
-- [ ] 11.4 Re-run `dune up` end-to-end against the remotely published base image and confirm the local fallback path is no longer needed for normal verification
+- [x] 11.1 Merge the base-image publish workflow and image version bump to `main`, then publish `ghcr.io/mitchell-wallace/dune-base:<image-version>` from GitHub Actions
+- [x] 11.2 Verify the published GHCR package is linked to the repo with the intended visibility/access settings for dune users
+- [x] 11.3 Verify a clean host can `docker pull ghcr.io/mitchell-wallace/dune-base:<image-version>` without relying on a locally tagged fallback image
+- [x] 11.4 Re-run `dune up` end-to-end against the remotely published base image and confirm the local fallback path is no longer needed for normal verification

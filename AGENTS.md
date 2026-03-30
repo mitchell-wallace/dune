@@ -7,6 +7,6 @@ Ad-hoc work that forms a sizeable change should come with an offer to commit, pe
 
 ## Architecture: host vs container
 
-The container's `/workspace` contains the **user's project**, not the claudebox/dune source code. The host-side `dune` CLI is responsible for generating the compose file, creating the profile-specific persist volume, and starting the `agent` and `pipelock` containers.
+The container's `/workspace` contains the **user's project**, not the dune source code. The host-side `dune` CLI is responsible for generating the compose file, creating the profile-specific persist volume, and starting the `agent` and `pipelock` containers.
 
-Rally is now an independently released tool that is installed into the base image from GitHub Releases and can self-update inside the container. Repo-specific Rally configuration lives in `/workspace/rally.toml`.
+Rally is an independently released tool that is installed into the base image from GitHub Releases and can self-update inside the container. Repo-specific Rally configuration lives in `/workspace/rally.toml`.
