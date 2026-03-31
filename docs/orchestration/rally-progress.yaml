@@ -1,0 +1,36 @@
+version: 1
+updated_at: "2026-03-31T06:58:43Z"
+active_batch:
+    agent_mix:
+        - op:1
+        - cx:1
+    batch_id: 2
+    completed_iterations: 1
+    ended_at: ""
+    started_at: "2026-03-31T06:57:36Z"
+    target_iterations: 3
+history_window: 50
+recent_sessions:
+    - session_id: 1
+      batch_id: 1
+      iteration_index: 1
+      agent: opencode
+      status: failed
+      started_at: "2026-03-31T06:56:41Z"
+      ended_at: "2026-03-31T06:56:41Z"
+      transcript_path: /home/agent/.local/share/rally/sessions/session-1/terminal.log
+    - session_id: 2
+      batch_id: 2
+      iteration_index: 1
+      agent: codex
+      status: completed
+      started_at: "2026-03-31T06:57:36Z"
+      summary: Read core project docs and source entrypoints; confirmed the host-side dune control plane is a Go CLI in cmd/dune that launches the workspace runtime.
+      files_touched:
+        - README.md
+        - go.mod
+        - docs/architecture/host-cli.md
+        - cmd/dune/main.go
+      follow_ups:
+        - Inspect internal/dune for command wiring if deeper implementation detail is needed next.
+      transcript_path: /home/agent/.local/share/rally/sessions/session-2/terminal.log
