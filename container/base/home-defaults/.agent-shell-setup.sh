@@ -2,7 +2,7 @@
 
 alias cc='claude --dangerously-skip-permissions'
 alias cx='codex --dangerously-bypass-approvals-and-sandbox'
-alias op='opencode --yolo'
+alias op='OPENCODE_PERMISSION='"'"'{"*":"allow"}'"'"' opencode'
 
 if command -v gemini >/dev/null 2>&1; then
   alias ge='gemini --yolo'

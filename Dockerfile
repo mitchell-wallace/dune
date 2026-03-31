@@ -108,12 +108,14 @@ RUN ln -sf /usr/bin/batcat /usr/local/bin/bat \
   && ln -sf /usr/bin/fdfind /usr/local/bin/fd
 
 RUN npm install -g \
-    @google/gemini-cli \
     @openai/codex \
     opencode-ai \
     playwright@${PLAYWRIGHT_VERSION} \
     pnpm \
-    turbo
+    turbo \
+  && rm -rf \
+    /usr/lib/node_modules/opencode-ai/node_modules/opencode-linux-x64-musl \
+    /usr/lib/node_modules/opencode-ai/node_modules/opencode-linux-x64-baseline-musl
 
 RUN PLAYWRIGHT_SKIP_BROWSER_GC=1 playwright install --with-deps chromium
 
@@ -135,7 +137,6 @@ RUN cp /opt/home-defaults/.zshrc /home/agent/.zshrc \
   && install -d -m 0755 -o agent -g agent \
       /home/agent/.claude \
       /home/agent/.codex \
-      /home/agent/.gemini \
       /home/agent/.config/opencode \
       /home/agent/.local/share/opencode \
       /home/agent/.config/gh \
@@ -143,13 +144,11 @@ RUN cp /opt/home-defaults/.zshrc /home/agent/.zshrc \
   && cp /opt/home-defaults/.claude/settings.json /home/agent/.claude/settings.json \
   && cp /opt/home-defaults/.codex/config.toml /home/agent/.codex/config.toml \
   && cp /opt/home-defaults/.codex/mcp-servers.toml /home/agent/.codex/mcp-servers.toml \
-  && cp /opt/home-defaults/.gemini/settings.json /home/agent/.gemini/settings.json \
   && cat <<'EOF' > /home/agent/.config/mise/config.toml
 [tools]
 node = "latest"
 go = "latest"
 python = "latest"
-rust = "latest"
 uv = "latest"
 EOF
 
@@ -164,7 +163,7 @@ RUN runuser -u agent -- bash -lc 'git clone --depth=1 https://github.com/romkatv
   && runuser -u agent -- bash -lc '/usr/local/bin/configure-agents.sh' \
   && if [ "${INSTALL_RALLY}" = "1" ]; then runuser -u agent -- bash -lc '/usr/local/bin/install-rally.sh'; fi
 
-RUN runuser -u agent -- bash -lc 'for bin in python python3 uv go rustc cargo; do ln -sf "$HOME/.local/share/mise/shims/$bin" "$HOME/.local/bin/$bin"; done'
+RUN runuser -u agent -- bash -lc 'for bin in python python3 uv go; do ln -sf "$HOME/.local/share/mise/shims/$bin" "$HOME/.local/bin/$bin"; done'
 
 RUN pg_version="$(find /usr/lib/postgresql -mindepth 1 -maxdepth 1 -type d | sort | tail -n 1 | xargs -n 1 basename)" \
   && runuser -u agent -- bash -lc "/usr/lib/postgresql/${pg_version}/bin/initdb -D /var/lib/postgresql/data --username=agent --auth=trust >/tmp/initdb.log" \

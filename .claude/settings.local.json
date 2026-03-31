@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh repo view:*)",
+      "Bash(gh api:*)",
+      "mcp__grep_app__searchGitHub",
+      "Bash(openspec --help)",
+      "Bash(openspec new:*)",
+      "Bash(openspec status:*)",
+      "Bash(openspec instructions:*)",
+      "Bash(openspec list:*)",
+      "Bash(find /home/mitchell/Documents/Mycode/claudebox/container/gear -name *.sh -o -name *.tsv)",
+      "Bash(git status:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(grep -l \"type.*struct\" /home/mitchell/Documents/Mycode/claudebox/internal/rally/**/*.go)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(grep -E \"\\\\.\\(sh|go\\)$\")",
+      "Bash(xargs dirname:*)"
+    ]
+  }
+}

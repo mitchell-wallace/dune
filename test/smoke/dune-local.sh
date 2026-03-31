@@ -146,5 +146,4 @@ docker compose -f "${PERSONAL_COMPOSE_PATH}" -p "${PERSONAL_COMPOSE_PROJECT}" ex
 docker compose -f "${PERSONAL_COMPOSE_PATH}" -p "${PERSONAL_COMPOSE_PROJECT}" exec -T agent bash -lc "node --version"
 docker compose -f "${PERSONAL_COMPOSE_PATH}" -p "${PERSONAL_COMPOSE_PROJECT}" exec -T agent bash -lc "go version"
 docker compose -f "${PERSONAL_COMPOSE_PATH}" -p "${PERSONAL_COMPOSE_PROJECT}" exec -T agent bash -lc "python --version"
-docker compose -f "${PERSONAL_COMPOSE_PATH}" -p "${PERSONAL_COMPOSE_PROJECT}" exec -T agent bash -lc "rustc --version"
 docker compose -f "${PERSONAL_COMPOSE_PATH}" -p "${PERSONAL_COMPOSE_PROJECT}" exec -T agent bash -lc "uv --version"

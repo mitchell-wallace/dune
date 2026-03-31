@@ -69,7 +69,6 @@ The base image seeds and persists these home-directory paths through `/persist/a
 
 - `~/.claude/`
 - `~/.codex/`
-- `~/.gemini/`
 - `~/.config/opencode/`
 - `~/.local/share/opencode/`
 - `~/.config/gh/`
@@ -90,7 +89,6 @@ The base image is meant to be ready to use without a separate bootstrap step. It
 
 - `claude`: Anthropic's Claude Code CLI for agentic coding workflows
 - `codex`: OpenAI Codex CLI for coding and automation tasks
-- `gemini`: Google's Gemini CLI for model-assisted development work
 - `opencode`: Opencode CLI for agent-driven coding workflows
 - `rally`: Ralph-loop based agent runner that ships with dune
 - `gh`: GitHub CLI for repository, auth, PR, and release workflows
@@ -113,7 +111,6 @@ The base image is meant to be ready to use without a separate bootstrap step. It
 - `mise`: runtime manager used to provide current language toolchains in the shell
 - `go`: Go toolchain installed through `mise`
 - `python`: Python runtime installed through `mise`
-- `rust` and `cargo`: Rust toolchain installed through `mise`
 - `uv`: fast Python package and environment tool installed through `mise`
 - `playwright` with Chromium: browser automation and web testing stack
 - `postgresql`: local PostgreSQL server and client tools
