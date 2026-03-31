@@ -1,11 +1,11 @@
 version: 1
-updated_at: "2026-03-31T06:59:28Z"
+updated_at: "2026-03-31T07:00:00Z"
 active_batch:
     agent_mix:
         - op:1
         - cx:1
     batch_id: 2
-    completed_iterations: 1
+    completed_iterations: 2
     ended_at: ""
     started_at: "2026-03-31T06:57:36Z"
     target_iterations: 3
@@ -36,3 +36,13 @@ recent_sessions:
       follow_ups:
         - Inspect internal/dune for command wiring if deeper implementation detail is needed next.
       transcript_path: /home/agent/.local/share/rally/sessions/session-2/terminal.log
+    - session_id: 3
+      batch_id: 2
+      iteration_index: 2
+      agent: opencode
+      status: completed
+      started_at: "2026-03-31T06:59:28Z"
+      ended_at: "2026-03-31T07:00:00Z"
+      runtime_seconds: 31
+      summary: 'Read go.mod, README.md, and justfile to identify one codebase fact: Dune is a Go CLI (module claudebox) using Charm TUI libraries that manages a two-container (agent + pipelock) dev workspace.'
+      transcript_path: /home/agent/.local/share/rally/sessions/session-3/terminal.log
