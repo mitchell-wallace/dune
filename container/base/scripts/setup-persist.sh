@@ -57,6 +57,14 @@ link_path() {
   ln -s "${persist_path}" "${home_path}"
 }
 
+remove_unwanted_skill() {
+  local skill_name="$1"
+
+  sudo rm -rf \
+    "${PERSIST_DIR}/.claude/skills/${skill_name}" \
+    "${PERSIST_DIR}/.codex/skills/${skill_name}"
+}
+
 ensure_persist_dir "${PERSIST_DIR}"
 sudo chown -R "${AGENT_USER}:${AGENT_GROUP}" "${PERSIST_DIR}"
 seed_dir ".claude"
@@ -68,6 +76,8 @@ seed_file ".gitconfig"
 seed_file ".git-credentials"
 seed_file ".zshrc"
 seed_file ".p10k.zsh"
+
+remove_unwanted_skill "bd-to-br-migration"
 
 link_path ".claude" ".claude"
 link_path ".codex" ".codex"

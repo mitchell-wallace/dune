@@ -22,7 +22,7 @@ func TestRenderComposeFilePassesDockerComposeConfig(t *testing.T) {
 		ComposeDir:         t.TempDir(),
 		ComposePath:        filepath.Join(t.TempDir(), "compose.yaml"),
 		PersistVolume:      "dune-persist-work",
-		BaseImage:          "ghcr.io/mitchell-wallace/dune-base:0.2.1",
+		BaseImage:          "ghcr.io/mitchell-wallace/dune-base:0.2.2",
 		AgentImage:         "dune-local-demo-app-96:latest",
 		UseBuild:           true,
 		PipelockImage:      "ghcr.io/luckypipewrench/pipelock:2.0.0",

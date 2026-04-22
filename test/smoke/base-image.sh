@@ -115,10 +115,14 @@ assert_container_command "fd --version"
 assert_container_command "bat --version"
 assert_container_command "eza --version"
 assert_container_command "delta --version"
+assert_container_command "br --version"
+assert_container_command "gitui --version"
 
 assert_container_command "claude --version"
 assert_container_command "codex --version"
 assert_container_command "opencode --version"
+assert_container_command "test ! -e /home/agent/.claude/skills/bd-to-br-migration"
+assert_container_command "test ! -e /home/agent/.codex/skills/bd-to-br-migration"
 
 POSTGRES_PID_BEFORE="$(docker exec "${CONTAINER_NAME}" bash -lc "pgrep -xo postgres")"
 docker exec "${CONTAINER_NAME}" bash -lc "kill -9 ${POSTGRES_PID_BEFORE}" >/dev/null
@@ -138,12 +142,16 @@ assert_container_command 'readlink -f /home/agent/.codex | grep -qx /persist/age
 printf 'custom zshrc\n' > "${PERSIST_PRESEEDED}/.zshrc"
 printf 'custom p10k\n' > "${PERSIST_PRESEEDED}/.p10k.zsh"
 mkdir -p "${PERSIST_PRESEEDED}/.codex"
+mkdir -p "${PERSIST_PRESEEDED}/.claude/skills/bd-to-br-migration"
+mkdir -p "${PERSIST_PRESEEDED}/.codex/skills/bd-to-br-migration"
 start_container "${PERSIST_PRESEEDED}" "UTC"
 
 grep -qx 'custom zshrc' "${PERSIST_PRESEEDED}/.zshrc"
 grep -qx 'custom p10k' "${PERSIST_PRESEEDED}/.p10k.zsh"
 assert_container_command "grep -qx 'custom zshrc' /home/agent/.zshrc"
 assert_container_command "grep -qx 'custom p10k' /home/agent/.p10k.zsh"
+assert_container_command "test ! -e /home/agent/.claude/skills/bd-to-br-migration"
+assert_container_command "test ! -e /home/agent/.codex/skills/bd-to-br-migration"
 
 docker build \
   --build-arg "BASE_IMAGE=${IMAGE_REF}" \

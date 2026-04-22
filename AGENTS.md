@@ -1,5 +1,6 @@
 When addressing container build issues, you should try building an ephemeral container to test things in. You have permission to do this. The compiled `dune` Go binary is the canonical entry point.
 If a package or installer is part of the core container build, do not paper over failures by skipping it. Fix the install path so the tool actually installs successfully in the image.
+The full base image is intentionally large and can take roughly 10-15 minutes to build on a partly cold cache; a local `0.2.2` verification build took 12m45s. Long quiet stretches during npm, Playwright, mise, or agent CLI installation are normal as long as the process is still alive.
 
 When working through a plan, you should break your work into commits to checkpoint progress. Make sure that each commit leaves a state which builds successfully (docker build or go build as appropriate). After completing a plan, all work should be committed.
 

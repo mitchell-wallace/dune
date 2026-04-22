@@ -70,7 +70,7 @@ func TestRenderComposeFileGolden(t *testing.T) {
 		ComposeDir:         "/tmp/dune/projects/demo-app-96",
 		ComposePath:        "/tmp/dune/projects/demo-app-96/compose.yaml",
 		PersistVolume:      "dune-persist-work",
-		BaseImage:          "ghcr.io/mitchell-wallace/dune-base:0.2.1",
+		BaseImage:          "ghcr.io/mitchell-wallace/dune-base:0.2.2",
 		AgentImage:         "dune-local-demo-app-96:latest",
 		UseBuild:           true,
 		PipelockImage:      "ghcr.io/luckypipewrench/pipelock:2.0.0",
@@ -244,7 +244,7 @@ exit 1
 	if !strings.Contains(logText, "run --rm ghcr.io/luckypipewrench/pipelock:2.0.0 generate config --preset balanced") {
 		t.Fatalf("expected pipelock baseline generation, got log:\n%s", logText)
 	}
-	if !strings.Contains(logText, "pull ghcr.io/mitchell-wallace/dune-base:0.2.1") {
+	if !strings.Contains(logText, "pull ghcr.io/mitchell-wallace/dune-base:0.2.2") {
 		t.Fatalf("expected base image pull before build, got log:\n%s", logText)
 	}
 	if !strings.Contains(logText, "compose -f "+composePath) || !strings.Contains(logText, " build agent") {
@@ -268,7 +268,7 @@ func TestPrepareAgentImageReportsProgress(t *testing.T) {
 	dockerShim := `#!/usr/bin/env bash
 set -euo pipefail
 
-if [ "$#" -ge 2 ] && [ "$1" = "pull" ] && [ "$2" = "ghcr.io/mitchell-wallace/dune-base:0.2.1" ]; then
+if [ "$#" -ge 2 ] && [ "$1" = "pull" ] && [ "$2" = "ghcr.io/mitchell-wallace/dune-base:0.2.2" ]; then
   echo "pull ok"
   exit 0
 fi
@@ -295,7 +295,7 @@ exit 1
 
 	proj := project{
 		WorkspaceSlug: "demo-app-96",
-		BaseImage:     "ghcr.io/mitchell-wallace/dune-base:0.2.1",
+		BaseImage:     "ghcr.io/mitchell-wallace/dune-base:0.2.2",
 		UseBuild:      true,
 		ComposePath:   "/tmp/dune/projects/demo-app-96/compose.yaml",
 	}
@@ -307,7 +307,7 @@ exit 1
 	}
 
 	stderrText := stderr.String()
-	if !strings.Contains(stderrText, "Pulling base image ghcr.io/mitchell-wallace/dune-base:0.2.1...") {
+	if !strings.Contains(stderrText, "Pulling base image ghcr.io/mitchell-wallace/dune-base:0.2.2...") {
 		t.Fatalf("expected base image progress output, got:\n%s", stderrText)
 	}
 	if !strings.Contains(stderrText, "Building agent image from Dockerfile.dune...") {

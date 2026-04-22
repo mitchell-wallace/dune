@@ -8,6 +8,8 @@ ARG S6_OVERLAY_VERSION=v3.2.2.0
 ARG MAILPIT_VERSION=v1.29.4
 ARG EZA_VERSION=v0.23.4
 ARG DELTA_VERSION=0.18.2
+ARG BR_VERSION=v0.1.45
+ARG GITUI_VERSION=v0.28.1
 ARG MISE_VERSION=v2026.3.16
 ARG PLAYWRIGHT_VERSION=1.58.2
 ARG INSTALL_RALLY=1
@@ -81,8 +83,8 @@ RUN groupadd --gid 1000 agent \
 
 RUN arch="$(dpkg --print-architecture)" \
   && case "${arch}" in \
-      amd64) s6_arch="x86_64"; mailpit_arch="amd64"; eza_arch="x86_64-unknown-linux-gnu"; delta_pkg_arch="amd64" ;; \
-      arm64) s6_arch="aarch64"; mailpit_arch="arm64"; eza_arch="aarch64-unknown-linux-gnu"; delta_pkg_arch="arm64" ;; \
+      amd64) s6_arch="x86_64"; mailpit_arch="amd64"; eza_arch="x86_64-unknown-linux-gnu"; delta_pkg_arch="amd64"; br_target="linux_musl_amd64"; gitui_arch="x86_64" ;; \
+      arm64) s6_arch="aarch64"; mailpit_arch="arm64"; eza_arch="aarch64-unknown-linux-gnu"; delta_pkg_arch="arm64"; br_target="linux_musl_arm64"; gitui_arch="aarch64" ;; \
       *) echo "Unsupported architecture: ${arch}" >&2; exit 1 ;; \
     esac \
   && curl -fsSL -o /tmp/s6-overlay-noarch.tar.xz \
@@ -102,7 +104,21 @@ RUN arch="$(dpkg --print-architecture)" \
   && curl -fsSL -o /tmp/git-delta.deb \
       "https://github.com/dandavison/delta/releases/download/${DELTA_VERSION}/git-delta_${DELTA_VERSION}_${delta_pkg_arch}.deb" \
   && dpkg -i /tmp/git-delta.deb \
-  && rm -rf /tmp/s6-overlay-noarch.tar.xz /tmp/s6-overlay-arch.tar.xz /tmp/mailpit.tar.gz /tmp/mailpit /tmp/eza.tar.gz /tmp/eza /tmp/git-delta.deb
+  && br_archive="br-${BR_VERSION}-${br_target}.tar.gz" \
+  && curl -fsSL -o "/tmp/${br_archive}" \
+      "https://github.com/Dicklesworthstone/beads_rust/releases/download/${BR_VERSION}/${br_archive}" \
+  && curl -fsSL -o "/tmp/${br_archive}.sha256" \
+      "https://github.com/Dicklesworthstone/beads_rust/releases/download/${BR_VERSION}/${br_archive}.sha256" \
+  && (cd /tmp && sha256sum -c "${br_archive}.sha256") \
+  && install -d -m 0755 /tmp/br-install \
+  && tar -xzf "/tmp/${br_archive}" -C /tmp/br-install \
+  && install -m 0755 /tmp/br-install/br /usr/local/bin/br \
+  && curl -fsSL -o /tmp/gitui.tar.gz \
+      "https://github.com/gitui-org/gitui/releases/download/${GITUI_VERSION}/gitui-linux-${gitui_arch}.tar.gz" \
+  && install -d -m 0755 /tmp/gitui-install \
+  && tar -xzf /tmp/gitui.tar.gz -C /tmp/gitui-install \
+  && install -m 0755 /tmp/gitui-install/gitui /usr/local/bin/gitui \
+  && rm -rf /tmp/s6-overlay-noarch.tar.xz /tmp/s6-overlay-arch.tar.xz /tmp/mailpit.tar.gz /tmp/mailpit /tmp/eza.tar.gz /tmp/eza /tmp/git-delta.deb "/tmp/${br_archive}" "/tmp/${br_archive}.sha256" /tmp/br-install /tmp/gitui.tar.gz /tmp/gitui-install
 
 RUN ln -sf /usr/bin/batcat /usr/local/bin/bat \
   && ln -sf /usr/bin/fdfind /usr/local/bin/fd
