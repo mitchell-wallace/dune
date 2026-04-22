@@ -5,6 +5,8 @@ services:
     build:
       context: {{ printf "%q" .WorkspaceRoot }}
       dockerfile: "Dockerfile.dune"
+      args:
+        BASE_IMAGE: {{ printf "%q" .BaseImage }}
       cache_from:
         - {{ printf "%q" .BaseImage }}
 {{- end }}

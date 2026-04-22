@@ -11,6 +11,7 @@ import (
 	"claudebox/internal/dune/cli"
 	"claudebox/internal/dune/workspace"
 	"claudebox/internal/testutil"
+	"claudebox/internal/version"
 )
 
 func TestResolveProfilePrecedence(t *testing.T) {
@@ -70,7 +71,7 @@ func TestRenderComposeFileGolden(t *testing.T) {
 		ComposeDir:         "/tmp/dune/projects/demo-app-96",
 		ComposePath:        "/tmp/dune/projects/demo-app-96/compose.yaml",
 		PersistVolume:      "dune-persist-work",
-		BaseImage:          "ghcr.io/mitchell-wallace/dune-base:0.2.2",
+		BaseImage:          version.BaseImageRef(),
 		AgentImage:         "dune-local-demo-app-96:latest",
 		UseBuild:           true,
 		PipelockImage:      "ghcr.io/luckypipewrench/pipelock:2.0.0",
@@ -89,8 +90,9 @@ func TestRenderComposeFileGolden(t *testing.T) {
 		t.Fatalf("ReadFile(%q) error = %v", goldenPath, err)
 	}
 
-	if string(got) != string(want) {
-		t.Fatalf("renderComposeFile() mismatch\n--- got ---\n%s\n--- want ---\n%s", got, want)
+	wantText := strings.ReplaceAll(string(want), "{{BASE_IMAGE_REF}}", version.BaseImageRef())
+	if string(got) != wantText {
+		t.Fatalf("renderComposeFile() mismatch\n--- got ---\n%s\n--- want ---\n%s", got, wantText)
 	}
 }
 
@@ -244,7 +246,7 @@ exit 1
 	if !strings.Contains(logText, "run --rm ghcr.io/luckypipewrench/pipelock:2.0.0 generate config --preset balanced") {
 		t.Fatalf("expected pipelock baseline generation, got log:\n%s", logText)
 	}
-	if !strings.Contains(logText, "pull ghcr.io/mitchell-wallace/dune-base:0.2.2") {
+	if !strings.Contains(logText, "pull "+version.BaseImageRef()) {
 		t.Fatalf("expected base image pull before build, got log:\n%s", logText)
 	}
 	if !strings.Contains(logText, "compose -f "+composePath) || !strings.Contains(logText, " build agent") {
@@ -265,10 +267,11 @@ func TestPrepareAgentImageReportsProgress(t *testing.T) {
 	}
 
 	dockerShimPath := filepath.Join(binDir, "docker")
-	dockerShim := `#!/usr/bin/env bash
+	baseImageRef := version.BaseImageRef()
+	dockerShim := fmt.Sprintf(`#!/usr/bin/env bash
 set -euo pipefail
 
-if [ "$#" -ge 2 ] && [ "$1" = "pull" ] && [ "$2" = "ghcr.io/mitchell-wallace/dune-base:0.2.2" ]; then
+if [ "$#" -ge 2 ] && [ "$1" = "pull" ] && [ "$2" = %q ]; then
   echo "pull ok"
   exit 0
 fi
@@ -286,7 +289,7 @@ fi
 
 echo "unexpected docker invocation: $*" >&2
 exit 1
-`
+`, baseImageRef)
 	if err := os.WriteFile(dockerShimPath, []byte(dockerShim), 0o755); err != nil {
 		t.Fatalf("WriteFile(docker shim) error = %v", err)
 	}
@@ -295,7 +298,7 @@ exit 1
 
 	proj := project{
 		WorkspaceSlug: "demo-app-96",
-		BaseImage:     "ghcr.io/mitchell-wallace/dune-base:0.2.2",
+		BaseImage:     baseImageRef,
 		UseBuild:      true,
 		ComposePath:   "/tmp/dune/projects/demo-app-96/compose.yaml",
 	}
@@ -307,7 +310,7 @@ exit 1
 	}
 
 	stderrText := stderr.String()
-	if !strings.Contains(stderrText, "Pulling base image ghcr.io/mitchell-wallace/dune-base:0.2.2...") {
+	if !strings.Contains(stderrText, "Pulling base image "+baseImageRef+"...") {
 		t.Fatalf("expected base image progress output, got:\n%s", stderrText)
 	}
 	if !strings.Contains(stderrText, "Building agent image from Dockerfile.dune...") {

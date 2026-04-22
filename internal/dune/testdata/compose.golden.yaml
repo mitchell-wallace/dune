@@ -4,8 +4,10 @@ services:
     build:
       context: "/workspace/demo-app"
       dockerfile: "Dockerfile.dune"
+      args:
+        BASE_IMAGE: "{{BASE_IMAGE_REF}}"
       cache_from:
-        - "ghcr.io/mitchell-wallace/dune-base:0.2.2"
+        - "{{BASE_IMAGE_REF}}"
     working_dir: /workspace
     stdin_open: true
     tty: true
