@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd -P)"
-IMAGE_VERSION="$(tr -d '\n' < "${REPO_ROOT}/container/base/IMAGE_VERSION")"
-IMAGE_REF="ghcr.io/mitchell-wallace/dune-base:${IMAGE_VERSION}"
-TMP_ROOT="${REPO_ROOT}/tmp"
-mkdir -p "${TMP_ROOT}"
+# shellcheck source=test/smoke/lib.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/lib.sh"
+
+smoke_init
+
 WORK_DIR="$(mktemp -d "${TMP_ROOT}/dune-local-smoke.XXXXXX")"
 FIXTURE_ROOT="${WORK_DIR}/sample-project"
 HOME_DIR="${WORK_DIR}/home"
@@ -49,7 +48,7 @@ EOF
   git commit -m "fixture" >/dev/null
 )
 
-docker image inspect "${IMAGE_REF}" >/dev/null 2>&1 || docker build --build-arg BUILDKIT_INLINE_CACHE=1 -t "${IMAGE_REF}" "${REPO_ROOT}" >/dev/null
+ensure_image_available
 DUNE_BIN="$("${REPO_ROOT}/scripts/build-dune.sh" --force --print-path)"
 
 run_dune() {
@@ -79,20 +78,7 @@ COMPOSE_PROJECT="$(basename "$(dirname "${COMPOSE_PATH}")")"
 COMPOSE_PROJECT="dune-${COMPOSE_PROJECT}-default"
 
 wait_for_agent() {
-  local command="$1"
-  local remaining=30
-
-  while [ "${remaining}" -gt 0 ]; do
-    if docker compose -f "${COMPOSE_PATH}" -p "${COMPOSE_PROJECT}" exec -T agent bash -lc "${command}" >/dev/null 2>&1; then
-      return 0
-    fi
-    remaining=$((remaining - 1))
-    sleep 2
-  done
-
-  docker compose -f "${COMPOSE_PATH}" -p "${COMPOSE_PROJECT}" logs >&2 || true
-  echo "Timed out waiting for agent command: ${command}" >&2
-  return 1
+  wait_for_compose_command "${COMPOSE_PATH}" "${COMPOSE_PROJECT}" "$1"
 }
 
 wait_for_agent "pg_isready"

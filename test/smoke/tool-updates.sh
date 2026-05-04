@@ -1,32 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd -P)"
-IMAGE_VERSION="$(tr -d '\n' < "${REPO_ROOT}/container/base/IMAGE_VERSION")"
-IMAGE_REF="ghcr.io/mitchell-wallace/dune-base:${IMAGE_VERSION}"
-BUILD_IMAGE=0
+# shellcheck source=test/smoke/lib.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/lib.sh"
 
-while [ "$#" -gt 0 ]; do
-  case "$1" in
-    --build)
-      BUILD_IMAGE=1
-      shift
-      ;;
-    --image)
-      IMAGE_REF="$2"
-      shift 2
-      ;;
-    --skip-build)
-      BUILD_IMAGE=0
-      shift
-      ;;
-    *)
-      echo "Unknown option: $1" >&2
-      exit 1
-      ;;
-  esac
-done
+smoke_init
+parse_image_args 0 "$@"
 
 CONTAINER_NAME="dune-tool-updates-$$"
 
@@ -34,12 +13,6 @@ cleanup() {
   docker rm -f "${CONTAINER_NAME}" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
-
-assert_container_command() {
-  local command="$1"
-
-  docker exec "${CONTAINER_NAME}" bash -lc "${command}" >/dev/null
-}
 
 update_npm_tool() {
   local tool="$1" version="$2" verify_command="$3"
@@ -50,14 +23,7 @@ update_npm_tool() {
   assert_container_command "! ${verify_command} | grep -q ${version}"
 }
 
-if [ "${BUILD_IMAGE}" -eq 1 ]; then
-  docker build \
-    --build-arg BUILDKIT_INLINE_CACHE=1 \
-    -t "${IMAGE_REF}" \
-    "${REPO_ROOT}"
-else
-  docker image inspect "${IMAGE_REF}" >/dev/null
-fi
+build_or_inspect_image
 
 docker run -d --rm \
   --name "${CONTAINER_NAME}" \

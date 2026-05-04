@@ -1,31 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd -P)"
-IMAGE_VERSION="$(tr -d '\n' < "${REPO_ROOT}/container/base/IMAGE_VERSION")"
-IMAGE_REF="ghcr.io/mitchell-wallace/dune-base:${IMAGE_VERSION}"
-BUILD_IMAGE=1
+# shellcheck source=test/smoke/lib.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/lib.sh"
 
-while [ "$#" -gt 0 ]; do
-  case "$1" in
-    --image)
-      IMAGE_REF="$2"
-      shift 2
-      ;;
-    --skip-build)
-      BUILD_IMAGE=0
-      shift
-      ;;
-    *)
-      echo "Unknown option: $1" >&2
-      exit 1
-      ;;
-  esac
-done
+smoke_init
+parse_image_args 1 "$@"
 
-TMP_ROOT="${REPO_ROOT}/tmp"
-mkdir -p "${TMP_ROOT}"
 WORK_DIR="$(mktemp -d "${TMP_ROOT}/base-image-smoke.XXXXXX")"
 CONTAINER_NAME="dune-base-smoke-$$"
 PERSIST_EMPTY="${WORK_DIR}/persist-empty"
@@ -47,29 +28,6 @@ trap cleanup EXIT
 
 mkdir -p "${PERSIST_EMPTY}" "${PERSIST_PRESEEDED}"
 
-wait_for_container_command() {
-  local command="$1"
-  local remaining=30
-
-  while [ "${remaining}" -gt 0 ]; do
-    if docker exec "${CONTAINER_NAME}" bash -lc "${command}" >/dev/null 2>&1; then
-      return 0
-    fi
-    remaining=$((remaining - 1))
-    sleep 2
-  done
-
-  docker logs "${CONTAINER_NAME}" >&2 || true
-  echo "Timed out waiting for container command: ${command}" >&2
-  return 1
-}
-
-assert_container_command() {
-  local command="$1"
-
-  docker exec "${CONTAINER_NAME}" bash -lc "${command}" >/dev/null
-}
-
 start_container() {
   local persist_dir="$1"
   local timezone="${2:-UTC}"
@@ -87,12 +45,7 @@ start_container() {
   wait_for_container_command "timeout 5 bash -lc ': >/dev/tcp/127.0.0.1/1025'"
 }
 
-if [ "${BUILD_IMAGE}" -eq 1 ]; then
-  docker build \
-    --build-arg BUILDKIT_INLINE_CACHE=1 \
-    -t "${IMAGE_REF}" \
-    "${REPO_ROOT}"
-fi
+build_or_inspect_image
 
 start_container "${PERSIST_EMPTY}" "Australia/Melbourne"
 
