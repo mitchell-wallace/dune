@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+# shellcheck source=container/base/scripts/tooling-data.sh
+source "${SCRIPT_DIR}/tooling-data.sh"
+
 usage() {
   cat <<'EOF'
 Usage: update-tools [--all | TOOL [VERSION] | TOOL@VERSION]
@@ -15,13 +19,6 @@ Examples:
 EOF
   exit "${1:-0}"
 }
-
-NPM_TOOLS=(
-  "claude:@anthropic-ai/claude-code"
-  "codex:@openai/codex"
-  "opencode:opencode-ai"
-  "gemini:@google/gemini-cli"
-)
 
 run_privileged() {
   if [ "$(id -u)" -eq 0 ]; then
@@ -55,26 +52,15 @@ update_npm_tool() {
   echo "${name} updated"
 }
 
-update_rally() {
-  local version="${1:-}"
-  echo "Updating rally..."
+update_release_tool() {
+  local name="$1" script="$2" version_env="$3" version="${4:-}"
+  echo "Updating ${name}..."
   if [ -n "${version}" ]; then
-    RALLY_VERSION="${version}" bash /usr/local/bin/install-rally.sh
+    env "${version_env}=${version}" bash "${script}"
   else
-    bash /usr/local/bin/install-rally.sh
+    bash "${script}"
   fi
-  echo "rally updated"
-}
-
-update_laps() {
-  local version="${1:-}"
-  echo "Updating laps..."
-  if [ -n "${version}" ]; then
-    LAPS_VERSION="${version}" bash /usr/local/bin/install-laps.sh
-  else
-    bash /usr/local/bin/install-laps.sh
-  fi
-  echo "laps updated"
+  echo "${name} updated"
 }
 
 update_single() {
@@ -88,11 +74,17 @@ update_single() {
     fi
   done
 
-  case "${TOOL_NAME}" in
-    rally) update_rally "${TOOL_VERSION:-}" ;;
-    laps)  update_laps "${TOOL_VERSION:-}" ;;
-    *)     echo "Unknown tool: ${TOOL_NAME}" >&2; usage 1 ;;
-  esac
+  for entry in "${RELEASE_TOOLS[@]}"; do
+    local key="${entry%%:*}" rest="${entry#*:}"
+    local script="${rest%%:*}" version_env="${rest#*:}"
+    if [ "${key}" = "${TOOL_NAME}" ]; then
+      update_release_tool "${key}" "${script}" "${version_env}" "${TOOL_VERSION:-}"
+      return 0
+    fi
+  done
+
+  echo "Unknown tool: ${TOOL_NAME}" >&2
+  usage 1
 }
 
 update_all() {
@@ -100,8 +92,11 @@ update_all() {
     local key="${entry%%:*}" pkg="${entry#*:}"
     update_npm_tool "${key}" "${pkg}" "latest"
   done
-  update_rally ""
-  update_laps ""
+  for entry in "${RELEASE_TOOLS[@]}"; do
+    local key="${entry%%:*}" rest="${entry#*:}"
+    local script="${rest%%:*}" version_env="${rest#*:}"
+    update_release_tool "${key}" "${script}" "${version_env}" ""
+  done
 }
 
 if [ "$#" -eq 0 ]; then

@@ -1,0 +1,116 @@
+apt:
+  - name: jq
+    package: jq
+    verify: jq --version
+  - name: ripgrep
+    package: ripgrep
+    verify: rg --version
+  - name: tmux
+    package: tmux
+    verify: tmux -V
+  - name: fd
+    package: fd-find
+    verify: fd --version
+  - name: bat
+    package: bat
+    verify: bat --version
+  - name: tre
+    package: tre-command
+    verify: tre --version
+  - name: ping
+    package: iputils-ping
+    verify: ping -c1 127.0.0.1
+
+npm:
+  - name: claude
+    package: "@anthropic-ai/claude-code"
+    verify: claude --version
+    update: true
+    update_pin: 2.1.120
+  - name: openspec
+    package: "@fission-ai/openspec"
+    verify: openspec --version
+  - name: gemini
+    package: "@google/gemini-cli"
+    verify: gemini --version
+    update: true
+    update_pin: 0.39.1
+  - name: codex
+    package: "@openai/codex"
+    verify: codex --version
+    update: true
+    update_pin: 0.125.0
+  - name: opencode
+    package: opencode-ai
+    verify: opencode --version
+    update: true
+    update_pin: 1.14.28
+  - name: playwright
+    package: playwright
+    version_arg: PLAYWRIGHT_VERSION
+    verify: playwright --version
+    smoke: false
+  - name: pnpm
+    package: pnpm
+    verify: pnpm --version
+  - name: turbo
+    package: turbo
+    verify: turbo --version
+
+release_scripts:
+  - name: rally
+    install_script: /usr/local/bin/install-rally.sh
+    version_env: RALLY_VERSION
+    verify: rally version
+    update: true
+    update_pin: 0.3.0
+  - name: laps
+    install_script: /usr/local/bin/install-laps.sh
+    version_env: LAPS_VERSION
+    verify: laps version
+    update: true
+    update_pin: 0.4.4
+
+binary_releases:
+  - name: eza
+    version_arg: EZA_VERSION
+    verify: eza --version
+    checksum: none
+    arch:
+      amd64: x86_64-unknown-linux-gnu
+      arm64: aarch64-unknown-linux-gnu
+  - name: delta
+    version_arg: DELTA_VERSION
+    verify: delta --version
+    checksum: deb-package
+    arch:
+      amd64: amd64
+      arm64: arm64
+  - name: br
+    version_arg: BR_VERSION
+    verify: br --version
+    checksum: sha256sum
+    arch:
+      amd64: linux_musl_amd64
+      arm64: linux_musl_arm64
+  - name: gitui
+    version_arg: GITUI_VERSION
+    verify: gitui --version
+    checksum: none
+    arch:
+      amd64: x86_64
+      arm64: aarch64
+  - name: mailpit
+    version_arg: MAILPIT_VERSION
+    smoke: false
+    checksum: none
+    arch:
+      amd64: amd64
+      arm64: arm64
+  - name: s6-overlay
+    version_arg: S6_OVERLAY_VERSION
+    smoke: false
+    checksum: none
+    arch:
+      amd64: x86_64
+      arm64: aarch64

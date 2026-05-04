@@ -145,10 +145,12 @@ COPY container/base/scripts/configure-agents.sh /usr/local/bin/configure-agents.
 COPY container/base/scripts/install-laps.sh /usr/local/bin/install-laps.sh
 COPY container/base/scripts/install-rally.sh /usr/local/bin/install-rally.sh
 COPY container/base/scripts/setup-persist.sh /usr/local/bin/setup-persist.sh
+COPY container/base/scripts/tooling-data.sh /usr/local/bin/tooling-data.sh
 COPY container/base/scripts/update-tools.sh /usr/local/bin/update-tools
 COPY container/base/s6-overlay/ /etc/s6-overlay/
 
 RUN chmod 0755 /usr/local/bin/configure-agents.sh /usr/local/bin/install-laps.sh /usr/local/bin/install-rally.sh /usr/local/bin/setup-persist.sh /usr/local/bin/update-tools \
+  && chmod 0644 /usr/local/bin/tooling-data.sh \
   && ln -sf /usr/local/bin/update-tools /usr/local/bin/update-tools.sh \
   && find /etc/s6-overlay -type f -exec chmod 0755 {} + \
   && find /opt/home-defaults -type f -name '*.json' -exec chmod 0644 {} + \
