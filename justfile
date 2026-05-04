@@ -29,5 +29,17 @@ hadolint:
     docker run --rm -i {{hadolint_image}} hadolint --failure-threshold error - < Dockerfile; \
   fi
 
-test: golangci shellcheck hadolint
+tooling-check:
+  scripts/check-container-tooling.sh
+
+test: golangci shellcheck hadolint tooling-check
   go test ./...
+
+smoke-base *ARGS:
+  bash test/smoke/base-image.sh {{ARGS}}
+
+smoke-tools *ARGS:
+  bash test/smoke/tool-updates.sh {{ARGS}}
+
+smoke-local:
+  bash test/smoke/dune-local.sh

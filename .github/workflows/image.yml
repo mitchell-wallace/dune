@@ -30,11 +30,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Run compose validation tests
-        run: go test ./internal/dune/...
+      - name: Install just
+        uses: taiki-e/install-action@v2
+        with:
+          tool: just
 
-      - name: Build and smoke-test image
-        run: ./test/smoke/base-image.sh
+      - name: Run static and unit tests
+        run: just test
+
+      - name: Read image version
+        id: version
+        run: echo "value=$(tr -d '\n' < container/base/IMAGE_VERSION)" >> "$GITHUB_OUTPUT"
+
+      - name: Build image
+        run: |
+          docker build \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            -t ghcr.io/mitchell-wallace/dune-base:${{ steps.version.outputs.value }} \
+            .
+
+      - name: Smoke-test base image
+        run: just smoke-base --skip-build --image ghcr.io/mitchell-wallace/dune-base:${{ steps.version.outputs.value }}
+
+      - name: Smoke-test tool updates
+        run: just smoke-tools --skip-build --image ghcr.io/mitchell-wallace/dune-base:${{ steps.version.outputs.value }}
 
   build-and-push:
     needs: verify
