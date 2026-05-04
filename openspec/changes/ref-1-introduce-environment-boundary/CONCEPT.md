@@ -2,7 +2,7 @@ Q: what are some other areas we can improve the reliability of the codebase? giv
 
 
 
-NOTE: The below may be better broken into multiple changes
+NOTE: The below may be better broken into multiple openspec changes
 
 ---
 
