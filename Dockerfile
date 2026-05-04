@@ -40,6 +40,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gh \
     git \
     gnupg \
+    iputils-ping \
     jq \
     locales \
     micro \
@@ -51,6 +52,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ripgrep \
     sudo \
     tmux \
+    tre-command \
     tree \
     tzdata \
     unzip \
@@ -124,6 +126,9 @@ RUN ln -sf /usr/bin/batcat /usr/local/bin/bat \
   && ln -sf /usr/bin/fdfind /usr/local/bin/fd
 
 RUN npm install -g \
+    @anthropic-ai/claude-code \
+    @fission-ai/openspec \
+    @google/gemini-cli \
     @openai/codex \
     opencode-ai \
     playwright@${PLAYWRIGHT_VERSION} \
@@ -137,11 +142,12 @@ RUN PLAYWRIGHT_SKIP_BROWSER_GC=1 playwright install --with-deps chromium
 
 COPY container/base/home-defaults/ /opt/home-defaults/
 COPY container/base/scripts/configure-agents.sh /usr/local/bin/configure-agents.sh
+COPY container/base/scripts/install-laps.sh /usr/local/bin/install-laps.sh
 COPY container/base/scripts/install-rally.sh /usr/local/bin/install-rally.sh
 COPY container/base/scripts/setup-persist.sh /usr/local/bin/setup-persist.sh
 COPY container/base/s6-overlay/ /etc/s6-overlay/
 
-RUN chmod 0755 /usr/local/bin/configure-agents.sh /usr/local/bin/install-rally.sh /usr/local/bin/setup-persist.sh \
+RUN chmod 0755 /usr/local/bin/configure-agents.sh /usr/local/bin/install-laps.sh /usr/local/bin/install-rally.sh /usr/local/bin/setup-persist.sh \
   && find /etc/s6-overlay -type f -exec chmod 0755 {} + \
   && find /opt/home-defaults -type f -name '*.json' -exec chmod 0644 {} + \
   && find /opt/home-defaults -type f -name '*.toml' -exec chmod 0644 {} + \
@@ -175,9 +181,9 @@ RUN runuser -u agent -- bash -lc 'git clone --depth=1 https://github.com/romkatv
   && runuser -u agent -- bash -lc '~/.powerlevel10k/gitstatus/install' \
   && runuser -u agent -- bash -lc 'curl -fsSL https://mise.run | sh' \
   && runuser -u agent -- bash -lc 'mise --version && mise install' \
-  && runuser -u agent -- bash -lc 'curl -fsSL https://claude.ai/install.sh | bash' \
   && runuser -u agent -- bash -lc '/usr/local/bin/configure-agents.sh' \
-  && if [ "${INSTALL_RALLY}" = "1" ]; then runuser -u agent -- bash -lc '/usr/local/bin/install-rally.sh'; fi
+  && if [ "${INSTALL_RALLY}" = "1" ]; then runuser -u agent -- bash -lc '/usr/local/bin/install-rally.sh'; fi \
+  && runuser -u agent -- bash -lc '/usr/local/bin/install-laps.sh'
 
 RUN runuser -u agent -- bash -lc 'for bin in python python3 uv go; do ln -sf "$HOME/.local/share/mise/shims/$bin" "$HOME/.local/bin/$bin"; done'
 
