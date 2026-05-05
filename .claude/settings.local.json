@@ -16,7 +16,8 @@
       "Bash(grep -l \"type.*struct\" /home/mitchell/Documents/Mycode/claudebox/internal/rally/**/*.go)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(grep -E \"\\\\.\\(sh|go\\)$\")",
-      "Bash(xargs dirname:*)"
+      "Bash(xargs dirname:*)",
+      "Bash(xargs ls *)"
     ]
   }
 }
