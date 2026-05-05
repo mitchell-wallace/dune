@@ -2,12 +2,38 @@
 
 > Because sometimes, your agents need something a little bigger than a sandbox
 
-`dune` is a host-side Go CLI that starts a two-container workspace:
+Dune is a single-command, profile-aware, persistent, isolated development environment for AI-assisted coding work. Run `dune` for the host-side Go CLI that starts a two-container workspace:
 
 - `agent`: the interactive development container
 - `pipelock`: the outbound HTTP(S) proxy sidecar
 
-The `agent` container comes with a batteries-included base image for AI-assisted development, including [Rally](https://github.com/mitchell-wallace/rally), a Ralph-loop based agent runner for orchestrating work inside the container.
+The `agent` container comes with a batteries-included base image for AI-assisted development, including [Rally](https://github.com/mitchell-wallace/rally), a failure-tolerant Ralph-loop based meta-harness with task-model routing for orchestrating work inside the container, and [Laps](), the extensible agent-first sequential task manager CLI for organising units of work.
+
+## What Dune Offers
+
+1. Memorable entrypoint
+
+dune gets you from a host repo into a ready-to-use isolated workspace. It resolves the workspace root, selects a profile, ensures config/persistence exists, starts the environment, and attaches to /workspace. The current command flow shows this is all concentrated in the default/up path.
+
+2. Batteries-included agent coding base image
+
+The base image is not incidental; it is central product surface. It includes agent CLIs, Git/GitHub tooling, shells/editors/search tools, language toolchains, Playwright, PostgreSQL, Redis, Mailpit, and related verification tooling. That makes Dune closer to a reproducible agent workstation than a thin Docker wrapper.
+
+3. Preserved auth/config/tooling state
+
+Profiles and persistence are a core feature, not an implementation detail. Dune preserves things like Claude, Codex, OpenCode, GitHub CLI, git config/credentials, shell config, etc., under /persist/agent, and each profile gets its own persistence volume. That gives you separation between work/hobby/client contexts without re-authing everything constantly.
+
+4. Network mediation by default
+
+The Pipelock sidecar gives the environment a policy and observability layer for outbound HTTP(S), with dune logs pipelock as the inspection path. That is part of the safety model and should remain explicit in the architecture.
+
+5. Bundled workflow harnesses
+
+Rally and Laps make the environment more than a generic devcontainer. Rally belongs inside the environment as the agent-in-loop orchestration layer. Laps belongs as the lightweight task-state substrate that agents can use without a service dependency. Dune should install and preserve the substrate; it should not absorb their responsibilities.
+
+6. Repo-specific escape path
+
+Dockerfile.dune lets a repo extend the base environment. The current implementation detects it and builds dune-local-<slug>:latest; otherwise it uses the published base image. That is important because it lets the standard environment remain opinionated while still allowing per-repo specialization.
 
 ## Usage
 
@@ -87,10 +113,13 @@ If no `Dockerfile.dune` is present, `dune` uses the published base image directl
 
 The base image is meant to be ready to use without a separate bootstrap step. It includes:
 
-- `claude`: Anthropic's Claude Code CLI for agentic coding workflows
-- `codex`: OpenAI Codex CLI for coding and automation tasks
-- `opencode`: Opencode CLI for agent-driven coding workflows
+- `claude`: Anthropic's Claude Code CLI
+- `codex`: OpenAI Codex CLI
+- `opencode`: Opencode CLI
+- `gemini`: Gemini CLI
 - `rally`: Ralph-loop based agent runner that ships with dune
+- `laps`: Minimal CLI-based sequential task manager for agents
+- `openspec`: CLI for the OpenSpec planning framework
 - `gh`: GitHub CLI for repository, auth, PR, and release workflows
 - `git`: source control inside the container
 - `delta`: syntax-highlighted Git pager for diffs
@@ -102,9 +131,10 @@ The base image is meant to be ready to use without a separate bootstrap step. It
 - `fzf`: fuzzy finder for shell navigation and filtering
 - `bat`: `cat` with syntax highlighting and paging
 - `eza`: modern replacement for `ls`
-- `tree`: directory tree viewer
+- `tre`: modern directory tree viewer
 - `jq`: JSON query and formatting tool
 - `curl`: HTTP client for APIs and downloads
+- `ping`: the classic network testing primitive
 - `Node.js` and `npm`: JavaScript runtime and package manager used by several CLIs and builds
 - `pnpm`: fast JavaScript package manager
 - `turbo`: Turborepo build orchestration CLI
