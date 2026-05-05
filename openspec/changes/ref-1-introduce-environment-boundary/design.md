@@ -4,7 +4,7 @@ Dune is a single-command, profile-aware, persistent, isolated development enviro
 
 The current implementation computes all state and executes all Docker operations in `internal/dune/app.go`. The internal `project{}` struct holds derived values and is passed directly to compose rendering and Docker helpers. There is no isolated planning step and no stable seam between deciding what the environment should be and making it so.
 
-This change introduces the planning boundary only. Docker Compose remains the only backend. The Docker Compose backend extraction (including a `Backend` interface, `Runner` seam, and fake runner tests) is the scope of `ref-2-docker-backend-abstraction`.
+This change introduces the planning boundary only. Docker Compose remains the only backend. The Docker Compose backend extraction (including a `Backend` interface and migration of Docker code into `runtime/dockercompose`) is the scope of `ref-2-docker-backend-abstraction`.
 
 ## Goals / Non-Goals
 
@@ -15,13 +15,14 @@ This change introduces the planning boundary only. Docker Compose remains the on
 - Make `app.go` a thin, readable entry point using progressive disclosure.
 - Move Docker helpers out of `app.go` into separate files within `package dune`.
 - Update compose rendering to consume `EnvironmentPlan`.
+- Introduce a `CommandRunner` func type as a low-level execution seam so Docker helper functions can be tested without a real Docker daemon.
+- Replace shell-shim tests with `CommandRunner`-based command construction tests.
 - Preserve all user-facing behaviour, generated paths, and volume names exactly.
-- Preserve all existing test coverage (golden, Docker validation, smoke).
+- Preserve and strengthen test coverage: pure planner tests added, golden and Docker validation tests preserved, shell-shim tests replaced with `CommandRunner`-based tests, smoke tests unchanged.
 
 **Non-Goals:**
-- Introducing a `Backend` interface or `Runner` seam (ref-2).
-- Moving Docker execution behind an interface or into a separate package (ref-2).
-- Fake runner tests for command construction (ref-2).
+- Introducing a `Backend` interface (ref-2).
+- Moving Docker execution into a separate `runtime/dockercompose` package (ref-2).
 - Adding a second backend.
 - Implementing remote Docker or MicroVM support.
 - Redesigning the base image, Pipelock config generation, or profile semantics.
@@ -112,6 +113,40 @@ When ref-2 moves the template into `runtime/dockercompose/`, this render context
 
 `internal/dune/plan` must not import `os/exec`, `os` (for I/O operations), or any package that performs Docker, Git, or filesystem calls. Reviewers should verify this at the import level. Violations indicate that a value should be passed via `BuildInput` instead.
 
+### D11: app.go owns a synchronous resolution phase before plan.Build
+
+Before calling `plan.Build`, `app.go` performs a single synchronous resolution phase that reads all external state needed to populate `BuildInput`. This phase is responsible for:
+
+- Calling `workspace.Resolve` to obtain `WorkspaceRoot` and `WorkspaceSlug`
+- Reading `XDG_CONFIG_HOME` (defaulting to `~/.config`) for `ConfigDir`
+- Reading `XDG_DATA_HOME` (defaulting to `~/.local/share`) for `DataDir`
+- Reading `os.Getenv("TZ")` for `Timezone`
+- Calling `version.BaseImageRef()` for `BaseImageRef`
+- Calling `fileExists(ws.Root + "/Dockerfile.dune")` for `HasDockerfile`
+- Loading and resolving the profile from the profile store
+
+After this phase, `plan.Build` receives a fully populated `BuildInput` with no residual external state reads. The plan package never calls `os.Getenv`, `os.Stat`, or any workspace functions.
+
+This is important for three reasons. First, `BuildInput` becomes a complete, testable record of all resolved state — tests can construct any `BuildInput` directly without touching the filesystem. Second, future backends can invoke `plan.Build` with the same `BuildInput` without re-implementing resolution logic. Third, it gives `app.go` a clear two-phase structure: resolve → plan → execute.
+
+### D12: CommandRunner seam at the command execution level
+
+Docker helper functions in `docker.go` and `compose.go` accept a `CommandRunner` parameter rather than calling `os/exec` directly. `CommandRunner` is a func type:
+
+```go
+// CommandRunner executes a command in the given directory, writing output to stdout and stderr.
+// It is the sole execution primitive for Docker command invocations that capture output.
+type CommandRunner func(ctx context.Context, dir string, stdout, stderr io.Writer, name string, args ...string) error
+```
+
+A `defaultRunner` wraps `exec.CommandContext`. Tests pass a `fakeRunner` that records each call's dir, name, and args, and returns preset output without shelling out.
+
+This is distinct from the `Backend` interface (ref-2). `CommandRunner` is the *execution primitive* — the seam between application code and `os/exec`. The `Backend` interface will be a *strategy* — the seam between `app.go` and an entire Docker Compose implementation. `CommandRunner` lives inside the Docker implementation; `Backend` wraps it from the outside.
+
+Shell-shim tests (`TestPrepareAgentImageReportsProgress`, `TestEnsurePipelockConfigReconcilesExistingConfig`, and the Dockerfile workflow test) are replaced with `CommandRunner`-based tests that assert the exact Docker arguments passed. This provides the same command-construction coverage without PATH manipulation or filesystem shims.
+
+`runStreaming` (used for PTY operations: `docker exec`, `docker compose logs -f`, `docker compose down`) passes raw file descriptors to the child process and cannot be meaningfully faked. It remains a direct `os/exec` wrapper and is not threaded through `CommandRunner`. Its behaviour is validated by smoke tests, not unit tests.
+
 ## Type Reference
 
 ```go
@@ -190,6 +225,7 @@ type EgressSpec struct {
 ```
 internal/dune/
   app.go             ← thin entry point: parse → resolve → plan.Build → delegate
+  runner.go          ← CommandRunner type, defaultRunner implementation
   compose.go         ← renderComposeFile, ensureComposeFile, validateComposeFile
   docker.go          ← validateDockerPrerequisites, ensureVolume, prepareAgentImage,
                        composeUp, isAgentRunning, isAgentCreated, capture, runStreaming
@@ -201,3 +237,18 @@ internal/dune/
   cli/               ← unchanged
   pipelock/          ← unchanged
 ```
+
+## Ref-2 Boundary
+
+This section exists to prevent scope creep. The following are **not** part of ref-1 and must not be introduced here, even partially.
+
+**`ref-2-docker-backend-abstraction` will:**
+- Introduce a `Backend` interface that maps `EnvironmentPlan` to execution.
+- Move `compose.go`, `docker.go`, and the compose template into `runtime/dockercompose/` as a package implementing `Backend`.
+- Refactor `app.go` to call `backend.Execute(plan)` rather than individual Docker functions directly.
+
+**The clean line between ref-1 and ref-2:**
+- Ref-1 introduces the *plan* (what to build) and the *execution primitive* (`CommandRunner`). `app.go` calls Docker functions directly after building the plan.
+- Ref-2 introduces the *backend strategy* (a `Backend` interface that maps a plan to execution). `app.go` calls a backend; the backend calls Docker functions internally.
+
+An implementing agent that finds itself wanting to introduce a `Backend` interface, a `backend.Execute` call, or a `runtime/dockercompose` package during ref-1 must stop and defer that work to ref-2.
