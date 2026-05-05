@@ -183,17 +183,30 @@ func Run(ctx context.Context, argv []string, env Environment, stdout, stderr io.
 			return err
 		}
 
+		created, err := isAgentCreated(ctx, proj)
+		if err != nil {
+			return err
+		}
 		running, err := isAgentRunning(ctx, proj)
 		if err != nil {
 			return err
 		}
-		if !running {
+
+		if !created {
 			if err := prepareAgentImage(ctx, proj, false, stdout, stderr); err != nil {
 				return err
 			}
+			_, _ = fmt.Fprintln(stderr, "Starting container...")
 			if err := composeUp(ctx, proj, stderr); err != nil {
 				return err
 			}
+		} else if !running {
+			_, _ = fmt.Fprintln(stderr, "Starting container...")
+			if err := composeUp(ctx, proj, stderr); err != nil {
+				return err
+			}
+		} else {
+			_, _ = fmt.Fprintln(stderr, "Attaching to container...")
 		}
 		return runStreaming(ctx, "", stdout, stderr, "docker", composeArgs(proj, "exec", "agent", composeShell)...)
 	default:
@@ -388,6 +401,18 @@ func composeUp(ctx context.Context, proj project, stderr io.Writer) error {
 
 func isAgentRunning(ctx context.Context, proj project) (bool, error) {
 	output, err := capture(ctx, "", "docker", composeArgs(proj, "ps", "--status", "running", "--services", "agent")...)
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && len(exitErr.Stderr) == 0 {
+			return false, nil
+		}
+		return false, fmt.Errorf("inspect compose service state: %w", err)
+	}
+	return strings.TrimSpace(string(output)) == "agent", nil
+}
+
+func isAgentCreated(ctx context.Context, proj project) (bool, error) {
+	output, err := capture(ctx, "", "docker", composeArgs(proj, "ps", "--all", "--services", "agent")...)
 	if err != nil {
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) && len(exitErr.Stderr) == 0 {
