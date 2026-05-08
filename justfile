@@ -1,6 +1,6 @@
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
-golangci_lint_module := "github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8"
+golangci_lint_module := "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2"
 shellcheck_image := "koalaman/shellcheck:stable"
 hadolint_image := "hadolint/hadolint:latest"
 shellcheck_files := `find . -type f \( -name '*.sh' -o -path './container/base/s6-overlay/*/run' \) | sort | tr '\n' ' '`
