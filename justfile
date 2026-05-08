@@ -9,11 +9,7 @@ default:
   @just --list
 
 golangci:
-  @if command -v golangci-lint >/dev/null 2>&1; then \
-    golangci-lint run; \
-  else \
-    go run {{golangci_lint_module}} run; \
-  fi
+  @go run {{golangci_lint_module}} run ./...
 
 shellcheck:
   @if command -v shellcheck >/dev/null 2>&1; then \
