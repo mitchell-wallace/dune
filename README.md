@@ -35,13 +35,25 @@ Rally and Laps make the environment more than a generic devcontainer. Rally belo
 
 Dockerfile.dune lets a repo extend the base environment. The current implementation detects it and builds dune-local-<slug>:latest; otherwise it uses the published base image. That is important because it lets the standard environment remain opinionated while still allowing per-repo specialization.
 
-## Usage
+## Installation
 
-For local development from this repo, build the binary with `./scripts/build-dune.sh --force --print-path` or install the alias with `./install-dune-alias.sh`.
+Install the latest release with one command:
 
-For release builds, download the standalone `dune` binary for your platform from GitHub Releases and place it on your `PATH`.
+```bash
+curl -fsSL https://raw.githubusercontent.com/mitchell-wallace/dune/main/install.sh | bash
+```
 
-If `dune` seems to be running the wrong thing on your machine, check `type -a dune`. A shell alias created by `./install-dune-alias.sh` will override a standalone binary on `PATH`.
+Or install a specific version:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mitchell-wallace/dune/main/install.sh | bash -s 0.3.2
+```
+
+The installer downloads the correct binary for your platform, places it in `~/.local/bin`, and updates your shell configuration to include it on `PATH`.
+
+For local development from this repo, build the binary with `./scripts/build-dune.sh --force --print-path` or install the alias with `./scripts/install-dune-alias.sh`.
+
+If `dune` seems to be running the wrong thing on your machine, check `type -a dune`. A shell alias created by `./scripts/install-dune-alias.sh` will override a standalone binary on `PATH`.
 
 Then run:
 
@@ -68,6 +80,9 @@ dune profile list
 - `dune logs` tails logs for the current workspace
 - `dune logs pipelock` tails just the proxy logs, which is useful when checking outbound requests or policy decisions
 - `dune version` prints the dune version, commit, and release build metadata
+- `dune -v` / `dune --version` is a shorthand for `dune version`
+- `dune -h` / `dune --help` shows usage information
+- `dune -u` / `dune --update` updates the dune CLI to the latest release
 - `dune profile set <name>` stores a profile mapping for the current workspace root
 - `dune profile list` shows the effective profile for the current workspace and any stored mappings
 
