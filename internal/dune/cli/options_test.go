@@ -84,3 +84,45 @@ func TestParseVersion(t *testing.T) {
 		t.Fatalf("Command = %q, want %q", opts.Command, CommandVersion)
 	}
 }
+
+func TestParseVersionFlag(t *testing.T) {
+	t.Parallel()
+
+	for _, arg := range []string{"-v", "--version"} {
+		opts, err := Parse([]string{arg})
+		if err != nil {
+			t.Fatalf("Parse(%q) error = %v", arg, err)
+		}
+		if opts.Command != CommandVersion {
+			t.Fatalf("Command = %q, want %q", opts.Command, CommandVersion)
+		}
+	}
+}
+
+func TestParseHelpFlag(t *testing.T) {
+	t.Parallel()
+
+	for _, arg := range []string{"-h", "--help"} {
+		opts, err := Parse([]string{arg})
+		if err != nil {
+			t.Fatalf("Parse(%q) error = %v", arg, err)
+		}
+		if opts.Command != CommandHelp {
+			t.Fatalf("Command = %q, want %q", opts.Command, CommandHelp)
+		}
+	}
+}
+
+func TestParseUpdateFlag(t *testing.T) {
+	t.Parallel()
+
+	for _, arg := range []string{"-u", "--update"} {
+		opts, err := Parse([]string{arg})
+		if err != nil {
+			t.Fatalf("Parse(%q) error = %v", arg, err)
+		}
+		if opts.Command != CommandUpdate {
+			t.Fatalf("Command = %q, want %q", opts.Command, CommandUpdate)
+		}
+	}
+}

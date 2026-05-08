@@ -16,6 +16,8 @@ const (
 	CommandRebuild     Command = "rebuild"
 	CommandLogs        Command = "logs"
 	CommandVersion     Command = "version"
+	CommandHelp        Command = "help"
+	CommandUpdate      Command = "update"
 	CommandProfileSet  Command = "profile-set"
 	CommandProfileList Command = "profile-list"
 )
@@ -30,6 +32,17 @@ type Options struct {
 }
 
 func Parse(argv []string) (Options, error) {
+	if len(argv) > 0 {
+		switch argv[0] {
+		case "-v", "--version":
+			return parseVersion(argv[1:])
+		case "-h", "--help":
+			return parseHelp(argv[1:])
+		case "-u", "--update":
+			return parseUpdate(argv[1:])
+		}
+	}
+
 	if len(argv) == 0 {
 		return parseContainerCommand(CommandUp, "dune", nil)
 	}
@@ -175,4 +188,18 @@ func parseVersion(argv []string) (Options, error) {
 		return Options{}, errors.New("usage: dune version")
 	}
 	return Options{Command: CommandVersion}, nil
+}
+
+func parseHelp(argv []string) (Options, error) {
+	if len(argv) != 0 {
+		return Options{}, errors.New("usage: dune --help")
+	}
+	return Options{Command: CommandHelp}, nil
+}
+
+func parseUpdate(argv []string) (Options, error) {
+	if len(argv) != 0 {
+		return Options{}, errors.New("usage: dune --update")
+	}
+	return Options{Command: CommandUpdate}, nil
 }

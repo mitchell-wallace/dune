@@ -11,3 +11,15 @@ Ad-hoc work that forms a sizeable change should come with an offer to commit, pe
 The container's `/workspace` contains the **user's project**, not the dune source code. The host-side `dune` CLI is responsible for generating the compose file, creating the profile-specific persist volume, and starting the `agent` and `pipelock` containers.
 
 Rally is an independently released tool that is installed into the base image from GitHub Releases and can self-update inside the container. Repo-specific Rally configuration lives in `/workspace/rally.toml`.
+
+## Manually publishing the base image
+
+The `image.yml` workflow normally only pushes to GHCR on `push` events to `main` that touch `container/base/IMAGE_VERSION`. If you need to force a publish (e.g. to recover from a failed push event without bumping the version again), temporarily edit the `build-and-push` job condition:
+
+```yaml
+build-and-push:
+  needs: verify
+  if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+```
+
+Then dispatch the workflow manually via the GitHub UI or `gh workflow run image.yml --ref main`. Revert the condition change immediately after the image is published.

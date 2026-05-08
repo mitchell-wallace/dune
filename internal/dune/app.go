@@ -1,17 +1,21 @@
 package dune
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"context"
 	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 	"text/template"
@@ -26,6 +30,26 @@ const (
 	defaultProfile   = "default"
 	composeShell     = "zsh"
 	logTailLineCount = "60"
+	helpText         = `Usage: dune [command] [options]
+
+Commands:
+  up               Start or attach to the agent container (default)
+  down             Stop and remove the agent container
+  rebuild          Force rebuild the agent image and recreate the container
+  logs [service]   Stream logs from a service (default: all)
+  version          Print dune version
+  profile set      Set the active profile for the current workspace
+  profile list     List stored profile mappings
+
+Global flags:
+  -v, --version    Print dune version and exit
+  -h, --help       Show this help message and exit
+  -u, --update     Update the dune CLI to the latest release
+
+Container flags (for up/down/rebuild/logs):
+  -d, --directory  Workspace directory (default: current directory)
+  -p, --profile    Profile name (default: default)
+`
 )
 
 var (
@@ -71,6 +95,17 @@ func Run(ctx context.Context, argv []string, env Environment, stdout, stderr io.
 		stderr = io.Discard
 	}
 
+	switch opts.Command {
+	case cli.CommandVersion:
+		_, err := fmt.Fprintf(stdout, "dune %s\n", version.String())
+		return err
+	case cli.CommandHelp:
+		_, err := fmt.Fprint(stdout, helpText)
+		return err
+	case cli.CommandUpdate:
+		return selfUpdate(ctx, stdout, stderr)
+	}
+
 	workspaceInput := defaultWorkspaceInput(opts.WorkspaceInput, env.CallerPWD)
 	ws, err := workspace.Resolve(workspaceInput)
 	if err != nil {
@@ -93,9 +128,6 @@ func Run(ctx context.Context, argv []string, env Environment, stdout, stderr io.
 	}
 
 	switch opts.Command {
-	case cli.CommandVersion:
-		_, err := fmt.Fprintf(stdout, "dune %s\n", version.String())
-		return err
 	case cli.CommandProfileSet:
 		if err := validateProfileName(opts.SetProfileName); err != nil {
 			return err
@@ -212,6 +244,123 @@ func Run(ctx context.Context, argv []string, env Environment, stdout, stderr io.
 	default:
 		return fmt.Errorf("unsupported command %q", opts.Command)
 	}
+}
+
+func selfUpdate(ctx context.Context, stdout, stderr io.Writer) error {
+	exe, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("locate current executable: %w", err)
+	}
+
+	current := strings.TrimPrefix(version.Version, "v")
+	if current == "dev" || current == "" {
+		return errors.New("cannot update development build; please reinstall manually")
+	}
+
+	_, _ = fmt.Fprintln(stderr, "Checking for updates...")
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/repos/mitchell-wallace/dune/releases/latest", nil)
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("fetch latest release: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("github API returned %s", resp.Status)
+	}
+
+	var release struct {
+		TagName string `json:"tag_name"`
+		Assets  []struct {
+			Name string `json:"name"`
+			URL  string `json:"browser_download_url"`
+		} `json:"assets"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+		return fmt.Errorf("decode release response: %w", err)
+	}
+
+	latest := strings.TrimPrefix(release.TagName, "v")
+	if latest == current {
+		_, _ = fmt.Fprintf(stdout, "dune %s is already the latest version.\n", current)
+		return nil
+	}
+
+	assetName := fmt.Sprintf("dune_%s_%s.tar.gz", runtime.GOOS, runtime.GOARCH)
+	var downloadURL string
+	for _, a := range release.Assets {
+		if a.Name == assetName {
+			downloadURL = a.URL
+			break
+		}
+	}
+	if downloadURL == "" {
+		return fmt.Errorf("no release asset found for %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+
+	_, _ = fmt.Fprintf(stderr, "Downloading dune %s...\n", latest)
+
+	dlReq, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
+	if err != nil {
+		return fmt.Errorf("create download request: %w", err)
+	}
+
+	dlResp, err := http.DefaultClient.Do(dlReq)
+	if err != nil {
+		return fmt.Errorf("download release: %w", err)
+	}
+	defer func() { _ = dlResp.Body.Close() }()
+
+	if dlResp.StatusCode != http.StatusOK {
+		return fmt.Errorf("download returned %s", dlResp.Status)
+	}
+
+	gr, err := gzip.NewReader(dlResp.Body)
+	if err != nil {
+		return fmt.Errorf("open gzip archive: %w", err)
+	}
+	defer func() { _ = gr.Close() }()
+
+	tr := tar.NewReader(gr)
+	var newBinary []byte
+	for {
+		h, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("read tar archive: %w", err)
+		}
+		if h.Name == "dune" || filepath.Base(h.Name) == "dune" {
+			newBinary, err = io.ReadAll(tr)
+			if err != nil {
+				return fmt.Errorf("read binary from archive: %w", err)
+			}
+			break
+		}
+	}
+	if newBinary == nil {
+		return errors.New("dune binary not found in release archive")
+	}
+
+	tmpPath := exe + ".tmp"
+	if err := os.WriteFile(tmpPath, newBinary, 0755); err != nil {
+		return fmt.Errorf("write new binary: %w", err)
+	}
+
+	if err := os.Rename(tmpPath, exe); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("replace binary: %w", err)
+	}
+
+	_, _ = fmt.Fprintf(stdout, "Updated dune %s -> %s\n", current, latest)
+	return nil
 }
 
 func resolveProfile(opts cli.Options, workspaceRoot string, store profileStore) (string, error) {
