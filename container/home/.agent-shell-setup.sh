@@ -10,6 +10,9 @@ fi
 if command -v opencode >/dev/null 2>&1; then
   alias op='opencode --yolo'
 fi
+if command -v agy >/dev/null 2>&1; then
+  alias ay='agy --dangerously-skip-permissions'
+fi
 
 # Prefer hot-updated rally binary from persistent volume over bind-mounted seed.
 # The dune CLI on the host is the only channel for host→container binary updates;
@@ -52,7 +55,7 @@ EOF
     printf '%s\n' "  op      -> opencode --yolo"
   fi
   if command -v agy >/dev/null 2>&1; then
-    printf '%s\n' "  agy     -> Antigravity CLI coding agent"
+    printf '%s\n' "  ay      -> agy --dangerously-skip-permissions (Antigravity CLI)"
   fi
 
   if [ "$mode" != "strict" ]; then

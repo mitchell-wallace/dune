@@ -8,6 +8,9 @@ alias ut='update-tools'
 if command -v gemini >/dev/null 2>&1; then
   alias ge='gemini --yolo'
 fi
+if command -v agy >/dev/null 2>&1; then
+  alias ay='agy --dangerously-skip-permissions'
+fi
 
 case ":${PATH}:" in
   *":${HOME}/.local/share/mise/shims:"*) ;;
