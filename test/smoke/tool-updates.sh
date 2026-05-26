@@ -51,3 +51,7 @@ assert_container_command "update-tools rally"
 assert_container_command "update-tools laps 0.4.4"
 assert_container_command "laps version | grep -q 0.4.4"
 assert_container_command "update-tools laps"
+assert_container_command "laps version"
+
+assert_container_command "update-tools agy"
+assert_container_command "agy --version"

@@ -70,6 +70,12 @@ release_scripts:
     verify: laps version
     update: true
     update_pin: 0.4.4
+  - name: agy
+    install_script: /usr/local/bin/install-agy.sh
+    version_env: AGY_VERSION
+    verify: agy --version
+    update: true
+    update_pin: ""
 
 binary_releases:
   - name: eza

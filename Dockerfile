@@ -144,13 +144,14 @@ RUN PLAYWRIGHT_SKIP_BROWSER_GC=1 playwright install --with-deps chromium
 COPY container/base/home-defaults/ /opt/home-defaults/
 COPY container/base/scripts/configure-agents.sh /usr/local/bin/configure-agents.sh
 COPY container/base/scripts/install-laps.sh /usr/local/bin/install-laps.sh
+COPY container/base/scripts/install-agy.sh /usr/local/bin/install-agy.sh
 COPY container/base/scripts/install-rally.sh /usr/local/bin/install-rally.sh
 COPY container/base/scripts/setup-persist.sh /usr/local/bin/setup-persist.sh
 COPY container/base/scripts/tooling-data.sh /usr/local/bin/tooling-data.sh
 COPY container/base/scripts/update-tools.sh /usr/local/bin/update-tools
 COPY container/base/s6-overlay/ /etc/s6-overlay/
 
-RUN chmod 0755 /usr/local/bin/configure-agents.sh /usr/local/bin/install-laps.sh /usr/local/bin/install-rally.sh /usr/local/bin/setup-persist.sh /usr/local/bin/update-tools \
+RUN chmod 0755 /usr/local/bin/configure-agents.sh /usr/local/bin/install-laps.sh /usr/local/bin/install-agy.sh /usr/local/bin/install-rally.sh /usr/local/bin/setup-persist.sh /usr/local/bin/update-tools \
   && chmod 0644 /usr/local/bin/tooling-data.sh \
   && ln -sf /usr/local/bin/update-tools /usr/local/bin/update-tools.sh \
   && find /etc/s6-overlay -type f -exec chmod 0755 {} + \
@@ -168,6 +169,7 @@ RUN cp /opt/home-defaults/.zshrc /home/agent/.zshrc \
       /home/agent/.local/share/opencode \
       /home/agent/.config/gh \
       /home/agent/.config/mise \
+      /home/agent/.gemini \
   && cp /opt/home-defaults/.claude/settings.json /home/agent/.claude/settings.json \
   && cp /opt/home-defaults/.codex/config.toml /home/agent/.codex/config.toml \
   && cp /opt/home-defaults/.codex/mcp-servers.toml /home/agent/.codex/mcp-servers.toml \
@@ -190,7 +192,8 @@ RUN runuser -u agent -- bash -lc 'git clone --depth=1 https://github.com/romkatv
   && runuser -u agent -- bash -lc 'mise --version && mise install' \
   && runuser -u agent -- bash -lc '/usr/local/bin/configure-agents.sh' \
   && if [ "${INSTALL_RALLY}" = "1" ]; then runuser -u agent -- bash -lc '/usr/local/bin/install-rally.sh'; fi \
-  && runuser -u agent -- bash -lc '/usr/local/bin/install-laps.sh'
+  && runuser -u agent -- bash -lc '/usr/local/bin/install-laps.sh' \
+  && runuser -u agent -- bash -lc '/usr/local/bin/install-agy.sh'
 
 RUN runuser -u agent -- bash -lc 'for bin in python python3 uv go; do ln -sf "$HOME/.local/share/mise/shims/$bin" "$HOME/.local/bin/$bin"; done'
 

@@ -234,7 +234,9 @@ func checkUpdateSupport(m manifest, updateTools, toolUpdates, toolingData string
 func checkUpdateSmoke(name, pin, verify, toolUpdates string) []string {
 	var problems []string
 	if strings.TrimSpace(pin) == "" {
-		problems = append(problems, fmt.Sprintf("missing update pin for %s", name))
+		if !strings.Contains(toolUpdates, quoteCommand(verify)) {
+			problems = append(problems, fmt.Sprintf("missing tool update smoke verification for %s: %s", name, verify))
+		}
 		return problems
 	}
 	if !strings.Contains(toolUpdates, quoteCommand("update-tools "+name+" "+pin)) &&
