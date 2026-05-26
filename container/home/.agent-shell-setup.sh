@@ -3,6 +3,7 @@
 # Agent CLI shortcuts
 alias cc='claude --dangerously-skip-permissions'
 alias cx='codex --dangerously-bypass-approvals-and-sandbox'
+alias ut='update-tools'
 if command -v gemini >/dev/null 2>&1; then
   alias ge='gemini --model gemini-3.1-pro-preview --yolo'
 fi
@@ -50,9 +51,15 @@ EOF
   if command -v opencode >/dev/null 2>&1; then
     printf '%s\n' "  op      -> opencode --yolo"
   fi
+  if command -v agy >/dev/null 2>&1; then
+    printf '%s\n' "  agy     -> Antigravity CLI coding agent"
+  fi
 
   if [ "$mode" != "strict" ]; then
     cat <<'EOF'
+Update tools:
+  ut / update-tools      -> update claude, codex, opencode, gemini, rally, laps, agy
+
 Gear:
   gear                   -> list installed gear, available gear, and helper commands
   gear install add-omc   -> install Oh My Claudecode
