@@ -18,22 +18,38 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Check if release already exists
+        id: check
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          if gh release view "$TAG" --json tagName --jq .tagName > /dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Release $TAG already exists, skipping."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Set up Go
+        if: steps.check.outputs.exists != 'true'
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
 
       - name: Read release metadata
+        if: steps.check.outputs.exists != 'true'
         run: |
           echo "DUNE_VERSION=$(tr -d '\n' < VERSION)" >> "$GITHUB_ENV"
           echo "BASE_IMAGE_VERSION=$(tr -d '\n' < container/base/IMAGE_VERSION)" >> "$GITHUB_ENV"
 
       - name: Verify tag matches VERSION
-        if: github.event_name == 'push'
+        if: steps.check.outputs.exists != 'true' && github.event_name == 'push'
         run: |
           test "v${DUNE_VERSION}" = "${GITHUB_REF_NAME}"
 
       - name: Run GoReleaser
+        if: steps.check.outputs.exists != 'true'
         uses: goreleaser/goreleaser-action@v6
         with:
           version: "~> v2"
