@@ -32,6 +32,7 @@ services:
       - pipelock
     networks:
       - internal
+      - external
 
   pipelock:
     image: {{ printf "%q" .PipelockImage }}

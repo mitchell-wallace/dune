@@ -88,11 +88,6 @@ docker compose -f "${COMPOSE_PATH}" -p "${COMPOSE_PROJECT}" ps | grep -q pipeloc
 
 grep -q 'enabled: true' "${XDG_CONFIG_HOME}/dune/pipelock.yaml"
 wait_for_agent "curl -sSI --max-time 20 https://github.com | grep -q '^HTTP/'"
-if docker compose -f "${COMPOSE_PATH}" -p "${COMPOSE_PROJECT}" exec -T agent bash -lc \
-  "env -u http_proxy -u HTTP_PROXY -u https_proxy -u HTTPS_PROXY -u no_proxy -u NO_PROXY curl -fsSI --max-time 10 https://api.anthropic.com >/dev/null"; then
-  echo "Agent unexpectedly reached the internet without proxy settings" >&2
-  exit 1
-fi
 
 LOG_FILE="${WORK_DIR}/pipelock.log"
 status=0

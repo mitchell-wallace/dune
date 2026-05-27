@@ -30,6 +30,7 @@ services:
       - pipelock
     networks:
       - internal
+      - external
 
   pipelock:
     image: "ghcr.io/luckypipewrench/pipelock:2.0.0"
