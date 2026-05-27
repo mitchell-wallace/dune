@@ -14,12 +14,10 @@ Rally is an independently released tool that is installed into the base image fr
 
 ## Manually publishing the base image
 
-The `image.yml` workflow normally only pushes to GHCR on `push` events to `main` that touch `container/base/IMAGE_VERSION`. If you need to force a publish (e.g. to recover from a failed push event without bumping the version again), temporarily edit the `build-and-push` job condition:
+The `image.yml` workflow pushes to GHCR whenever the `build-and-push` job runs on `main`. It triggers automatically on `push` events to `main` that touch `container/base/IMAGE_VERSION` (or the workflow file itself). If a push event is missed and the image wasn't published, you can recover by dispatching the workflow manually:
 
-```yaml
-build-and-push:
-  needs: verify
-  if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+```bash
+gh workflow run image.yml --ref main
 ```
 
-Then dispatch the workflow manually via the GitHub UI or `gh workflow run image.yml --ref main`. Revert the condition change immediately after the image is published.
+The `build-and-push` job condition (`github.ref == 'refs/heads/main'`) allows both `push` and `workflow_dispatch` events on `main`, so no temporary edits are needed.
