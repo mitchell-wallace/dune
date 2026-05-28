@@ -21,3 +21,10 @@ gh workflow run image.yml --ref main
 ```
 
 The `build-and-push` job condition (`github.ref == 'refs/heads/main'`) allows both `push` and `workflow_dispatch` events on `main`, so no temporary edits are needed.
+
+## Version bump checklist
+
+When bumping the version, update **both** files (always kept in lockstep — CLI and image versions are tied together):
+
+- `VERSION` — consumed by the Go CLI at build time
+- `container/base/IMAGE_VERSION` — consumed by the image build workflow
