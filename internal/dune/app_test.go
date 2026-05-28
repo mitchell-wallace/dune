@@ -383,3 +383,22 @@ exit 1
 		t.Fatalf("expected existing config reconciliation to avoid docker calls, got log:\n%s", logData)
 	}
 }
+
+func TestEffectiveTimezone_FromEnv(t *testing.T) {
+	t.Setenv("TZ", "Pacific/Auckland")
+	got := effectiveTimezone()
+	if got != "Pacific/Auckland" {
+		t.Fatalf("effectiveTimezone() = %q, want %q", got, "Pacific/Auckland")
+	}
+}
+
+func TestEffectiveTimezone_Fallback(t *testing.T) {
+	t.Setenv("TZ", "")
+	got := effectiveTimezone()
+	if got == "" {
+		t.Fatalf("effectiveTimezone() returned empty string")
+	}
+	if !strings.Contains(got, "/") && got != "UTC" {
+		t.Fatalf("effectiveTimezone() = %q, expected IANA timezone (with /) or UTC", got)
+	}
+}
