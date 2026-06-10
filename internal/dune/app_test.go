@@ -384,6 +384,53 @@ exit 1
 	}
 }
 
+func TestEnsurePipelockConfigIgnoresDockerPullStderr(t *testing.T) {
+	configDir := filepath.Join(t.TempDir(), "config")
+	configPath := filepath.Join(configDir, "dune", "pipelock.yaml")
+
+	baselinePath := filepath.Join("pipelock", "testdata", "balanced-2.0.0.yaml")
+	binDir := filepath.Join(t.TempDir(), "bin")
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll(binDir) error = %v", err)
+	}
+
+	dockerShimPath := filepath.Join(binDir, "docker")
+	dockerShim := fmt.Sprintf(`#!/usr/bin/env bash
+set -euo pipefail
+
+if [ "$#" -ge 7 ] && [ "$1" = "run" ] && [ "$2" = "--rm" ] && [ "$4" = "generate" ] && [ "$5" = "config" ]; then
+  echo "Unable to find image '$3' locally" >&2
+  echo "$3: Pulling from luckypipewrench/pipelock" >&2
+  cat %q >&2
+  exit 0
+fi
+
+echo "unexpected docker invocation: $*" >&2
+exit 1
+`, baselinePath)
+	if err := os.WriteFile(dockerShimPath, []byte(dockerShim), 0o755); err != nil {
+		t.Fatalf("WriteFile(docker shim) error = %v", err)
+	}
+
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	if err := ensurePipelockConfig(context.Background(), configPath); err != nil {
+		t.Fatalf("ensurePipelockConfig() error = %v", err)
+	}
+
+	configData, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("ReadFile(configPath) error = %v", err)
+	}
+	configText := string(configData)
+	if strings.Contains(configText, "Unable to find image") || strings.Contains(configText, "Pulling from") {
+		t.Fatalf("pipelock config contains docker stderr:\n%s", configText)
+	}
+	if !strings.Contains(configText, "response_scanning:") || !strings.Contains(configText, "accounts.google.com") {
+		t.Fatalf("pipelock config missing expected customization:\n%s", configText)
+	}
+}
+
 func TestEffectiveTimezone_FromEnv(t *testing.T) {
 	t.Setenv("TZ", "Pacific/Auckland")
 	got := effectiveTimezone()

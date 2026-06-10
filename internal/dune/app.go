@@ -428,7 +428,7 @@ func ensurePipelockConfig(ctx context.Context, path string) error {
 	case err == nil:
 		source = existing
 	case os.IsNotExist(err):
-		baseline, baselineErr := capture(ctx, "", "docker", pipelock.GenerateConfigCommand()[1:]...)
+		baseline, baselineErr := capturePipelockConfig(ctx)
 		if baselineErr != nil {
 			return fmt.Errorf("generate pipelock baseline config: %w", baselineErr)
 		}
@@ -606,6 +606,53 @@ func capture(ctx context.Context, dir, name string, args ...string) ([]byte, err
 		return output, err
 	}
 	return output, nil
+}
+
+func capturePipelockConfig(ctx context.Context) ([]byte, error) {
+	args := pipelock.GenerateConfigCommand()[1:]
+	stdout, stderr, err := captureSplit(ctx, "", "docker", args...)
+	if err != nil {
+		return stdout, err
+	}
+
+	source := stdout
+	if len(bytes.TrimSpace(source)) == 0 {
+		source = stderr
+	}
+
+	source = trimToPipelockYAML(source)
+	if len(bytes.TrimSpace(source)) == 0 {
+		return nil, fmt.Errorf("pipelock generated empty config")
+	}
+	return source, nil
+}
+
+func captureSplit(ctx context.Context, dir, name string, args ...string) ([]byte, []byte, error) {
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Dir = dir
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	output, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			exitErr.Stderr = stderr.Bytes()
+		}
+		return output, stderr.Bytes(), err
+	}
+	return output, stderr.Bytes(), nil
+}
+
+func trimToPipelockYAML(output []byte) []byte {
+	trimmed := bytes.TrimSpace(output)
+	for _, marker := range [][]byte{
+		[]byte("# Pipelock config"),
+		[]byte("version:"),
+	} {
+		if idx := bytes.Index(trimmed, marker); idx >= 0 {
+			return trimmed[idx:]
+		}
+	}
+	return trimmed
 }
 
 func runStreaming(ctx context.Context, dir string, stdout, stderr io.Writer, name string, args ...string) error {

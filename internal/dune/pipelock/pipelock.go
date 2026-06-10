@@ -92,6 +92,9 @@ func ApplyCustomizations(baseline []byte) ([]byte, error) {
 	if err := yaml.Unmarshal(baseline, &base); err != nil {
 		return nil, fmt.Errorf("parse baseline pipelock config: %w", err)
 	}
+	if base == nil {
+		return nil, fmt.Errorf("parse baseline pipelock config: empty document")
+	}
 
 	customizationYAML, err := RenderCustomizationYAML()
 	if err != nil {
