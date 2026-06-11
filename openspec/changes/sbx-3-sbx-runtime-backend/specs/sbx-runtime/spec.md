@@ -82,9 +82,10 @@ The default/`up` flow SHALL validate readiness, ensure the sandbox exists (creat
 - **AND** no `Dockerfile.dune` image build is performed
 
 #### Scenario: rebuild preserves profile-scoped persisted state
-- **GIVEN** a sandbox whose profile has persisted agent credentials/config
-- **WHEN** `dune rebuild` recreates the sandbox from the template
-- **THEN** the previously persisted profile state is still available in the recreated sandbox
+- **GIVEN** a sandbox whose profile has persisted agent credentials/config under the durable `/persist/agent` mapping
+- **WHEN** `dune rebuild` removes and recreates the sandbox from the template
+- **THEN** a sentinel previously written under `/persist/agent` is still present in the recreated sandbox
+- **AND** the previously persisted profile state is still available in the recreated sandbox
 
 ---
 

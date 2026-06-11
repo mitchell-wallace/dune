@@ -17,10 +17,11 @@
 
 ## 4. Lifecycle operations and command construction
 
-- [ ] 4.1 Implement `Ensure` to create the sandbox from the Dune template with the workspace direct-mounted, passing the absolute mount path to the template (`DUNE_WORKSPACE` contract from `sbx-2` D4) (design D4).
-- [ ] 4.2 Implement `Status` via `sbx ls --json` (replacing `isAgentCreated`/`isAgentRunning`) and `Start`/`Stop` via `sbx run`/`sbx stop`.
-- [ ] 4.3 Implement `Shell` as `sbx exec -it -w <mounted repo path> <instance> zsh` so the shell starts in the repository.
-- [ ] 4.4 Back `/persist` with a durable, profile-scoped location decoupled from the sandbox so profile state is shared across a profile's sandboxes and survives `rebuild` (D3). Prove the supported mechanism (`sbx` extra host mount at `/persist` or an sbx-native per-profile volume) before cutover; do not accept per-sandbox-only persistence as a fallback.
+- [ ] 4.0 Confirm the unverified `sbx` command shapes against the installed binary before wiring them, and record the results: `sbx create --help` (env-injection flag and any extra-mount/volume flag), `sbx exec --help` (`-it`/`-w` interactive-attach flags), `sbx run --help` (start/restart shape). These resolve design D3/D4/D7 open questions.
+- [ ] 4.1 Implement `Ensure` to create the sandbox from the Dune template with the workspace direct-mounted (verified shape: `sbx create --name <instance> --template <ref> shell <absolute host path>`), delivering the mount path via the contract `sbx-2` D4 records — create-time env injection (`-e DUNE_WORKSPACE=...`) if supported, else rely on the template's in-sandbox derivation (design D4).
+- [ ] 4.2 Implement `Status` via `sbx ls --json` (replacing `isAgentCreated`/`isAgentRunning`), distinguishing exists-but-stopped from running; implement `Stop` via `sbx stop <name>` and `Start` via the `sbx run` shape confirmed in 4.0.
+- [ ] 4.3 Implement `Shell` as `sbx exec -it -w <mounted repo path> <instance> zsh` (using the flags confirmed in 4.0) so the shell starts in the repository; if `-w` is unsupported, fall back to `sbx exec -it <instance> zsh -lc 'cd <mounted repo path> && exec zsh -l'`.
+- [ ] 4.4 Back the template's `/persist/agent` path with a durable, profile-scoped location decoupled from the sandbox so profile state is shared across a profile's sandboxes and survives `rebuild` (D3). Prove the supported mechanism (host mount at `/persist/agent` or an sbx-native per-profile volume) before cutover via the recreate-survival check in 8.1; do not accept per-sandbox-only persistence as a fallback.
 
 ## 5. Wire commands to the backend
 
@@ -43,6 +44,6 @@
 
 ## 8. Smoke verification and docs
 
-- [ ] 8.1 Add/adjust a smoke test that enters a sandbox built from the Dune sbx template and runs in the mounted repo path.
+- [ ] 8.1 Add/adjust a smoke test against the installed `sbx` that: (a) creates a sandbox from the Dune sbx template and confirms the attached shell's cwd is the mounted repo path (`git rev-parse --show-toplevel` succeeds); and (b) gates D3 by writing a sentinel under `/persist/agent`, running `sbx rm <name>` then recreating, and confirming the sentinel survives the recreate.
 - [ ] 8.2 Run `go build ./cmd/dune` and `go test ./...`.
 - [ ] 8.3 Update architecture/README docs: `sbx` replaces Docker as the prerequisite; the runtime launches the Dune sbx template; `Dockerfile.dune` and the compose path are gone; note the one-time transition from Docker Compose workspaces (full cleanup in `sbx-6`).
