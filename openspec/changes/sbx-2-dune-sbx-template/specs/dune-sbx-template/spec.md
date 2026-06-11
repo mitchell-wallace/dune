@@ -2,20 +2,14 @@
 
 ### Requirement: Docker Engine and Docker Compose are available inside the sandbox
 
-The Dune sbx template SHALL provide a working Docker Engine and the `docker compose` plugin inside the sandbox, and the Docker daemon SHALL be available without a manual start step on the first `sbx exec` into a started sandbox. The template's init system (s6-overlay, which supervises the in-template service tools) and the Docker daemon SHALL coexist without either init mechanism crash-looping.
+The Dune sbx template SHALL provide a working Docker Engine and the `docker compose` plugin inside the sandbox, and the Docker daemon SHALL be available without a manual start step on the first `sbx exec` into a started sandbox. The sbx template's native Docker init SHALL own PID 1; the template SHALL NOT install s6-overlay.
 
 #### Scenario: Docker and Compose respond in a fresh sandbox
 - **GIVEN** a sandbox created from the Dune sbx template via `sbx create --name <name> --template <ref> shell <mount path>`
 - **WHEN** `docker version` and `docker compose version` are run in the first `sbx exec` into the sandbox
 - **THEN** both succeed and report a Docker Engine and a Docker Compose version
 - **AND** `docker run --rm hello-world` succeeds
-
-#### Scenario: The s6 service tree and the Docker daemon coexist
-- **GIVEN** a sandbox created from the Dune sbx template
-- **WHEN** a single `sbx exec` checks both the Docker daemon and the s6 service tree
-- **THEN** `docker version` reports a running engine
-- **AND** the s6-supervised service tree is present
-- **AND** neither the s6 init nor the Docker daemon is crash-looping
+- **AND** the sbx init does not crash-loop
 
 #### Scenario: Nested Compose project runs and is reachable
 - **GIVEN** a sandbox created from the Dune sbx template
@@ -38,22 +32,25 @@ The Dune sbx template SHALL treat the real mounted repository path as the canoni
 
 ---
 
-### Requirement: In-template service tools are installed without becoming health-gated app dependencies
+### Requirement: In-container app services are removed; persistence wiring is re-homed onto a boot hook
 
-The Dune sbx template SHALL install the Postgres, Redis, and Mailpit tools. When the in-template Postgres service is started, its startup SHALL create and own any required ephemeral runtime directories (notably `/var/run/postgresql`) at runtime rather than relying solely on image-build-time creation, so it does not fail with the known lock-file error. In-template service auto-start, health probes, and log aggregation SHALL be out of scope for template readiness; app dependencies SHOULD be provided by a project-owned `docker compose` project inside the sandbox when reliable lifecycle is required.
+The Dune sbx template SHALL NOT ship the in-container Postgres, Redis, or Mailpit services. App dependencies SHALL be provided by a project-owned `docker compose` project inside the sandbox. The credential-wiring `setup-persist` step SHALL be re-homed off s6-overlay onto a one-time boot hook (an `sbx`-native boot hook where available, otherwise an idempotent login-shell hook guarded by a per-sandbox sentinel) so that, on a fresh sandbox, the agent-home persistence symlinks into `/persist/agent` are established, and its output SHALL be written to a canonical in-container log path under `/var/log/dune/`.
 
-#### Scenario: Postgres startup applies the runtime-directory fix
+#### Scenario: Persistence symlinks are wired on a fresh sandbox
 - **GIVEN** a sandbox created from the Dune sbx template
-- **WHEN** the in-template Postgres startup path is invoked
-- **THEN** its runtime directory (`/var/run/postgresql`) exists and is owned by the `agent` user
-- **AND** startup does not fail with the known missing-lock-directory error
-- **AND** no Postgres health-probe result is required for template readiness
+- **WHEN** the agent home is inspected after first login
+- **THEN** the persistence symlinks resolve into `/persist/agent` (for example `readlink ~/.claude` resolves to `/persist/agent/.claude`)
+- **AND** the `setup-persist` output is present at `/var/log/dune/setup-persist.log`
 
-#### Scenario: App dependencies can be provided by a project-owned Compose project
+#### Scenario: No in-container app services ship
+- **GIVEN** a sandbox created from the Dune sbx template
+- **WHEN** the template's installed services are inspected
+- **THEN** no in-container Postgres, Redis, or Mailpit service is present or auto-started
+
+#### Scenario: App dependencies are provided by a project-owned Compose project
 - **GIVEN** a sandbox created from the Dune sbx template
 - **WHEN** a project-owned `docker compose` project defines an app-dependency service (for example Postgres or Mailpit)
 - **THEN** the service runs inside the sandbox via `docker compose`
-- **AND** it does not depend on the in-template service being healthy
 
 ---
 
