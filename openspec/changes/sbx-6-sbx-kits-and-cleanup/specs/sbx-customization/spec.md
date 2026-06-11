@@ -10,10 +10,19 @@ Dune SHALL use `sbx` kits as the per-project/team customization layer over the D
 - **THEN** the customization is expressed as an `sbx` kit layered on the Dune sbx template
 - **AND** no `Dockerfile.dune` build path is used
 
+#### Scenario: A kit's additions are verified against the installed sbx before kits are documented as supported
+- **GIVEN** the kit command surface and YAML schema are unverified (the spikes only read the kits docs)
+- **WHEN** Dune documents kits as the supported customization path
+- **THEN** the verified `sbx` kit subcommand surface, YAML schema, and create-with-kit flow are recorded against the installed binary
+- **AND** a minimal mixin kit is smoke-tested so a sandbox built from the Dune template with that kit carries the kit's declared addition (e.g. an env var or file is present in the sandbox)
+- **AND** if the installed `sbx` cannot apply kits as documented, Dune falls back to docs-only recipes and does not claim an unverified kit build path
+
 #### Scenario: Recommended docs-domain rules are available as a kit/recipe
 - **GIVEN** the `Balanced` baseline blocks arbitrary docs sites
 - **WHEN** a project wants common documentation domains opened
 - **THEN** a Dune-recommended kit or documented recipe provides those rules as exact + specific-wildcard entries (not broad catch-alls)
+- **AND** the recipe uses the sandbox-scoped policy form and does not mutate global policy (`sbx policy set-default`)
+- **AND** with the recipe applied, a fetch of a representative `Balanced`-blocked docs domain succeeds while an out-of-recipe domain still blocks, confirmed via `sbx policy log <instance>`
 
 ---
 

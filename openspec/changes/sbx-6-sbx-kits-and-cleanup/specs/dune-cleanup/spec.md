@@ -20,4 +20,10 @@ Dune SHALL provide an opt-in `dune cleanup docker` helper for stale local Docker
 - **GIVEN** stale `dune-persist-<profile>` volumes, `dune-local-<slug>` images, and generated compose files on the host
 - **WHEN** the user runs the Dune cleanup helper
 - **THEN** it lists the Dune-scoped artifacts it would remove and requires confirmation
+- **AND** discovery is scoped by Dune's exact name prefixes (`dune-persist-*` volumes, `dune-local-*` images, Dune-owned compose paths), not an unfiltered prune
 - **AND** it does not remove non-Dune Docker resources
+
+#### Scenario: Cleanup is a clean no-op when nothing matches
+- **GIVEN** no Dune-scoped artifacts exist on the host
+- **WHEN** the user runs the Dune cleanup helper
+- **THEN** it reports nothing to remove and exits without error or destructive action

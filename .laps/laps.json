@@ -45,11 +45,11 @@
       "id": "dune-12ba",
       "title": "Review sbx-6 openspec plan",
       "description": "Look through the sbx-6 openspec plan and look for improvements to tighten the plan.\n- read the sbx proposal.md documents\n- send out subagents to gather relevant context from the dune codebase and the spike reports\n- look for aspects where the shape is weakly defined or doesn't have a verification point against the `sbx` binary, where we can improve things for a clearer plan or stronger integration verification point\n- avoid shifting product direction - we're burning a few bridges here, this is a breaking change ultimately, but docker sbx will provide a much stronger baseline for our use case",
-      "isDone": false,
+      "isDone": true,
       "order": 327680,
       "createdAt": "2026-06-11T11:14:13.824809131Z",
-      "updatedAt": "2026-06-11T11:14:13.824809131Z",
-      "completedAt": null
+      "updatedAt": "2026-06-11T12:02:25.692708124Z",
+      "completedAt": "2026-06-11T12:02:25.692708124Z"
     }
   ]
 }
