@@ -24,10 +24,25 @@ This change defines Dune's sbx egress and secrets posture and removes Pipelock. 
 ## Decisions
 
 ### D1: Default baseline is non-`Open` and explicit, starting from `Balanced`
-Dune's posture starts from `sbx`'s `Balanced` preset (default-deny + developer-infrastructure allowlist). Dune SHALL NOT silently weaken egress to `Open`, and it SHALL NOT mutate the user's global `sbx` default policy/profile. On sandbox preparation, Dune must make the instance posture inspectable and non-`Open`: prefer applying a sandbox-scoped Balanced-equivalent baseline when `sbx` supports it; otherwise verify the active posture is already non-`Open` and return an actionable warning/failure if it cannot be confirmed. The sbx path must not proceed under a silently open posture.
+Dune's posture starts from `sbx`'s `Balanced` preset (default-deny + developer-infrastructure allowlist). Dune SHALL NOT silently weaken egress to `Open`, and it SHALL NOT mutate the user's global `sbx` default policy/profile. On sandbox preparation, Dune must make the instance posture inspectable and non-`Open`: prefer applying a sandbox-scoped Balanced-equivalent baseline when `sbx` supports it; otherwise verify the active posture is already non-`Open` and return an actionable warning/failure if it cannot be confirmed.
+
+**The sandbox-scoped baseline mechanism is unverified and is a gating verification point.** The spikes only switched the **global** default policy to `Balanced` (`sbx policy set-default` / `sbx policy reset`) and applied **per-domain** sandbox-scoped allow/deny rules (`--sandbox <name>`); they never applied a *Balanced-equivalent preset scoped to a single sandbox*. Before relying on it, implementation MUST confirm against the installed `sbx` (inspect `sbx policy --help` and `sbx policy set-default --help` / `sbx policy profile --help`) whether a Balanced preset can be applied with `--sandbox <instance>` scope without touching global policy, and record the exact command. If no sandbox-scoped preset mechanism exists, Dune MUST NOT mutate global policy to obtain one; instead it falls back to the **verify-only** path below.
+
+**Boot (`up`) behavior vs. read-only report.** This change fixes two distinct behaviors so they do not contradict each other or `sbx-5`:
+- At sandbox preparation (`up`/`Ensure`), if Dune can neither apply a sandbox-scoped non-`Open` baseline nor confirm the active posture is already non-`Open`, it MUST warn closed with an actionable message (how to set a non-`Open` posture) and MUST NOT silently apply or assume `Open`. It MUST NOT escalate to a hard failure solely because confirmation was unavailable, since the global default may already be non-`Open`; it fails hard only when it positively observes an `Open` posture it was asked to operate under.
+- The read-only `dune doctor` egress check (`sbx-5`) reports the same posture as `warn` (not `fail`) when it cannot be confirmed. sbx-4 exposes the inspection (D4 / `sbx policy ls`); sbx-5 composes the check.
 
 ### D2: Dune-managed rules are sandbox-scoped, not global
 Where Dune applies egress rules itself (baseline assertion when supported, opening a domain, or adding a deny), it uses sandbox-scoped rules (`sbx policy allow/deny network --sandbox <instance> ...`), which spike 3 showed take effect immediately. This avoids mutating the user's global `sbx` default policy/profile. If a sandbox-scoped baseline cannot be applied, Dune verifies the active posture instead of assuming it. Note the CLI surface uses `--sandbox <name>` (the positional form was rejected in spike 3).
+
+`<instance>` is the same `dune-<slug>-<profile>` sandbox name `sbx-3` D3 maps the Dune instance to; policy/secret commands target that exact name. These commands are constructed through the `sbx-3` D5 command-runner seam, so their argument construction is asserted in fakeRunner tests rather than only at runtime. Verified rule shapes from the spikes (pin these in fakeRunner tests; reconfirm via `sbx policy --help` before use because flags may drift across versions):
+
+```text
+sbx policy allow network --sandbox <instance> <domain>:443     # spike 3
+sbx policy deny  network --sandbox <instance> <domain>         # spike 2
+sbx policy rm    network --sandbox <instance> --resource <domain>:443   # spike 3 (removal uses --resource)
+sbx policy log   <instance> --limit <n>                         # spike 2
+```
 
 ### D3: Domain-opening affordance
 Opening a project domain is common (docs sites are blocked under `Balanced`). Dune provides a thin affordance and/or explicit guidance that:
@@ -37,10 +52,18 @@ Opening a project domain is common (docs sites are blocked under `Balanced`). Du
 The concrete command name (e.g. a `dune` wrapper vs. documented `sbx policy allow`) is coordinated with the command set finalised in `sbx-5`; this change fixes the *behavior and rule shape*, not necessarily a new top-level verb.
 
 ### D4: Egress observability via `sbx policy log`
-`sbx policy log <instance>` is the first-class egress observability source, replacing `dune logs pipelock`. This change ensures the access is available/wrapped for the instance's sandbox; the final `dune logs` composition (policy log + Dune-owned setup/runtime logs) is `sbx-5`.
+`sbx policy log <instance>` is the first-class egress observability source, replacing `dune logs pipelock`. This change ensures the access is available/wrapped for the instance's sandbox through the `sbx-3` D5 runner seam; the final `dune logs` composition (policy log + Dune-owned setup/runtime logs) is `sbx-5`.
+
+The spikes verified `sbx policy log <instance> --limit <n>` records both `forward` (direct shell) and `transparent` (nested Docker) traffic, plus `forward-bypass` for allowed registry traffic. The exact invocation/parse shape used by the wrapper (whether a `--json` form exists, and the field names) is **unverified** and MUST be confirmed against `sbx policy log --help` and pinned in fakeRunner tests before the wrapper relies on parsed fields; if no structured form exists, the wrapper passes the raw output through and `sbx-5` formats it.
 
 ### D5: Secrets posture
-- **Prefer service-identifier secrets** (`sbx secret set <scope> <service> ...`): spike 3 showed a clean set/list/remove lifecycle. Use these where a built-in agent or a future kit declares a service identifier, and for registry auth (`sbx secret set --registry`, see `sbx-2`).
+- **Prefer service-identifier secrets** (`sbx secret set <scope> <service> ...`): spike 3 showed a clean set/list/remove lifecycle. Use these where a built-in agent or a future kit declares a service identifier, and for registry auth (`sbx secret set --registry`, see `sbx-2`). Where Dune itself sets/removes a service secret it goes through the `sbx-3` D5 runner seam, so the argument shape is asserted in fakeRunner tests. Verified lifecycle shapes from spike 3 (the scope is the `dune-<slug>-<profile>` sandbox name; reconfirm via `sbx secret --help` before use):
+
+```text
+sbx secret set <instance> <service> -t <ENV_VAR>   # spike 3 (set)
+sbx secret ls  <instance>                            # spike 3 (list, masked)
+sbx secret rm  <instance> <service> -f               # spike 3 (remove)
+```
 - **Custom secrets are experimental and out of v1 lifecycle ownership.** Spike 2/3 found `sbx secret set-custom` has no working removal, is not auto-injected into the sandbox env, accumulates duplicate rows on re-set, and survives sandbox removal. Dune does not depend on custom secrets for boot in v1; if offered experimentally, Dune warns that cleanup may require manual `sbx`/Docker intervention or a future `sbx` fix.
 - **No secrets in the template** (reaffirms `sbx-2` D7): the template is built from source, never via `sbx template save`, and is not a secret boundary.
 - Agent-provider credentials continue to use persisted config under the profile-scoped `/persist` location (`sbx-3` D3) unless/until a built-in agent or kit declares a service identifier suitable for `sbx secret` injection.

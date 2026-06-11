@@ -21,13 +21,19 @@ Dune SHALL use a defined, non-`Open` egress baseline for sbx workspaces, startin
 
 ### Requirement: Dune-managed egress rules are scoped to the workspace's sandbox
 
-When Dune applies egress rules itself, it SHALL scope them to the workspace's sandbox (`--sandbox <instance>`) so they do not modify the user's global `sbx` default policy or profile.
+When Dune applies egress rules itself, it SHALL scope them to the workspace's sandbox (`--sandbox <instance>`) so they do not modify the user's global `sbx` default policy or profile. The constructed `sbx` command (name and argument shape) SHALL be assertable without a live `sbx` daemon.
 
 #### Scenario: Opening a domain does not change global policy
 - **GIVEN** a workspace instance and the user's existing global `sbx` policy
 - **WHEN** Dune applies an egress rule for the workspace
-- **THEN** the rule is scoped to that instance's sandbox
+- **THEN** the rule is scoped to that instance's sandbox (`--sandbox <instance>`)
 - **AND** the user's global default policy/profile is unchanged
+
+#### Scenario: Rule construction is verifiable without a live daemon
+- **GIVEN** Dune's egress-rule construction for a workspace
+- **WHEN** an allow, deny, or remove rule is built for the sandbox
+- **THEN** the exact command name and arguments are observable through the command-runner seam
+- **AND** they can be asserted in tests without invoking `sbx`
 
 ---
 
