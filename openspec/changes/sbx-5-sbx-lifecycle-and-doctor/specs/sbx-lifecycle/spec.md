@@ -35,12 +35,12 @@ Dune SHALL provide a `dune destroy` command that removes the instance's sandbox 
 
 ### Requirement: dune logs composes Dune-owned logs and the sbx policy log
 
-`dune logs` SHALL compose Dune-owned setup/runtime logs with `sbx policy log <instance>` for egress observability. It SHALL NOT provide a `dune logs pipelock` surface. App-dependency service logs are not aggregated by `dune logs`; they are obtained from the project-owned Compose project inside the sandbox.
+`dune logs` SHALL compose Dune-owned setup/runtime logs — the host-side lifecycle log plus the in-sandbox Dune output written under `/var/log/dune/` (the `sbx-2` D5a contract) — with `sbx policy log <instance>` for egress observability. It SHALL NOT provide a `dune logs pipelock` surface. App-dependency service logs are not aggregated by `dune logs`; they are obtained from the project-owned Compose project inside the sandbox.
 
 #### Scenario: logs include egress records and exclude pipelock
 - **GIVEN** a running instance
 - **WHEN** `dune logs` runs
-- **THEN** it surfaces a Dune-owned log line and records from `sbx policy log <instance>`
+- **THEN** it surfaces a Dune-owned log line (host-side and/or the in-sandbox `/var/log/dune/` output) and records from `sbx policy log <instance>`
 - **AND** there is no `dune logs pipelock` subcommand
 
 ---

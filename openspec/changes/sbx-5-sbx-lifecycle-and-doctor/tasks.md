@@ -7,7 +7,7 @@
 
 ## 2. dune logs composition
 
-- [ ] 2.1 Compose `dune logs` from Dune-owned setup/runtime logs + `sbx policy log <instance>`; remove the `dune logs pipelock` surface (D3, `sbx-4`).
+- [ ] 2.1 Compose `dune logs` from Dune-owned setup/runtime logs (host-side lifecycle log + the in-sandbox `/var/log/dune/` output per `sbx-2` D5a) + `sbx policy log <instance>`; remove the `dune logs pipelock` surface (D3, `sbx-4`). Assert both Dune-owned sources appear in the composed output.
 - [ ] 2.2 Document that app-dependency service logs come from `docker compose logs` inside the sandbox (project-owned Compose), not `dune logs`.
 
 ## 3. Structured diagnostics
