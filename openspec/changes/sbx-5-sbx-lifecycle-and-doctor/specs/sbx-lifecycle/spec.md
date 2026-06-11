@@ -23,8 +23,13 @@ Dune SHALL provide a `dune destroy` command that removes the instance's sandbox 
 #### Scenario: destroy removes the sandbox but keeps profile credentials
 - **GIVEN** an instance with profile-scoped persisted credentials/config
 - **WHEN** `dune destroy` is confirmed
-- **THEN** the sandbox is removed
+- **THEN** `dune` invokes `sbx rm <instance>` and the sandbox no longer appears in `sbx ls --json`
 - **AND** the profile-scoped persisted state remains available to a subsequent sandbox of that profile
+
+#### Scenario: destroy requires confirmation or an explicit force flag
+- **GIVEN** an existing sandbox
+- **WHEN** `dune destroy` runs without confirmation and without `--force`
+- **THEN** the sandbox is not removed
 
 ---
 
@@ -35,14 +40,19 @@ Dune SHALL provide a `dune destroy` command that removes the instance's sandbox 
 #### Scenario: logs include egress records and exclude pipelock
 - **GIVEN** a running instance
 - **WHEN** `dune logs` runs
-- **THEN** it surfaces Dune-owned logs and `sbx policy log` records
+- **THEN** it surfaces a Dune-owned log line and records from `sbx policy log <instance>`
 - **AND** there is no `dune logs pipelock` subcommand
 
 ---
 
 ### Requirement: dune ports guidance accounts for bind address
 
-Dune SHALL provide a `dune ports` command that wraps `sbx ports` list/publish/unpublish and SHALL surface that a nested service bound only to sandbox loopback may not be reachable through published host ports, so dev servers should bind to all sandbox interfaces when host exposure is desired.
+Dune SHALL provide a `dune ports` command over the `sbx ports` surface (listing via `sbx ports <instance>` and publishing via `sbx ports <instance> --publish <port>`) and SHALL surface that a nested service bound only to sandbox loopback may not be reachable through published host ports, so dev servers should bind to all sandbox interfaces when host exposure is desired. Any unpublish/remove affordance SHALL be provided only with an `sbx` port-removal spelling confirmed against the installed `sbx`.
+
+#### Scenario: listing uses the verified sbx ports shape
+- **GIVEN** a running instance
+- **WHEN** `dune ports` lists ports
+- **THEN** Dune invokes `sbx ports <instance>`
 
 #### Scenario: publishing a loopback-only service is guided
 - **GIVEN** a nested service bound only to sandbox loopback

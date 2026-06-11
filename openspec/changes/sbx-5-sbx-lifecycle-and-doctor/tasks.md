@@ -3,7 +3,7 @@
 - [ ] 1.1 Finalise `dune` / `dune up`: Validate → ensure template available → Ensure → Start (if stopped) → Shell at the mounted repo path; reuse a running sandbox without recreation (D1).
 - [ ] 1.2 Finalise `dune down` → Stop (state retained) and `dune rebuild` → recreate from the template preserving profile-scoped persisted state (D1).
 - [ ] 1.3 Add `dune destroy` → `sbx rm <instance>` with confirmation (or `--force`); profile-scoped persisted state survives (D2).
-- [ ] 1.4 Add `dune ports` wrapping `sbx ports` list/publish/unpublish, surfacing the loopback-vs-all-interfaces caveat (D1).
+- [ ] 1.4 Add `dune ports` over the verified `sbx ports` surface (list via `sbx ports <sandbox>`, publish via `--publish <port>`), surfacing the loopback-vs-all-interfaces caveat (D1). Confirm any unpublish/remove spelling via `sbx ports --help` before exposing it; ship list + publish only if no unpublish form is confirmed.
 
 ## 2. dune logs composition
 
@@ -19,17 +19,17 @@
 ## 4. dune doctor
 
 - [ ] 4.1 Add a `Check` model (id/group/severity/status/summary/detail/recovery; status pass/warn/fail/skip) and a read-only `dune doctor` that does not start or enter the environment (D5).
-- [ ] 4.2 Implement checks: host/sbx (PATH, `sbx diagnose`, min version), template availability (lightweight; deep pull opt-in), sandbox status (`sbx ls --json`), workspace/profile/config/persist dirs, and egress baseline (from `sbx-4`; `warn`/`fail` closed if unconfirmable). Do not add in-template service health checks.
+- [ ] 4.2 Implement checks: host/sbx (PATH, `sbx diagnose --output json`, min version via `sbx version`), template availability (lightweight; deep pull opt-in), sandbox status (`sbx ls --json`, reusing the `sbx-3` D7 parse), workspace/profile/config/persist dirs, and egress baseline (inspect via `sbx policy ls` from `sbx-4`; `warn` when unconfirmable, `fail` only on an observed `Open` posture). Use only read-only `sbx` calls. Do not add in-template service health checks.
 - [ ] 4.3 Concise human-readable output plus an optional `--json` mode; reuse diagnostic codes/recovery hints where checks map to runtime failure modes.
 
 ## 5. Tests
 
 - [ ] 5.1 Fake-runner tests for `up`/`down`/`destroy`/`rebuild` command construction and sequencing (extending the `sbx-3` seam), including `dune destroy` → `sbx rm` and rebuild preserving persisted state.
 - [ ] 5.2 Diagnostics tests asserting codes and preserved stderr for representative failures (missing sbx, failed diagnose, below-min version, create/start/exec/rm failures, template unavailable, corrupt profiles).
-- [ ] 5.3 `dune doctor` tests for pass/warn/fail/skip cases and `--json` shape; assert it never starts a sandbox.
+- [ ] 5.3 `dune doctor` tests for pass/warn/fail/skip cases and `--json` shape; assert it constructs only read-only `sbx` calls (`diagnose`/`version`/`ls`/`policy ls`) and never a sandbox-mutating command (`create`/`run`/`exec`/`rm`).
 
 ## 6. Build, smoke, docs
 
 - [ ] 6.1 Run `go build ./cmd/dune` and `go test ./...`.
-- [ ] 6.2 Smoke-verify the finalised commands against a sandbox built from the Dune sbx template; remove temporary sandboxes.
+- [ ] 6.2 Smoke-verify the finalised commands against a sandbox built from the Dune sbx template (acceptance gates, design Migration §"Smoke verification"): `dune destroy --force` removes the instance (absent from `sbx ls --json`) and a subsequent `dune up` recreates it with persisted state intact; `dune doctor` does not change `sbx ls --json` for an absent/stopped sandbox and reports `pass` on a healthy host; `dune logs` surfaces a Dune-owned line plus `sbx policy log` records and exposes no `pipelock` subcommand; `dune ports` lists via `sbx ports <sandbox>`. Remove temporary sandboxes (`sbx rm`).
 - [ ] 6.3 Update docs for the finalised command surface, `dune logs` composition, diagnostics, and `dune doctor`.

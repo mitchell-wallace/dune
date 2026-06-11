@@ -8,13 +8,19 @@
 - **GIVEN** an instance whose sandbox is stopped or absent
 - **WHEN** `dune doctor` runs
 - **THEN** it reports readiness checks
-- **AND** it does not create, start, or attach to a sandbox
+- **AND** it invokes only read-only `sbx` commands (such as `sbx diagnose`, `sbx version`, `sbx ls`, `sbx policy ls`)
+- **AND** it does not invoke `sbx create`, `sbx run`, `sbx exec`, or `sbx rm`
 
 #### Scenario: failing checks include recovery hints
 - **GIVEN** a host where `sbx diagnose` fails
 - **WHEN** `dune doctor` runs
 - **THEN** the host/sbx check reports `fail`
 - **AND** it includes an actionable recovery hint
+
+#### Scenario: unconfirmable egress posture warns rather than fails
+- **GIVEN** an instance whose egress posture cannot be confirmed via `sbx policy ls`
+- **WHEN** `dune doctor` runs
+- **THEN** the egress check reports `warn`, not `fail`
 
 ---
 
