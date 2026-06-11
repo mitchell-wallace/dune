@@ -20,7 +20,7 @@
 
 - [ ] 4.1 Document and prefer service-identifier secrets (`sbx secret set`) for built-in agent / kit-declared identifiers and registry auth (`sbx secret set --registry`) (D5). Where Dune sets/removes a service secret itself, route it through the `sbx-3` D5 runner seam and pin the verified `set`/`ls`/`rm` shapes (D5) in fakeRunner tests; reconfirm via `sbx secret --help`.
 - [ ] 4.2 Document `sbx` custom secrets (`sbx secret set-custom`) as experimental and out of v1 lifecycle ownership (no working removal, not auto-injected, duplicate rows, survive sandbox removal); ensure no core Dune boot path depends on them.
-- [ ] 4.3 Reaffirm no secrets are baked into the template; agent-provider creds use the profile-scoped `/persist` location until a service identifier is available (D5, `sbx-2` D7, `sbx-3` D3).
+- [ ] 4.3 Reaffirm no secrets are baked into the template; agent-provider creds use the profile-scoped `/persist/agent` location until a service identifier is available (D5, `sbx-2` D7, `sbx-3` D3).
 
 ## 5. Complete Pipelock removal (sequenced last)
 

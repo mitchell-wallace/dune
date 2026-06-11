@@ -12,7 +12,7 @@
 ## 3. Semantic Spec and app.go restructure
 
 - [ ] 3.1 Define a minimal backend-agnostic `Spec` (instance name, workspace host path, profile, template ref, working dir, shell, timezone); remove `project{}` (D2, D8).
-- [ ] 3.2 Add `version.SbxTemplateRef()` (alongside `BaseImageRef`) sourced from the template version, kept in lockstep with `VERSION` (D10).
+- [ ] 3.2 Add `version.SbxTemplateRef()` (alongside `BaseImageRef`) reading `container/sbx/IMAGE_VERSION` (not top-level `VERSION`; lockstep with `VERSION` is a release convention, per D10).
 - [ ] 3.3 Restructure `app.go` into resolve → build `Spec` → dispatch to the backend, reusing existing workspace resolution, profile store, profile-name validation, and timezone logic.
 
 ## 4. Lifecycle operations and command construction

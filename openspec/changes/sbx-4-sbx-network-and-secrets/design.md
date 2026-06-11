@@ -66,7 +66,7 @@ sbx secret rm  <instance> <service> -f               # spike 3 (remove)
 ```
 - **Custom secrets are experimental and out of v1 lifecycle ownership.** Spike 2/3 found `sbx secret set-custom` has no working removal, is not auto-injected into the sandbox env, accumulates duplicate rows on re-set, and survives sandbox removal. Dune does not depend on custom secrets for boot in v1; if offered experimentally, Dune warns that cleanup may require manual `sbx`/Docker intervention or a future `sbx` fix.
 - **No secrets in the template** (reaffirms `sbx-2` D7): the template is built from source, never via `sbx template save`, and is not a secret boundary.
-- Agent-provider credentials continue to use persisted config under the profile-scoped `/persist` location (`sbx-3` D3) unless/until a built-in agent or kit declares a service identifier suitable for `sbx secret` injection.
+- Agent-provider credentials continue to use persisted config under the profile-scoped `/persist/agent` location (`sbx-3` D3) unless/until a built-in agent or kit declares a service identifier suitable for `sbx secret` injection.
 
 ### D6: Pipelock removal, sequenced after the baseline
 Delete the `internal/dune/pipelock` package, `ensurePipelockConfig` and the `~/.config/dune/pipelock.yaml` generation, the proxy-env (`HTTP(S)_PROXY`) model, and the `dune logs pipelock` surface (its replacement is D4). Ordering: removal happens only after D1–D2 establish that `sbx` policy governs egress for the sbx path, so there is no window where egress is both un-proxied and un-policed. (Pipelock remains for as long as the legacy Compose backend exists; the legacy backend itself is retired in `sbx-6`.)
