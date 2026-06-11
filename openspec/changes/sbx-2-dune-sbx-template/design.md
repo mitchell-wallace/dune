@@ -15,9 +15,8 @@ This change defines a dedicated Dune sbx template image that closes these gaps. 
 **Goals**
 - Produce a Docker-enabled Dune sbx template: Docker Engine + `docker compose` usable inside the sandbox.
 - Reach toolchain parity with the current base image, verified from inside a sandbox.
-- Keep the in-template service tools (Postgres, Redis, Mailpit) installed and apply the low-cost Postgres runtime-directory fix so they are *usable when started* — without making their auto-start/health a parity gate (in-sandbox `docker compose` makes project-owned Compose the canonical path for app dependencies).
+- Keep the in-template service tools (Postgres, Redis, Mailpit) installed and apply the low-cost Postgres runtime-directory fix so they are *usable when started* — without making service auto-start, health probes, or log aggregation part of template readiness (in-sandbox `docker compose` makes project-owned Compose the canonical path for app dependencies).
 - Support a deliberate `/workspace` symlink to the real mounted repo rather than a misleading static directory.
-- Define lightweight, optional service health and log conventions later consumable by `dune logs` / `dune doctor`.
 - Define a build, version, and publish path for the template, kept in lockstep with the CLI version.
 - Meet the spike-2 acceptance criteria.
 
@@ -36,12 +35,11 @@ The template targets Docker-in-sandbox by building on (or replicating) Docker's 
 ### D2: A new template build, separate from the Compose base image
 Add new template build inputs (e.g. a `Dockerfile.sbx` / `container/sbx/` tree) rather than mutating the root `Dockerfile` in place, so the existing Compose base image stays buildable as migration scaffolding until `sbx-3` cuts over. Reuse the existing build assets where possible: `container/base/scripts/{install-rally,install-laps,install-agy,configure-agents,setup-persist}.sh`, `container/base/tooling.yaml`, and `container/base/home-defaults/`. The legacy base image and its workflow are retired later in `sbx-6`.
 
-### D3: In-template services are a convenience, with a low-cost Postgres fix
-Docker-in-sandbox (D1) makes project-owned `docker compose` the canonical path for app dependencies, so the in-template Postgres/Redis/Mailpit services are demoted from parity-critical to convenience. The template still ships them and keeps them usable:
+### D3: In-template services are convenience tools only; no health-probe scope
+Docker-in-sandbox (D1) makes project-owned `docker compose` the canonical path for app dependencies, so the in-template Postgres/Redis/Mailpit services are convenience tools, not readiness gates. The template still ships them and fixes the known broken Postgres startup path:
 - The Postgres service creates and chowns `/var/run/postgresql` (owner `agent`) before launching `postgres -D /var/lib/postgresql/data -k /var/run/postgresql`. This is a cheap, already-diagnosed fix and is worth doing so an installed-but-broken Postgres does not ship.
-- Redis and Mailpit remain installed and start with their existing scripts.
-- Service-native health probes (`pg_isready`, `redis-cli ping`, Mailpit HTTP) are provided but **optional** (spike 2 noted `s6-svstat` was unavailable, so probes do not assume an s6 status tool). In-template service auto-start/health is best-effort and is explicitly **not** part of this change's acceptance gate.
-- Whether these services remain supervised in-template long-term, or are dropped in favor of project-owned Compose, is tracked for `sbx-6`.
+- Redis and Mailpit remain installed with their existing scripts, but their supervision, auto-start, health probes, and log aggregation are outside this change.
+- No service-native health probes (`pg_isready`, `redis-cli ping`, Mailpit HTTP) are added to the template acceptance gate. `sbx-5` doctor/logs should not depend on in-template service health; app-dependency readiness belongs to project-owned Compose inside the sandbox.
 
 ### D4: `/workspace` is a compatibility symlink to the real mount, created at runtime
 The template must not ship a static empty `/workspace` that masks the mount. The canonical working directory is the real mounted repo path. A first-run/login step creates `/workspace` as a symlink to the resolved mount. Because only the runtime backend knows the absolute mount path, the backend (`sbx-3`) supplies it (e.g. via an environment variable such as `DUNE_WORKSPACE` at sandbox create time); the template consumes it to create/refresh the symlink. The template's responsibility here is to *support* the symlink mechanism and remove the misleading `WORKDIR /workspace` assumption.
@@ -57,17 +55,16 @@ The template is published as its own image reference (proposed `ghcr.io/mitchell
 ### D7: The template is not a secret boundary
 Document that `sbx template save` of a configured sandbox captures the whole filesystem (including any manually stored secrets). The Dune template is always built from source, never from a sandbox snapshot, and no secrets are baked in.
 
-### D8: Acceptance is the spike-2 success matrix (minus the service-health gate)
-Parity is defined by reproducing the spike-2 criteria that actually gate the template, as smoke checks: sandbox starts from the Dune template; attached shell starts in the mounted repo; Docker Engine + `docker compose version` work; nested `docker compose up` works (the canonical path for app dependencies); Playwright launches Chromium; `sbx ports` exposes a nested service to the host; `sbx policy deny network --sandbox <name> example.com` blocks both shell and nested-Docker traffic with useful `sbx policy log` records. The in-template service tools are present and Postgres starts cleanly when invoked, but their health is a convenience check rather than a blocking acceptance criterion.
+### D8: Acceptance is the spike-2 success matrix, with health probes explicitly excluded
+Parity is defined by reproducing the spike-2 criteria that actually gate the template, as smoke checks: sandbox starts from the Dune template; attached shell starts in the mounted repo; Docker Engine + `docker compose version` work; nested `docker compose up` works (the canonical path for app dependencies); Playwright launches Chromium; `sbx ports` exposes a nested service to the host; `sbx policy deny network --sandbox <name> example.com` blocks both shell and nested-Docker traffic with useful `sbx policy log` records. The in-template service tools are present and the Postgres runtime-directory fix is verified, but service health probes are deliberately excluded from acceptance.
 
 ## Risks / Trade-offs
 
 - **Docker-in-sandbox cost and build time.** Nested Docker adds resource overhead; the full image build is large (~12–15 min per the project notes). Mitigation: validate with an ephemeral build; keep layers cache-friendly.
 - **`-docker` template not derivable as a normal image.** If D1's derive path is impossible, fall back to installing Docker CE + compose plugin (more maintenance). Acceptance tests gate both.
-- **Supervision under sbx.** s6-overlay must run as the template's init under `sbx`, or services must move to an sbx-compatible start mechanism. Mitigation: verify s6 supervises correctly inside a sandbox; if not, adopt a sandbox-native start path for the three services.
 - **Playwright/Chromium under microVM.** Browser launch must be verified in-sandbox, not assumed.
 - **`/workspace` symlink timing.** The symlink must be created after the mount is present and before the user's shell relies on it; coordinate the create-time variable with `sbx-3`.
-- **Service ownership drift.** Spike 3 recommended that app dependencies (PG/Redis/Mailpit) move toward project-owned Compose now that `docker compose` runs inside the sandbox. This change therefore keeps them installed as a convenience but does not gate on their health; the longer-term decision (keep supervised in-template vs. drop in favor of project Compose) is tracked in `sbx-6`. The trade-off is that a user relying on the in-template services gets a best-effort experience until that decision lands.
+- **Service ownership drift.** Spike 3 recommended that app dependencies (PG/Redis/Mailpit) move toward project-owned Compose now that `docker compose` runs inside the sandbox. This change therefore keeps the tools installed and fixes known-broken Postgres startup, but does not create a second service-management surface in the template. Users needing reliable app dependency lifecycle should use project-owned Compose inside the sandbox.
 
 ## Migration Plan
 
@@ -79,7 +76,5 @@ Parity is defined by reproducing the spike-2 criteria that actually gate the tem
 ## Open Questions
 
 - Derive from a Docker-enabled `-docker` template vs. install Docker Engine directly (resolve during build spike).
-- Does s6-overlay run cleanly as the sandbox init under `sbx`, or should the three services adopt an sbx-native start mechanism?
 - Final template image name and version scheme (dedicated `dune-sbx` repo vs. shared versioning).
 - Exact contract for how the backend passes the mount path for the `/workspace` symlink (env var name vs. in-sandbox detection).
-- Whether Postgres/Redis/Mailpit remain supervised in-template long-term or move toward project-owned Compose (tracked for `sbx-6`).

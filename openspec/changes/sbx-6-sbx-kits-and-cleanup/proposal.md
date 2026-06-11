@@ -1,7 +1,3 @@
-## Status
-
-**Partly optional / can be split.** This is the maturity/teardown phase of the sbx migration and should land only after the sbx backend has proven parity in real use. The kit-customization and the Docker-teardown halves can ship independently if useful.
-
 ## Why
 
 After the sbx backend reaches parity (`sbx-2` through `sbx-5`), two follow-on concerns remain.
@@ -15,10 +11,10 @@ This proposal scopes **kits as the customization layer** and the **teardown/clea
 ## What Changes
 
 - **NEW** Establish `sbx` kits as the customization story that replaces `Dockerfile.dune`: thin kits layering network rules, credentials, files, and per-project/team additions on top of the Dune sbx template. Decide which kit types Dune ships or recommends (agent kits vs. mixin kits) and where kit definitions live (e.g. per-repo, alongside `rally.toml`).
-- **NEW** (optional) A Dune-recommended default kit or documented kit recipe for common docs-domain network rules, addressing the `Balanced`-blocks-docs friction from `sbx-4`.
+- **NEW** A Dune-recommended documented kit recipe for common docs-domain network rules, addressing the `Balanced`-blocks-docs friction from `sbx-4` without making docs domains part of the default-open posture.
 - **NEW** A template refresh/versioning strategy in a kit-aware world: how the Dune sbx template is updated and republished, and how kit definitions relate to template versions. This formalizes the version lockstep from `sbx-2` D6 (`VERSION` + the template's `IMAGE_VERSION`), and retires the base image's role in that lockstep.
 - **REMOVE** the remaining Docker Compose scaffolding once the sbx backend is the only backend: any leftover compose rendering/helpers/golden+validation test fixtures not already removed in `sbx-3`, the legacy `dune-base` Compose image (root `Dockerfile`, `container/base/`), and the `image.yml` base build-and-push job.
-- **NEW** A cleanup story for stale local Docker artifacts from the pre-migration backend (`dune-persist-<profile>` volumes, `dune-local-<slug>` images, generated compose files): either documented manual steps or a small `dune` helper, with clear user-facing migration notes.
+- **NEW** A cleanup story for stale local Docker artifacts from the pre-migration backend (`dune-persist-<profile>` volumes, `dune-local-<slug>` images, generated compose files): a small opt-in `dune cleanup docker` helper plus clear user-facing migration notes.
 
 ### Non-goals (explicitly deferred)
 
@@ -43,7 +39,7 @@ This proposal scopes **kits as the customization layer** and the **teardown/clea
 - **Build/CI**: The root `Dockerfile` / `container/base/` tree and the `image.yml` base build job are removed once the template is the sole runtime artifact; the version lockstep moves fully to the template (per `sbx-2` D6 and AGENTS.md, which today tie `VERSION` and `container/base/IMAGE_VERSION`).
 - **Codebase**: Remaining Compose rendering/helpers/test fixtures are deleted.
 - **Users**: A documented one-time cleanup of stale Docker volumes/images/compose files (manual or helper-assisted). No new required config.
-- **Sequencing**: Last in the series; depends on proven parity of `sbx-2`..`sbx-5`. The two halves (kits; teardown/cleanup) can be split into separate landings.
+- **Sequencing**: Last in the series; depends on proven parity of `sbx-2`..`sbx-5`. Teardown is mandatory once parity is proven; kit documentation can land before teardown as long as the core template remains self-sufficient.
 
 ## Depends On
 

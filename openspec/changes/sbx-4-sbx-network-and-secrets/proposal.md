@@ -8,7 +8,7 @@ This proposal scopes the **egress posture and secrets posture, plus Pipelock rem
 
 ## What Changes
 
-- **NEW** A defined, non-`Open` default egress baseline for Dune sbx workspaces, starting from `sbx`'s `Balanced` preset (default-deny + developer-infrastructure allowlist). Dune makes the active posture **explicit and inspectable** rather than silently depending on whatever host default happens to be set, and never weakens it to `Open` on the user's behalf.
+- **NEW** A defined, non-`Open` default egress baseline for Dune sbx workspaces, starting from `sbx`'s `Balanced` preset (default-deny + developer-infrastructure allowlist). Dune makes the active posture **explicit and inspectable**, never weakens it to `Open`, and fails/warns closed if a non-`Open` instance posture cannot be confirmed without mutating global host policy.
 - **NEW** A way to apply Dune's egress rules **scoped to the workspace's sandbox** (`sbx policy allow/deny network --sandbox <instance> ...`) so Dune-managed rules do not clobber the user's global `sbx` default policy/profile.
 - **NEW** A domain-opening affordance and/or clear guidance for opening project-specific domains (especially docs sites), which adds **both** the exact domain and a specific wildcard when both are needed, prefers exact + specific-wildcard rules over broad catch-alls, and takes effect immediately on the running sandbox. (The exact command surface is coordinated with the `dune` command set finalised in `sbx-5`.)
 - **NEW** Egress observability via `sbx policy log <instance>` as the first-class source that replaces `dune logs pipelock`. This change exposes/wraps that access; the final `dune logs` composition lands in `sbx-5`.

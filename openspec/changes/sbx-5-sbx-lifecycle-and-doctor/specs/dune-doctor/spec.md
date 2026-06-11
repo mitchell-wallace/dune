@@ -2,7 +2,7 @@
 
 ### Requirement: dune doctor reports readiness without starting the environment
 
-`dune doctor` SHALL inspect readiness without creating, starting, or entering a sandbox. It SHALL report structured checks across host/sbx readiness (`sbx` on PATH, `sbx diagnose`, minimum version), Dune sbx template availability, sandbox status, workspace/profile/config/persist readiness, and the egress policy baseline, each with a status of `pass`, `warn`, `fail`, or `skip`.
+`dune doctor` SHALL inspect readiness without creating, starting, or entering a sandbox. It SHALL report structured checks across host/sbx readiness (`sbx` on PATH, `sbx diagnose`, minimum version), Dune sbx template availability, sandbox status, workspace/profile/config/persist readiness, and the egress policy baseline, each with a status of `pass`, `warn`, `fail`, or `skip`. It SHALL NOT probe in-template service health.
 
 #### Scenario: doctor does not start the environment
 - **GIVEN** an instance whose sandbox is stopped or absent
@@ -20,14 +20,9 @@
 
 ### Requirement: dune doctor output is concise with an optional machine-readable mode
 
-`dune doctor` SHALL produce concise human-readable output by default and SHALL support an optional machine-readable (`--json`) mode emitting the structured check list. In-template service-health checks SHALL be optional and non-fatal (reported as `warn`/`skip`, never `fail`), consistent with services being a convenience.
+`dune doctor` SHALL produce concise human-readable output by default and SHALL support an optional machine-readable (`--json`) mode emitting the structured check list. The checks SHALL focus on the core sbx backing and exclude in-template service health.
 
 #### Scenario: JSON mode emits structured checks
 - **GIVEN** `dune doctor --json`
 - **WHEN** it runs
 - **THEN** it emits the structured list of checks with their statuses
-
-#### Scenario: service health is non-fatal
-- **GIVEN** an in-template service that is not running
-- **WHEN** `dune doctor` runs
-- **THEN** the service check is reported as `warn` or `skip` rather than `fail`

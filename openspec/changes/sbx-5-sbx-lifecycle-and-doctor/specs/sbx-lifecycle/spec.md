@@ -42,7 +42,7 @@ Dune SHALL provide a `dune destroy` command that removes the instance's sandbox 
 
 ### Requirement: dune ports guidance accounts for bind address
 
-If Dune provides a `dune ports` command, it SHALL wrap `sbx ports` list/publish/unpublish and SHALL surface that a nested service bound only to sandbox loopback may not be reachable through published host ports, so dev servers should bind to all sandbox interfaces when host exposure is desired.
+Dune SHALL provide a `dune ports` command that wraps `sbx ports` list/publish/unpublish and SHALL surface that a nested service bound only to sandbox loopback may not be reachable through published host ports, so dev servers should bind to all sandbox interfaces when host exposure is desired.
 
 #### Scenario: publishing a loopback-only service is guided
 - **GIVEN** a nested service bound only to sandbox loopback

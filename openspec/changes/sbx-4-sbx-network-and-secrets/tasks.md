@@ -1,7 +1,7 @@
 ## 1. Egress baseline
 
-- [ ] 1.1 Define Dune's recommended non-`Open` egress baseline starting from `sbx`'s `Balanced` preset, and document it (D1).
-- [ ] 1.2 Surface the *active* posture for an instance via `sbx policy ls` / `sbx policy log` rather than assuming it; ensure Dune never weakens egress to `Open` on the user's behalf.
+- [ ] 1.1 Define Dune's non-`Open` egress baseline starting from `sbx`'s `Balanced` preset, and document it (D1).
+- [ ] 1.2 Surface the *active* posture for an instance via `sbx policy ls` / `sbx policy log`; ensure Dune never weakens egress to `Open`, never mutates global host policy, and fails/warns closed if a non-`Open` instance posture cannot be confirmed.
 - [ ] 1.3 Verify Dune's actual toolchain traffic (package managers: npm/pip/go/cargo; AI providers) works under the baseline; record any domains that must be added.
 
 ## 2. Sandbox-scoped rules and domain opening

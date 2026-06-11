@@ -20,7 +20,7 @@
 - [ ] 4.1 Implement `Ensure` to create the sandbox from the Dune template with the workspace direct-mounted, passing the absolute mount path to the template (`DUNE_WORKSPACE` contract from `sbx-2` D4) (design D4).
 - [ ] 4.2 Implement `Status` via `sbx ls --json` (replacing `isAgentCreated`/`isAgentRunning`) and `Start`/`Stop` via `sbx run`/`sbx stop`.
 - [ ] 4.3 Implement `Shell` as `sbx exec -it -w <mounted repo path> <instance> zsh` so the shell starts in the repository.
-- [ ] 4.4 Back `/persist` with a durable, profile-scoped location decoupled from the sandbox so profile state is shared across a profile's sandboxes and survives `rebuild` (D3). First determine the mechanism `sbx` supports (extra host mount at `/persist` vs. an sbx-native per-profile volume); if neither is available, document that `rebuild`/recreate resets in-sandbox agent state and keep persistence per-sandbox until a mechanism lands.
+- [ ] 4.4 Back `/persist` with a durable, profile-scoped location decoupled from the sandbox so profile state is shared across a profile's sandboxes and survives `rebuild` (D3). Prove the supported mechanism (`sbx` extra host mount at `/persist` or an sbx-native per-profile volume) before cutover; do not accept per-sandbox-only persistence as a fallback.
 
 ## 5. Wire commands to the backend
 

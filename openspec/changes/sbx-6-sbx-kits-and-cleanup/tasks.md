@@ -2,7 +2,7 @@
 
 - [ ] 1.1 Decide the kit types Dune ships/recommends (mixin kits for the common case; agent kits only if needed) and document kits as the replacement for `Dockerfile.dune` (D1).
 - [ ] 1.2 Decide and document where kit definitions live (recommended: per-repo, alongside `rally.toml`).
-- [ ] 1.3 (Optional) Provide a Dune-recommended docs-domain kit or documented recipe (exact + specific-wildcard rules) addressing the `Balanced`-blocks-docs friction from `sbx-4` (D2).
+- [ ] 1.3 Provide a Dune-recommended documented docs-domain kit recipe (exact + specific-wildcard rules) addressing the `Balanced`-blocks-docs friction from `sbx-4` without broad catch-alls (D2).
 
 ## 2. Template refresh and versioning (kit-aware)
 
@@ -18,7 +18,7 @@
 
 ## 4. Stale local Docker artifact cleanup
 
-- [ ] 4.1 Provide an opt-in, list-then-confirm cleanup story (a small `dune` helper and/or documented manual steps) for `dune-persist-<profile>` volumes, `dune-local-<slug>` images, and generated compose files; never remove non-Dune artifacts (D5).
+- [ ] 4.1 Add an opt-in, list-then-confirm `dune cleanup docker` helper for `dune-persist-<profile>` volumes, `dune-local-<slug>` images, and generated compose files; never remove non-Dune artifacts (D5).
 - [ ] 4.2 Add user-facing migration notes for the one-time transition from the Docker Compose backend.
 
 ## 5. Verification and docs

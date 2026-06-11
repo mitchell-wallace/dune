@@ -24,10 +24,10 @@ This change defines Dune's sbx egress and secrets posture and removes Pipelock. 
 ## Decisions
 
 ### D1: Default baseline is non-`Open` and explicit, starting from `Balanced`
-Dune's recommended posture starts from `sbx`'s `Balanced` preset (default-deny + developer-infrastructure allowlist). Dune SHALL NOT silently weaken egress to `Open`. Because the spikes could not inspect `Balanced` while another preset was active and the production default must be non-`Open`, Dune treats the baseline as a documented expectation and surfaces the *active* posture (via `sbx policy ls` / `sbx policy log`) rather than assuming it. Whether Dune asserts the baseline by setting an `sbx` default profile vs. only documenting "use Balanced or stricter" is resolved against D2 (Dune prefers not to mutate global host policy).
+Dune's posture starts from `sbx`'s `Balanced` preset (default-deny + developer-infrastructure allowlist). Dune SHALL NOT silently weaken egress to `Open`, and it SHALL NOT mutate the user's global `sbx` default policy/profile. On sandbox preparation, Dune must make the instance posture inspectable and non-`Open`: prefer applying a sandbox-scoped Balanced-equivalent baseline when `sbx` supports it; otherwise verify the active posture is already non-`Open` and return an actionable warning/failure if it cannot be confirmed. The sbx path must not proceed under a silently open posture.
 
 ### D2: Dune-managed rules are sandbox-scoped, not global
-Where Dune applies egress rules itself (e.g. opening a domain), it uses sandbox-scoped rules (`sbx policy allow/deny network --sandbox <instance> ...`), which spike 3 showed take effect immediately. This avoids mutating the user's global `sbx` default policy/profile. The global baseline (D1) remains the user's choice; Dune layers per-sandbox rules on top. Note the CLI surface uses `--sandbox <name>` (the positional form was rejected in spike 3).
+Where Dune applies egress rules itself (baseline assertion when supported, opening a domain, or adding a deny), it uses sandbox-scoped rules (`sbx policy allow/deny network --sandbox <instance> ...`), which spike 3 showed take effect immediately. This avoids mutating the user's global `sbx` default policy/profile. If a sandbox-scoped baseline cannot be applied, Dune verifies the active posture instead of assuming it. Note the CLI surface uses `--sandbox <name>` (the positional form was rejected in spike 3).
 
 ### D3: Domain-opening affordance
 Opening a project domain is common (docs sites are blocked under `Balanced`). Dune provides a thin affordance and/or explicit guidance that:
@@ -54,7 +54,7 @@ Delete the `internal/dune/pipelock` package, `ensurePipelockConfig` and the `~/.
 - **Broad-wildcard acceptability.** `Balanced` itself includes broad wildcards (`**.amazonaws.com`, `**.googleapis.com`, `**.githubusercontent.com`). Whether Dune endorses these in its recommended posture is an open question.
 - **Package-manager / provider traffic under a non-open baseline.** Must be verified before defaulting (npm/pip/go/cargo, AI providers) — most are in `Balanced`, but confirm against Dune's actual toolchain.
 - **Custom-secret immaturity.** Building UX on custom secrets now would inherit a broken lifecycle. Mitigation: exclude from v1.
-- **Global-policy clobbering.** Setting a global default profile could override the user's own policy. Mitigation: prefer sandbox-scoped rules (D2); only document the global baseline expectation.
+- **Global-policy clobbering.** Setting a global default profile could override the user's own policy. Mitigation: never mutate global policy; use sandbox-scoped rules and fail/warn closed when a non-`Open` posture cannot be confirmed.
 - **Removal ordering.** Removing Pipelock before the baseline is established would leave egress unmediated. Mitigation: enforce the D6 ordering.
 
 ## Migration Plan
@@ -69,6 +69,5 @@ Delete the `internal/dune/pipelock` package, `ensurePipelockConfig` and the `~/.
 
 - Whether broad `Balanced` wildcards (`**.amazonaws.com`, `**.googleapis.com`, `**.githubusercontent.com`) are acceptable in Dune's recommended default posture.
 - Domain-opening UX: a `dune`-level wrapper vs. documented `sbx policy allow` guidance vs. kit-authored domain rules (final form with `sbx-5`/`sbx-6`).
-- Whether Dune asserts the baseline by setting an `sbx` default profile or only documents "Balanced or stricter" and inspects the active posture (interacts with D2).
 - How package-manager and agent-provider traffic behaves under the non-open baseline against Dune's actual toolchain (verify before shipping).
 - Whether any custom-secret usage is offered experimentally, with explicit manual-cleanup warnings.

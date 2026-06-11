@@ -4,8 +4,6 @@ By the end of `sbx-5`, Dune runs solely on the sbx backend: a Docker-enabled Dun
 
 Two threads remain. **Customization**: the `sbx` docs position kits (experimental YAML layering commands, env, files, network rules, credentials, memory) as the per-project/team layer over a heavy template — the successor to `Dockerfile.dune`. **Teardown**: the legacy Compose code, the `dune-base` image build (root `Dockerfile`, `container/base/`, the `image.yml` base job), and any stale local Docker artifacts should be retired once the sbx path is the sole backend.
 
-This change is partly optional and can be split into a kit half and a teardown/cleanup half.
-
 ## Goals / Non-Goals
 
 **Goals**
@@ -26,8 +24,8 @@ Per-project/team customization is expressed as `sbx` kits layered on the Dune sb
 - **Agent kits** (which can define a full agent incl. `agent.image`) only if Dune needs a packaged agent; otherwise prefer mixins over the heavy template.
 Decide where kit definitions live (recommended: per-repo, alongside existing project config such as `rally.toml`). Kits remain experimental in `sbx`, so Dune treats them as the recommended-but-evolving customization path and avoids hard dependencies on unstable kit behavior.
 
-### D2: A recommended docs-domain kit/recipe (optional)
-`sbx-4` leaves `Balanced` blocking arbitrary docs sites. Optionally provide a Dune-recommended kit or documented recipe carrying common docs-domain network rules (exact + specific-wildcard, per `sbx-4` D3), so docs-heavy agent workflows have an easy on-ramp without broad catch-alls. This is opt-in, not a default-open posture.
+### D2: A documented docs-domain kit recipe
+`sbx-4` leaves `Balanced` blocking arbitrary docs sites. Provide a Dune-recommended documented kit recipe carrying common docs-domain network rules (exact + specific-wildcard, per `sbx-4` D3), so docs-heavy agent workflows have an easy on-ramp without broad catch-alls. This is opt-in, not a default-open posture, and the core runtime must not depend on it.
 
 ### D3: Template refresh/versioning in a kit-aware world
 Formalize how the Dune sbx template is updated and republished and how kits relate to template versions:
@@ -44,7 +42,7 @@ Sequencing: this happens only after `sbx-5` and after the template build (`sbx-2
 ### D5: Stale local Docker artifact cleanup
 Provide a cleanup story for artifacts left by the pre-migration backend on users' machines:
 - `dune-persist-<profile>` Docker volumes, `dune-local-<slug>:latest` images, and generated compose files under the Dune config/data dirs.
-- Prefer a small, explicit, opt-in `dune` helper (e.g. a cleanup subcommand that lists what it would remove and requires confirmation) over silent deletion; documented manual steps are an acceptable fallback. Never remove non-Dune Docker artifacts.
+- Provide a small, explicit, opt-in `dune cleanup docker` helper that lists what it would remove and requires confirmation; docs may also include manual commands, but the helper is the supported path. Never remove non-Dune Docker artifacts.
 
 ## Risks / Trade-offs
 
@@ -56,14 +54,13 @@ Provide a cleanup story for artifacts left by the pre-migration backend on users
 ## Migration Plan
 
 1. Land after `sbx-2`..`sbx-5` and confirmed sbx parity.
-2. (Kit half) Establish kit types, location, and the optional docs-domain kit (D1, D2); document the template refresh/versioning flow (D3).
-3. (Teardown half) Remove leftover Compose scaffolding, the `dune-base` image build, and the `image.yml` base job; update version-bump guidance (D4).
-4. Ship the stale-artifact cleanup helper/guidance (D5).
-5. Halves 2 and 3/4 may ship independently.
+2. Establish kit types, location, and the docs-domain kit recipe (D1, D2); document the template refresh/versioning flow (D3).
+3. Remove leftover Compose scaffolding, the `dune-base` image build, and the `image.yml` base job; update version-bump guidance (D4).
+4. Ship the stale-artifact cleanup helper and guidance (D5).
 
 ## Open Questions
 
 - Which kit types Dune ships vs. recommends, and the canonical per-repo location for kit definitions.
-- Whether Dune ships the docs-domain kit by default or only documents the recipe.
-- Whether stale-artifact cleanup is a `dune` subcommand or documented manual steps (or both).
+- The exact initial docs domains included in the recommended recipe.
+- Exact confirmation UX and dry-run output for `dune cleanup docker`.
 - Exact timing of `container/base/` removal relative to the template build's reuse of those assets (`sbx-2` D2).

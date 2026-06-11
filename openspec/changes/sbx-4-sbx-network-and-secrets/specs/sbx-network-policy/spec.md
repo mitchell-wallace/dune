@@ -2,13 +2,14 @@
 
 ### Requirement: Dune workspaces have a defined, non-Open egress baseline
 
-Dune SHALL use a defined, non-`Open` egress baseline for sbx workspaces, starting from `sbx`'s `Balanced` preset (default-deny plus a developer-infrastructure allowlist). Dune SHALL NOT silently weaken the egress posture to `Open`, and SHALL be able to surface the active posture for an instance rather than assuming it.
+Dune SHALL use a defined, non-`Open` egress baseline for sbx workspaces, starting from `sbx`'s `Balanced` preset (default-deny plus a developer-infrastructure allowlist). Dune SHALL NOT silently weaken the egress posture to `Open`, SHALL NOT mutate the user's global `sbx` default policy/profile, and SHALL be able to surface the active posture for an instance rather than assuming it. If a non-`Open` instance posture cannot be confirmed, Dune SHALL fail or warn closed rather than proceed silently under an open posture.
 
 #### Scenario: Egress is not silently opened
 - **GIVEN** a Dune sbx workspace
 - **WHEN** the runtime prepares or enters the sandbox
 - **THEN** it does not set the egress posture to `Open` on the user's behalf
 - **AND** the active posture can be surfaced (e.g. via `sbx policy ls` / `sbx policy log`)
+- **AND** Dune does not mutate the user's global `sbx` default policy/profile
 
 #### Scenario: A blocked-by-default domain is denied under the baseline
 - **GIVEN** an instance under the non-`Open` baseline

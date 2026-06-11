@@ -9,7 +9,7 @@ Per the `sbx-2` service de-emphasis and spike 3, `dune logs` centers on Dune-own
 ## Goals / Non-Goals
 
 **Goals**
-- Finalise `dune up/down/destroy/rebuild/logs` (and optionally `ports`) on the sbx backend.
+- Finalise `dune up/down/destroy/rebuild/logs/ports` on the sbx backend.
 - Compose `dune logs` from Dune-owned setup/runtime logs + `sbx policy log`.
 - Add a small, sbx-scoped structured-diagnostics type with stable codes, preserved stderr, recovery hints; assert codes in tests.
 - Add a read-only `dune doctor` that does not start/enter the environment, with concise + optional JSON output.
@@ -27,7 +27,7 @@ Map the `dune` verbs onto the `sbx-3` backend operations:
 - `dune down`: `Stop` (state retained).
 - `dune destroy`: `sbx rm <instance>` (sandbox removed). Profile-scoped persisted state survives via the durable persist location (`sbx-3` D3); destroy removes the sandbox, not the profile's persisted credentials/config. Requires confirmation (or `--force`).
 - `dune rebuild`: recreate from the (current) template, preserving profile-scoped persisted state; no `Dockerfile.dune` build.
-- `dune ports` (optional): wrap `sbx ports` list/publish/unpublish, surfacing the loopback-vs-all-interfaces caveat (spike 2: a nested service bound only to sandbox loopback was not reachable via published host port; binding to all sandbox interfaces worked).
+- `dune ports`: wrap `sbx ports` list/publish/unpublish, surfacing the loopback-vs-all-interfaces caveat (spike 2: a nested service bound only to sandbox loopback was not reachable via published host port; binding to all sandbox interfaces worked).
 
 ### D2: `dune destroy` is added; resolves the sbx-3 deferred question
 `sbx-3` deferred whether a removal command exists. Because the durable persist location (`sbx-3` D3) decouples profile state from the sandbox, removing a sandbox is now safe for profile data, so `dune destroy` is added as the first-class removal verb (`sbx rm`). `down` remains stop-only.
@@ -36,7 +36,7 @@ Map the `dune` verbs onto the `sbx-3` backend operations:
 `dune logs` composes:
 - Dune-owned setup/runtime logs (e.g. sandbox create/start/attach diagnostics and any Dune-managed in-sandbox setup output), from a documented location/command established conceptually in `sbx-2`.
 - `sbx policy log <instance>` for egress observability (from `sbx-4`), replacing `dune logs pipelock`.
-App-dependency service logs are intentionally **not** aggregated here; users read those via `docker compose logs` inside the sandbox for project-owned services. In-template service logs may be surfaced opportunistically but are best-effort. There is no single `sbx logs` command to wrap, so `dune logs` defines its own composition.
+App-dependency service logs are intentionally **not** aggregated here; users read those via `docker compose logs` inside the sandbox for project-owned services. In-template service logs are not aggregated. There is no single `sbx logs` command to wrap, so `dune logs` defines its own composition.
 
 ### D4: Structured diagnostics (sbx-scoped, small)
 Introduce a small diagnostic-error type reusing the `ref-3` shape, retargeted to sbx:
@@ -92,7 +92,6 @@ Check groups (sbx-targeted):
 - **sandbox**: instance status via `sbx ls --json` (exists / running / stopped) — read-only.
 - **workspace/profile/config**: workspace root resolves and slug computes; `profiles.json` parses (or is safely absent); effective profile resolves and name is valid; config/data/persist dirs are readable/writable or creatable.
 - **egress**: the active policy posture is non-`Open` and inspectable (from `sbx-4`); reported as `warn` (not `fail`) if it cannot be confirmed.
-- **services (optional, non-fatal)**: in-template service health if cheaply checkable; always `skip`/`warn` rather than `fail`, reflecting the `sbx-2` de-emphasis.
 
 Doctor reuses the D4 diagnostic codes/recovery hints where a check corresponds to a runtime failure mode. It reports readiness; it does not guarantee the environment works (smoke tests remain necessary).
 
@@ -114,7 +113,6 @@ Doctor reuses the D4 diagnostic codes/recovery hints where a check corresponds t
 
 ## Open Questions
 
-- Whether `dune ports` ships in this change or is deferred.
-- Exact location/command for Dune-owned setup/runtime logs that `dune logs` reads (coordinate with `sbx-2` conventions).
+- Exact location/command for Dune-owned setup/runtime logs that `dune logs` reads (not in-template service logs).
 - Whether `dune doctor` gets an opt-in deep mode (e.g. `--deep`) for template pull/availability.
 - Final confirmation UX for `dune destroy` (prompt vs `--force`).

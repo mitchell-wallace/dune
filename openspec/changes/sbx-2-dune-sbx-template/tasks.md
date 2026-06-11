@@ -7,10 +7,9 @@
 
 ## 2. In-template services (convenience) and project-owned Compose
 
-- [ ] 2.1 Update the Postgres service startup to create and chown `/var/run/postgresql` (owner `agent`) before launching `postgres` (D3), so an installed-but-broken Postgres does not ship. Confirm `pg_isready` reports accepting connections when Postgres is started.
-- [ ] 2.2 Confirm the Redis and Mailpit tools remain installed and start with their existing scripts (best-effort; not an acceptance gate).
-- [ ] 2.3 Verify that project-owned `docker compose` inside the sandbox can host app dependencies (e.g. a Postgres/Mailpit service via a nested Compose project) — this is the canonical path that lets in-template service health stay best-effort.
-- [ ] 2.4 Add optional service-native health probes (`pg_isready`, `redis-cli ping`, Mailpit HTTP) and a documented service-log location, for later optional use by `dune logs` / `dune doctor`. Do not assume an s6 status tool (`s6-svstat` was unavailable in the spike).
+- [ ] 2.1 Update the Postgres service startup to create and chown `/var/run/postgresql` (owner `agent`) before launching `postgres` (D3), so an installed-but-broken Postgres does not ship. Verify the runtime directory ownership and that startup does not fail with the known lock-file error; do not add a health-probe gate.
+- [ ] 2.2 Confirm the Redis and Mailpit tools remain installed with their existing scripts, but do not add service auto-start, health probes, or log aggregation to the template scope.
+- [ ] 2.3 Verify that project-owned `docker compose` inside the sandbox can host app dependencies (e.g. a Postgres/Mailpit service via a nested Compose project) — this is the canonical path for reliable app dependency lifecycle.
 
 ## 3. Workspace path compatibility
 
@@ -39,4 +38,4 @@
 
 ## 7. Documentation
 
-- [ ] 7.1 Document the Dune sbx template: what it contains, how it is built/published/versioned, the `/workspace` compatibility behavior, and the service health/log conventions. Note that the CLI runtime that launches it lands in `sbx-3-sbx-runtime-backend`.
+- [ ] 7.1 Document the Dune sbx template: what it contains, how it is built/published/versioned, the `/workspace` compatibility behavior, and the explicit exclusion of in-template service health probes/log aggregation. Note that the CLI runtime that launches it lands in `sbx-3-sbx-runtime-backend`.

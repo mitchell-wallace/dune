@@ -14,7 +14,7 @@ Once the sbx backend is the sole backend with proven parity, Dune SHALL remove t
 
 ### Requirement: Stale local Docker artifacts have a cleanup story
 
-Dune SHALL provide an opt-in cleanup story for stale local Docker artifacts left by the pre-migration backend — `dune-persist-<profile>` volumes, `dune-local-<slug>` images, and generated compose files — as a small `dune` helper and/or documented manual steps. The cleanup SHALL be explicit (list-then-confirm or documented), SHALL only target Dune-scoped artifacts, and SHALL NOT remove unrelated Docker resources.
+Dune SHALL provide an opt-in `dune cleanup docker` helper for stale local Docker artifacts left by the pre-migration backend — `dune-persist-<profile>` volumes, `dune-local-<slug>` images, and generated compose files. The cleanup SHALL be explicit (list-then-confirm), SHALL only target Dune-scoped artifacts, and SHALL NOT remove unrelated Docker resources. Documentation MAY also include manual commands, but the helper is the supported cleanup path.
 
 #### Scenario: Cleanup targets only Dune artifacts and confirms first
 - **GIVEN** stale `dune-persist-<profile>` volumes, `dune-local-<slug>` images, and generated compose files on the host

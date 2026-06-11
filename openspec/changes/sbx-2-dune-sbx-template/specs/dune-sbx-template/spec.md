@@ -29,15 +29,16 @@ The Dune sbx template SHALL treat the real mounted repository path as the canoni
 
 ---
 
-### Requirement: In-template service tools are installed and usable, with project-owned Compose as the canonical path for app dependencies
+### Requirement: In-template service tools are installed without becoming health-gated app dependencies
 
-The Dune sbx template SHALL install the Postgres, Redis, and Mailpit tools. When the in-template Postgres service is started, its startup SHALL create and own any required ephemeral runtime directories (notably `/var/run/postgresql`) at runtime rather than relying solely on image-build-time creation, so it starts cleanly. In-template service auto-start and health are best-effort and SHALL NOT be required for the template to be considered ready; app dependencies MAY instead be provided by a project-owned `docker compose` project inside the sandbox.
+The Dune sbx template SHALL install the Postgres, Redis, and Mailpit tools. When the in-template Postgres service is started, its startup SHALL create and own any required ephemeral runtime directories (notably `/var/run/postgresql`) at runtime rather than relying solely on image-build-time creation, so it does not fail with the known lock-file error. In-template service auto-start, health probes, and log aggregation SHALL be out of scope for template readiness; app dependencies SHOULD be provided by a project-owned `docker compose` project inside the sandbox when reliable lifecycle is required.
 
-#### Scenario: Postgres starts cleanly when invoked
+#### Scenario: Postgres startup applies the runtime-directory fix
 - **GIVEN** a sandbox created from the Dune sbx template
-- **WHEN** the in-template Postgres service is started
+- **WHEN** the in-template Postgres startup path is invoked
 - **THEN** its runtime directory (`/var/run/postgresql`) exists and is owned by the `agent` user
-- **AND** `pg_isready` reports the server is accepting connections
+- **AND** startup does not fail with the known missing-lock-directory error
+- **AND** no Postgres health-probe result is required for template readiness
 
 #### Scenario: App dependencies can be provided by a project-owned Compose project
 - **GIVEN** a sandbox created from the Dune sbx template
