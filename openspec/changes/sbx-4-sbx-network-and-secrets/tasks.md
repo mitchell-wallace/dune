@@ -2,7 +2,7 @@
 
 - [ ] 1.1 Define Dune's non-`Open` egress baseline starting from `sbx`'s `Balanced` preset, and document it (D1).
 - [ ] 1.2 Surface the *active* posture for an instance via `sbx policy ls` / `sbx policy log`; ensure Dune never weakens egress to `Open`, never mutates global host policy, and fails/warns closed if a non-`Open` instance posture cannot be confirmed.
-- [ ] 1.4 Gating: confirm against the installed `sbx` (`sbx policy --help`, `sbx policy set-default --help`, `sbx policy profile --help`) whether a Balanced-equivalent preset can be applied with `--sandbox <instance>` scope without mutating global policy; record the exact command, or fall back to the verify-only path (D1). The spikes only proved the *global* preset switch, not a sandbox-scoped one.
+- [x] 1.4 ~~Gating: confirm whether a Balanced-equivalent preset can be applied with `--sandbox <instance>` scope~~ Resolved by spike 4: **no sandbox-scoped preset exists** — `sbx policy set-default` is global-only and `sbx policy profile` only lists remote-governance profiles. Dune takes the verify-only path (D1); sandbox-scoped control stays per-domain `allow/deny network --sandbox`.
 - [ ] 1.3 Verify Dune's actual toolchain traffic (package managers: npm/pip/go/cargo; AI providers) works under the baseline; record any domains that must be added.
 
 ## 2. Sandbox-scoped rules and domain opening
@@ -14,7 +14,7 @@
 ## 3. Egress observability
 
 - [ ] 3.1 Expose/wrap `sbx policy log <instance>` access for an instance's sandbox as the egress observability source replacing `dune logs pipelock` (D4), constructed through the `sbx-3` D5 runner seam. (Final `dune logs` composition is `sbx-5`.)
-- [ ] 3.2 Confirm the `sbx policy log` invocation/parse shape against `sbx policy log --help` (whether a structured `--json` form and field names exist); pin the chosen command shape in fakeRunner tests, or pass raw output through if no structured form exists (D4).
+- [ ] 3.2 Use the structured `sbx policy log [SANDBOX] --json` form (confirmed by spike 4, with `--limit`/`--type`); pin the command shape and observed field names in fakeRunner tests (D4).
 
 ## 4. Secrets posture
 

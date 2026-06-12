@@ -32,8 +32,8 @@ Map the `dune` verbs onto the `sbx-3` backend operations. These are user-facing 
 **Verified vs. unverified sbx spellings (pin all in fakeRunner; reconfirm via `sbx <verb> --help` before relying on any unverified shape).** sbx-5 inherits the sbx command shapes the dependency plans pinned and MUST NOT silently assume new ones:
 - Verified by the spikes: `sbx ls --json` (status, `sbx-3` D7), `sbx stop <name>`, `sbx rm <name>...` (accepts multiple), `sbx ports <sandbox>` (list) and `sbx ports <sandbox> --publish <port> [--json]`, `sbx policy log <instance> --limit <n>` (`sbx-4` D4).
 - Note the JSON flag is **not uniform** (`sbx-3` D6): `sbx diagnose --output json` vs. `sbx ls --json` vs. `sbx ports ... --json`. Use each command's verified form; do not assume `sbx diagnose --json`.
-- **Unverified and gated on `sbx ports --help` before relied on:** any port *unpublish/remove* subcommand. The spikes only exercised list and `--publish`; no unpublish form was confirmed. `dune ports` exposes list + publish from the verified shapes and MUST confirm the unpublish spelling (or omit unpublish until confirmed) rather than assuming `sbx ports --unpublish`.
-- **Unverified and gated on `sbx run --help` (inherited from `sbx-3` D7):** the `Start` invocation underlying `dune up`/`rebuild`. sbx-5 does not re-resolve this; it relies on the shape `sbx-3` records and pins.
+- **Confirmed by spike 4:** the unpublish spelling is `sbx ports <sandbox> --unpublish [HOST_IP:]HOST_PORT:SANDBOX_PORT[/PROTOCOL]` (repeatable; e.g. `--unpublish 3000:8080`), and `--publish` takes `[[HOST_IP:]HOST_PORT:]SANDBOX_PORT[/PROTOCOL]` (ephemeral host port when HOST_PORT omitted, loopback bind when HOST_IP omitted). `dune ports` can ship list + publish + unpublish, pinned in fakeRunner.
+- **Confirmed by spike 4 (inherited from `sbx-3` D7):** the `Start` invocation is `sbx run <sandbox-name>`; `sbx exec` auto-starts a stopped sandbox for non-interactive ops. sbx-5 relies on the shape `sbx-3` pins. Note `sbx rm` requires `--force` when stdin is not a TTY (`dune destroy --force` and any scripted removal must pass it).
 
 ### D2: `dune destroy` is added; resolves the sbx-3 deferred question
 `sbx-3` deferred whether a removal command exists. Because the durable persist location (`sbx-3` D3) decouples profile state from the sandbox, removing a sandbox is now safe for profile data, so `dune destroy` is added as the first-class removal verb (`sbx rm`). `down` remains stop-only.
@@ -41,7 +41,7 @@ Map the `dune` verbs onto the `sbx-3` backend operations. These are user-facing 
 ### D3: `dune logs` composition
 `dune logs` composes:
 - Dune-owned setup/runtime logs from two pinned sources: the host-side log that the lifecycle commands already write (sandbox create/start/attach diagnostics emitted via the `sbx-3` runner seam), plus the in-sandbox Dune setup/runtime output that `sbx-2` D5a writes to `/var/log/dune/` (e.g. the re-homed `setup-persist` boot hook's `setup-persist.log`), read via `sbx exec`. Both sources are recorded and asserted in tests (their presence in the composed output), so "what `dune logs` reads" is a verification point rather than a standing open question.
-- `sbx policy log <instance> --limit <n>` for egress observability (from `sbx-4` D4), replacing `dune logs pipelock`. Whether a `--json` form exists is unverified per `sbx-4` D4; if absent, `dune logs` passes the raw policy-log output through and does not parse fields it cannot rely on.
+- `sbx policy log <instance> --limit <n>` for egress observability (from `sbx-4` D4), replacing `dune logs pipelock`. Spike 4 confirmed `sbx policy log --json` exists (plus `--limit int`, `--type all|network`, `-q`); `dune logs` may parse the JSON form, with field names pinned in fakeRunner from observed output.
 App-dependency service logs are intentionally **not** aggregated here; users read those via `docker compose logs` inside the sandbox for project-owned services. There are no in-container app services to aggregate (`sbx-2` removed Postgres/Redis/Mailpit). There is no single `sbx logs` command to wrap (spike 2), so `dune logs` defines its own composition; the absence of `sbx logs` is itself a confirmed point, not an assumption.
 
 ### D4: Structured diagnostics (sbx-scoped, small)
@@ -115,7 +115,7 @@ Doctor reuses the D4 diagnostic codes/recovery hints where a check corresponds t
 2. Finalise the command mapping (D1) and add `dune destroy` (D2); recompose `dune logs` (D3).
 3. Add the diagnostics type and codes (D4); convert backend failures to coded diagnostics; add code-asserting tests.
 4. Add `dune doctor` (D5) reusing backend readiness + diagnostics; add pass/warn/fail tests.
-5. Confirm any unverified `sbx` spellings this change relies on (port unpublish via `sbx ports --help`) and pin the verified shapes in fakeRunner; smoke-verify the finalised commands against a sandbox built from the Dune sbx template (D6 below).
+5. Pin the spike-4-confirmed `sbx` spellings (including `sbx ports --unpublish` and `sbx policy log --json`) in fakeRunner; smoke-verify the finalised commands against a sandbox built from the Dune sbx template (D6 below).
 6. `sbx-6` layers kits/cleanup on top.
 
 ### Smoke verification against the `sbx` binary (acceptance gates)
@@ -131,6 +131,6 @@ Temporary sandboxes created for these checks are removed (`sbx rm`).
 Each open question has a designated resolution point against the installed `sbx` binary or an implementation decision recorded in tests, so it is closed by verification rather than left standing.
 
 - The exact Dune-owned setup/runtime log source `dune logs` reads is **resolved during implementation** (D3): pick the host-side lifecycle log the runner already writes plus any `sbx-2`-recorded in-sandbox setup path, and assert its presence in the composed output. Not a standing open question.
-- Whether a port *unpublish* subcommand exists is resolved by `sbx ports --help` (D1) before `dune ports` exposes unpublish; until confirmed, `dune ports` ships list + publish only.
+- ~~Whether a port *unpublish* subcommand exists~~ — **resolved by spike 4**: `sbx ports <sandbox> --unpublish HOST_PORT:SANDBOX_PORT` exists; `dune ports` ships list + publish + unpublish (D1).
 - Whether `dune doctor` gets an opt-in deep mode (e.g. `--deep`) for template pull/availability — the default-lightweight behavior is fixed; only the deep-mode flag name is open.
 - Final confirmation UX for `dune destroy` (interactive prompt vs `--force`); both paths are tested regardless of the prompt wording.

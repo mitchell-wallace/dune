@@ -1,6 +1,6 @@
 ## 1. Docker-enabled template base
 
-- [ ] 1.1 Spike whether the Dune template can extend a Docker-enabled `-docker` sandbox template, or whether Docker Engine + the Compose plugin must be installed into the Dune image directly (decision D1). Also record, from `sbx create --help` on the installed binary, whether create-time env injection (`--env`/`-e`) is available for the `DUNE_WORKSPACE` contract (D4) and whether an `sbx`-native create/boot hook exists for re-homing `setup-persist` (D2a). Record all outcomes. (Flag/hook captures are a Spike 4 deliverable.)
+- [x] 1.1 ~~Spike the template base / flag captures~~ Resolved by spike 4: extend `FROM docker/sandbox-templates:shell-docker` (pullable; Ubuntu 26.04 + docker-ce + tini + `com.docker.sandboxes.start-docker=true` label, all inherited — see D1 and `sbx-1-runtime-spike/spike-reports/spike-4-artifacts/Dockerfile.sbx-spike`). `sbx create` has **no** env-injection flag (delivery options per D4: exec-time `-e`, Dune-generated kit env, or in-sandbox derivation); the only native create/boot hook is the experimental kit `commands.install`/`startup`, so `setup-persist` uses the template-baked login-shell sentinel (D2a).
 - [ ] 1.2 Create the template build inputs (e.g. `Dockerfile.sbx` and/or a `container/sbx/` tree) separate from the root `Dockerfile`, reusing `container/base/scripts/*` (including `setup-persist.sh`), `container/base/tooling.yaml`, and `container/base/home-defaults/` where possible (D2). Do **not** carry over the `container/base/s6-overlay/s6-rc.d/` service tree or the Postgres/Redis/Mailpit installs (D2a/D3).
 - [ ] 1.3 Let the sbx template's native Docker init own PID 1 and auto-start `dockerd` on the first `sbx exec` (no manual `dockerd` start), matching the generic `-docker` template behavior (D5). s6-overlay is not installed.
 - [ ] 1.4 Verify inside an ephemeral sandbox, in a single `sbx exec`: `docker version` (engine reported), `docker compose version`, `docker run --rm hello-world`, and a nested `docker compose up -d` reachable from inside the sandbox, with the sbx init not crash-looping.
@@ -8,20 +8,20 @@
 ## 2. Remove in-container app services; re-home `setup-persist`
 
 - [ ] 2.1 Drop the Postgres/Redis/Mailpit packages, their s6 service scripts, and their build/init steps (`postgresql`, `redis-server`, `mailpit`, the `initdb` step, the `/var/run/postgresql` handling) from the sbx template build (D3). The previously planned Postgres runtime-directory fix is removed with them.
-- [ ] 2.2 Re-home `setup-persist` (`container/base/scripts/setup-persist.sh`) onto a one-time boot hook under the sbx init (D2a): preferred an `sbx`-native create/boot hook if 1.1 confirms one, else a login-shell hook guarded by a per-sandbox sentinel (the script is idempotent). Write its output to `/var/log/dune/setup-persist.log` (D5a).
+- [ ] 2.2 Re-home `setup-persist` (`container/base/scripts/setup-persist.sh`) onto the login-shell sentinel hook (D2a, resolved by spike 4): hook body in `/etc/dune/setup-persist-hook.sh`, sourced from `/etc/profile.d/` and `/etc/zsh/zprofile`, sentinel `~/.dune-setup-persist-done`, timestamped output to `/var/log/dune/setup-persist.log` (D5a; explicit log lines, the script is silent on success). Guard the image build's own `bash -lc` steps against firing the hook (spike-4 pitfall: `DUNE_SETUP_PERSIST_SKIP` + final sentinel/log `rm -f`).
 - [ ] 2.3 Verify inside a fresh sandbox that the persist symlinks are wired (`readlink ~/.claude` → `/persist/agent/.claude`, etc.) and `/var/log/dune/setup-persist.log` exists.
 - [ ] 2.4 Verify that project-owned `docker compose` inside the sandbox can host app dependencies (e.g. a Postgres/Mailpit service via a nested Compose project) — this is now the only path for app dependency lifecycle.
 
 ## 3. Workspace path compatibility
 
 - [ ] 3.1 Remove reliance on a static `WORKDIR /workspace` (root `Dockerfile` line 218) and the `/workspace` entry in the build-time `chown`; do not ship a `/workspace` directory that masks the mount (D4).
-- [ ] 3.2 Add a first-run/login step that creates/refreshes `/workspace` as a symlink to the mounted repo path. Use the create-time env mechanism confirmed in 1.1 (e.g. `DUNE_WORKSPACE`); if create-time env injection is not supported by the installed `sbx`, fall back to deriving the mount path in-sandbox at login and record that as the contract handed to `sbx-3` D4.
+- [ ] 3.2 Add a first-run/login step that creates/refreshes `/workspace` as a symlink to the mounted repo path, consuming `DUNE_WORKSPACE` per the D4 options resolved by spike 4 (no create-time `--env` exists): exec-time `-e DUNE_WORKSPACE=…` on the hook-firing exec, a Dune-generated kit's `environment.variables` (experimental), or in-sandbox derivation (must disambiguate multiple rw virtiofs workspaces — the persist dir is also one). Record the landed choice as the contract handed to `sbx-3` D4.
 - [ ] 3.3 Verify inside a sandbox created with the chosen mount-path mechanism (e.g. `sbx create --name <name> -e DUNE_WORKSPACE=<mount path> --template <ref> shell <mount path>`): `readlink -f /workspace` resolves to the mounted repo and `git -C /workspace rev-parse --show-toplevel` succeeds.
 
 ## 4. Toolchain parity
 
 - [ ] 4.1 Ensure the template installs zsh + Dune shell defaults, Rally, Laps, agent CLIs (`claude`, `codex`, `opencode`, `gemini`), `openspec`, `git`/`gh`, and language toolchains (Go, Node, Python, `uv`, `pnpm`).
-- [ ] 4.2 Ensure Playwright + Chromium are installed and verify a minimal Chromium launch inside the sandbox.
+- [ ] 4.2 Ensure Playwright + Chromium are installed and verify a minimal Chromium launch inside the sandbox. Note (spike 4): on the Ubuntu 26.04 base no stable Playwright installs natively — use `PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-<arch>` with 1.60.0 (Chromium launch verified) until Playwright 1.61 is stable.
 - [ ] 4.3 Add a parity smoke check that runs `rally --version`, `laps --version`, `playwright --version` (and a representative agent CLI) inside a sandbox.
 
 ## 5. Versioning, build, and publish
