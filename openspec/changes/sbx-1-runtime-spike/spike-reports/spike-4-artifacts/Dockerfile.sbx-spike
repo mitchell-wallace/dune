@@ -1,0 +1,205 @@
+# Spike-4 ephemeral merged template (sbx-2 D8 probe).
+# Dune toolchain layered on Docker's Docker-enabled sandbox base.
+# Deliberately absent vs. the Compose base image (root Dockerfile):
+#   - s6-overlay (the base's tini + the sbx runtime's start-docker label own init)
+#   - Postgres / Redis / Mailpit services and their initdb/runtime-dir steps (D3)
+#   - WORKDIR /workspace and the static /workspace directory (D4)
+#   - NodeSource Node 22 (base already ships Node 22.x)
+# setup-persist is re-homed onto a login-shell hook with a per-sandbox sentinel
+# (Part 2 of the spike tests whether a native create/boot hook exists instead).
+# Build from the repo root:
+#   docker build -f openspec/changes/sbx-1-runtime-spike/spike-reports/spike-4-artifacts/Dockerfile.sbx-spike -t dune-sbx-spike4:0 .
+
+FROM docker/sandbox-templates:shell-docker
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG EZA_VERSION=v0.23.4
+ARG DELTA_VERSION=0.18.2
+ARG BR_VERSION=v0.1.45
+ARG GITUI_VERSION=v0.28.1
+# No stable Playwright supports the base's Ubuntu 26.04 yet (1.58.2 and 1.60.0
+# both hard-fail with "Playwright does not support chromium on ubuntu26.04-x64");
+# the 1.61 alphas add native ubuntu26.04 dep mappings. Until 1.61 is stable,
+# install with the documented PLAYWRIGHT_HOST_PLATFORM_OVERRIDE escape hatch
+# pointing at ubuntu24.04 (dry-run verified the dep plan resolves on the 26.04 base).
+ARG PLAYWRIGHT_VERSION=1.60.0
+ARG INSTALL_RALLY=1
+
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:en
+ENV LC_ALL=en_US.UTF-8
+ENV SHELL=/bin/zsh
+ENV EDITOR=nano
+ENV VISUAL=nano
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+ENV PATH=/home/agent/.local/bin:/home/agent/.local/share/mise/shims:${PATH}
+
+USER root
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    bat \
+    build-essential \
+    fd-find \
+    fzf \
+    iputils-ping \
+    jq \
+    locales \
+    micro \
+    nano \
+    postgresql-client \
+    redis-tools \
+    ripgrep \
+    tmux \
+    tre-command \
+    tree \
+    unzip \
+    vim \
+    xz-utils \
+    zsh \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN sed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen \
+  && locale-gen \
+  && update-locale LANG=en_US.UTF-8 LANGUAGE=en_US:en LC_ALL=en_US.UTF-8
+
+RUN usermod -s /bin/zsh agent \
+  && install -d -m 0755 -o agent -g agent /persist/agent /opt/home-defaults /var/log/dune
+
+RUN arch="$(dpkg --print-architecture)" \
+  && case "${arch}" in \
+      amd64) eza_arch="x86_64-unknown-linux-gnu"; delta_pkg_arch="amd64"; br_target="linux_musl_amd64"; gitui_arch="x86_64" ;; \
+      arm64) eza_arch="aarch64-unknown-linux-gnu"; delta_pkg_arch="arm64"; br_target="linux_musl_arm64"; gitui_arch="aarch64" ;; \
+      *) echo "Unsupported architecture: ${arch}" >&2; exit 1 ;; \
+    esac \
+  && curl -fsSL -o /tmp/eza.tar.gz \
+      "https://github.com/eza-community/eza/releases/download/${EZA_VERSION}/eza_${eza_arch}.tar.gz" \
+  && tar -xzf /tmp/eza.tar.gz -C /tmp \
+  && install -m 0755 /tmp/eza /usr/local/bin/eza \
+  && curl -fsSL -o /tmp/git-delta.deb \
+      "https://github.com/dandavison/delta/releases/download/${DELTA_VERSION}/git-delta_${DELTA_VERSION}_${delta_pkg_arch}.deb" \
+  && dpkg -i /tmp/git-delta.deb \
+  && br_archive="br-${BR_VERSION}-${br_target}.tar.gz" \
+  && curl -fsSL -o "/tmp/${br_archive}" \
+      "https://github.com/Dicklesworthstone/beads_rust/releases/download/${BR_VERSION}/${br_archive}" \
+  && curl -fsSL -o "/tmp/${br_archive}.sha256" \
+      "https://github.com/Dicklesworthstone/beads_rust/releases/download/${BR_VERSION}/${br_archive}.sha256" \
+  && (cd /tmp && sha256sum -c "${br_archive}.sha256") \
+  && install -d -m 0755 /tmp/br-install \
+  && tar -xzf "/tmp/${br_archive}" -C /tmp/br-install \
+  && install -m 0755 /tmp/br-install/br /usr/local/bin/br \
+  && curl -fsSL -o /tmp/gitui.tar.gz \
+      "https://github.com/gitui-org/gitui/releases/download/${GITUI_VERSION}/gitui-linux-${gitui_arch}.tar.gz" \
+  && install -d -m 0755 /tmp/gitui-install \
+  && tar -xzf /tmp/gitui.tar.gz -C /tmp/gitui-install \
+  && install -m 0755 /tmp/gitui-install/gitui /usr/local/bin/gitui \
+  && rm -rf /tmp/eza.tar.gz /tmp/eza /tmp/git-delta.deb "/tmp/${br_archive}" "/tmp/${br_archive}.sha256" /tmp/br-install /tmp/gitui.tar.gz /tmp/gitui-install
+
+RUN ln -sf "$(command -v batcat)" /usr/local/bin/bat \
+  && ln -sf "$(command -v fdfind)" /usr/local/bin/fd
+
+RUN npm install -g \
+    @anthropic-ai/claude-code \
+    @fission-ai/openspec \
+    @google/gemini-cli \
+    @openai/codex \
+    opencode-ai \
+    playwright@${PLAYWRIGHT_VERSION} \
+    pnpm \
+    turbo \
+  && rm -rf \
+    "${NPM_CONFIG_PREFIX}/lib/node_modules/opencode-ai/node_modules/opencode-linux-x64-musl" \
+    "${NPM_CONFIG_PREFIX}/lib/node_modules/opencode-ai/node_modules/opencode-linux-x64-baseline-musl"
+
+RUN arch="$(dpkg --print-architecture)" \
+  && case "${arch}" in \
+      amd64) pw_platform="ubuntu24.04-x64" ;; \
+      arm64) pw_platform="ubuntu24.04-arm64" ;; \
+      *) echo "Unsupported architecture: ${arch}" >&2; exit 1 ;; \
+    esac \
+  && PLAYWRIGHT_SKIP_BROWSER_GC=1 PLAYWRIGHT_HOST_PLATFORM_OVERRIDE="${pw_platform}" \
+      playwright install --with-deps chromium
+
+COPY container/base/home-defaults/ /opt/home-defaults/
+COPY container/base/scripts/configure-agents.sh /usr/local/bin/configure-agents.sh
+COPY container/base/scripts/install-laps.sh /usr/local/bin/install-laps.sh
+COPY container/base/scripts/install-agy.sh /usr/local/bin/install-agy.sh
+COPY container/base/scripts/install-rally.sh /usr/local/bin/install-rally.sh
+COPY container/base/scripts/setup-persist.sh /usr/local/bin/setup-persist.sh
+COPY container/base/scripts/tooling-data.sh /usr/local/bin/tooling-data.sh
+COPY container/base/scripts/update-tools.sh /usr/local/bin/update-tools
+
+RUN chmod 0755 /usr/local/bin/configure-agents.sh /usr/local/bin/install-laps.sh /usr/local/bin/install-agy.sh /usr/local/bin/install-rally.sh /usr/local/bin/setup-persist.sh /usr/local/bin/update-tools \
+  && chmod 0644 /usr/local/bin/tooling-data.sh \
+  && ln -sf /usr/local/bin/update-tools /usr/local/bin/update-tools.sh \
+  && find /opt/home-defaults -type f -name '*.json' -exec chmod 0644 {} + \
+  && find /opt/home-defaults -type f -name '*.toml' -exec chmod 0644 {} + \
+  && chmod 0644 /opt/home-defaults/.zshrc /opt/home-defaults/.p10k.zsh /opt/home-defaults/.agent-shell-setup.sh
+
+RUN cp /opt/home-defaults/.zshrc /home/agent/.zshrc \
+  && cp /opt/home-defaults/.p10k.zsh /home/agent/.p10k.zsh \
+  && cp /opt/home-defaults/.agent-shell-setup.sh /home/agent/.agent-shell-setup.sh \
+  && install -d -m 0755 -o agent -g agent \
+      /home/agent/.claude \
+      /home/agent/.codex \
+      /home/agent/.config/opencode \
+      /home/agent/.local/share/opencode \
+      /home/agent/.config/gh \
+      /home/agent/.config/mise \
+      /home/agent/.gemini \
+  && cp /opt/home-defaults/.claude/settings.json /home/agent/.claude/settings.json \
+  && cp /opt/home-defaults/.codex/config.toml /home/agent/.codex/config.toml \
+  && cp /opt/home-defaults/.codex/mcp-servers.toml /home/agent/.codex/mcp-servers.toml \
+  && cat <<'EOF' > /home/agent/.config/mise/config.toml
+[tools]
+node = "latest"
+go = "latest"
+python = "latest"
+uv = "latest"
+EOF
+
+# Re-homed setup-persist boot hook (sbx-2 D2a fallback path): first login-shell
+# wires /persist/agent, guarded by a per-sandbox sentinel in the (non-persisted)
+# home directory; output lands at the D5a contract path /var/log/dune/.
+# DUNE_SETUP_PERSIST_SKIP guards the hook against the image build's own login
+# shells (the runuser steps below use `bash -lc`), which would otherwise bake
+# the sentinel into the image and stop fresh sandboxes from running the hook.
+RUN install -d -m 0755 /etc/dune \
+  && cat <<'EOF' > /etc/dune/setup-persist-hook.sh
+if [ -z "${DUNE_SETUP_PERSIST_SKIP:-}" ] && [ "$(id -un 2>/dev/null)" = "agent" ] && [ ! -e "$HOME/.dune-setup-persist-done" ]; then
+  sudo install -d -o agent -g agent /var/log/dune 2>/dev/null || true
+  echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] setup-persist: start" >> /var/log/dune/setup-persist.log
+  if /usr/local/bin/setup-persist.sh >> /var/log/dune/setup-persist.log 2>&1; then
+    echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] setup-persist: done" >> /var/log/dune/setup-persist.log
+    : > "$HOME/.dune-setup-persist-done"
+  else
+    echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] setup-persist: FAILED" >> /var/log/dune/setup-persist.log
+  fi
+fi
+EOF
+RUN chmod 0644 /etc/dune/setup-persist-hook.sh \
+  && printf '[ -f /etc/dune/setup-persist-hook.sh ] && . /etc/dune/setup-persist-hook.sh\n' > /etc/profile.d/dune-setup-persist.sh \
+  && chmod 0644 /etc/profile.d/dune-setup-persist.sh \
+  && printf '\n[ -f /etc/dune/setup-persist-hook.sh ] && . /etc/dune/setup-persist-hook.sh\n' >> /etc/zsh/zprofile
+
+RUN chown -R agent:agent /home/agent /opt/home-defaults /persist/agent /var/log/dune
+
+RUN runuser -u agent -- env DUNE_SETUP_PERSIST_SKIP=1 bash -lc 'git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ~/.powerlevel10k' \
+  && runuser -u agent -- env DUNE_SETUP_PERSIST_SKIP=1 bash -lc '~/.powerlevel10k/gitstatus/install' \
+  && runuser -u agent -- env DUNE_SETUP_PERSIST_SKIP=1 bash -lc 'curl -fsSL https://mise.run | sh' \
+  && runuser -u agent -- env DUNE_SETUP_PERSIST_SKIP=1 bash -lc 'mise --version && mise install' \
+  && runuser -u agent -- env DUNE_SETUP_PERSIST_SKIP=1 bash -lc '/usr/local/bin/configure-agents.sh' \
+  && if [ "${INSTALL_RALLY}" = "1" ]; then runuser -u agent -- env DUNE_SETUP_PERSIST_SKIP=1 bash -lc '/usr/local/bin/install-rally.sh'; fi \
+  && runuser -u agent -- env DUNE_SETUP_PERSIST_SKIP=1 bash -lc '/usr/local/bin/install-laps.sh' \
+  && runuser -u agent -- env DUNE_SETUP_PERSIST_SKIP=1 bash -lc '/usr/local/bin/install-agy.sh'
+
+RUN runuser -u agent -- env DUNE_SETUP_PERSIST_SKIP=1 bash -lc 'for bin in python python3 uv go; do ln -sf "$HOME/.local/share/mise/shims/$bin" "$HOME/.local/bin/$bin"; done'
+
+# Defensive: ensure no build-time hook run leaks a sentinel/log into the image
+# (a fresh sandbox must run the hook itself).
+RUN rm -f /home/agent/.dune-setup-persist-done /var/log/dune/setup-persist.log
+
+USER agent
+# ENTRYPOINT/CMD/WORKDIR inherited from the base: tini -- bash, /home/agent/workspace.
+# The com.docker.sandboxes.start-docker=true label is inherited, which is what
+# makes the sbx runtime auto-start dockerd in sandboxes from this template.
