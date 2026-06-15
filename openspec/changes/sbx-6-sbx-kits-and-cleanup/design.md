@@ -74,7 +74,7 @@ Implementation/verification shape:
 ## Open Questions
 
 - Which kit types Dune ships vs. recommends, and the canonical per-repo location for kit definitions.
-- The verified `sbx` kit command surface and YAML schema (incl. whether kits carry network rules and a template-version field), to be confirmed against the installed `sbx` per D1 before kits are documented as supported.
+- ~~The verified `sbx` kit command surface and YAML schema~~ — **largely resolved by spike 4** (D1): subcommands, `--kit` create-time apply, and install/startup/env semantics confirmed against `sbx` v0.32.0. Residual: whether the schema carries network rules and a template-version field (the `kind: mixin`/`schemaVersion: "1"` minimal kit was exercised, not the full schema), and the Dune-template-specific smoke check.
 - The exact initial docs domains included in the recommended recipe.
 - Exact confirmation UX and dry-run output for `dune cleanup docker` (and whether the verb should align with `sbx-5`'s `dune destroy` confirmation/`--force` convention).
 - Exact timing of `container/base/` removal relative to the template build's reuse of those assets (`sbx-2` D2).

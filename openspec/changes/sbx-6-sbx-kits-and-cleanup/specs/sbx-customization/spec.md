@@ -11,10 +11,10 @@ Dune SHALL use `sbx` kits as the per-project/team customization layer over the D
 - **AND** no `Dockerfile.dune` build path is used
 
 #### Scenario: A kit's additions are verified against the installed sbx before kits are documented as supported
-- **GIVEN** the kit command surface and YAML schema are unverified (the spikes only read the kits docs)
+- **GIVEN** spike 4 recorded the `sbx` kit subcommand surface and create-with-kit semantics against the installed binary, but not against the Dune template specifically
 - **WHEN** Dune documents kits as the supported customization path
 - **THEN** the verified `sbx` kit subcommand surface, YAML schema, and create-with-kit flow are recorded against the installed binary
-- **AND** a minimal mixin kit is smoke-tested so a sandbox built from the Dune template with that kit carries the kit's declared addition (e.g. an env var or file is present in the sandbox)
+- **AND** a minimal mixin kit is smoke-tested so a sandbox built from the **Dune** template with that kit carries the kit's declared addition (e.g. an env var or file is present in the sandbox)
 - **AND** if the installed `sbx` cannot apply kits as documented, Dune falls back to docs-only recipes and does not claim an unverified kit build path
 
 #### Scenario: Recommended docs-domain rules are available as a kit/recipe
