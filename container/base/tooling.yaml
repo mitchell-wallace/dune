@@ -98,13 +98,6 @@ binary_releases:
     arch:
       amd64: amd64
       arm64: arm64
-  - name: br
-    version_arg: BR_VERSION
-    verify: br --version
-    checksum: sha256sum
-    arch:
-      amd64: linux_musl_amd64
-      arm64: linux_musl_arm64
   - name: gitui
     version_arg: GITUI_VERSION
     verify: gitui --version
