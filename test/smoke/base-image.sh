@@ -94,10 +94,13 @@ if [ "${POSTGRES_PID_BEFORE}" = "${POSTGRES_PID_AFTER}" ]; then
   exit 1
 fi
 
-test -f "${PERSIST_EMPTY}/.zshrc"
-test -f "${PERSIST_EMPTY}/.p10k.zsh"
-assert_container_command 'readlink -f /home/agent/.zshrc | grep -qx /persist/agent/.zshrc'
-assert_container_command 'readlink -f /home/agent/.p10k.zsh | grep -qx /persist/agent/.p10k.zsh'
+# .zshrc and .p10k.zsh are image-owned: not seeded into the persist volume, and
+# linked straight to the image defaults so version bumps always reach the
+# container instead of being shadowed by a stale persisted copy.
+test ! -e "${PERSIST_EMPTY}/.zshrc"
+test ! -e "${PERSIST_EMPTY}/.p10k.zsh"
+assert_container_command 'readlink -f /home/agent/.zshrc | grep -qx /opt/home-defaults/.zshrc'
+assert_container_command 'readlink -f /home/agent/.p10k.zsh | grep -qx /opt/home-defaults/.p10k.zsh'
 assert_container_command 'readlink -f /home/agent/.codex | grep -qx /persist/agent/.codex'
 
 printf 'custom zshrc\n' > "${PERSIST_PRESEEDED}/.zshrc"
@@ -107,10 +110,14 @@ mkdir -p "${PERSIST_PRESEEDED}/.claude/skills/bd-to-br-migration"
 mkdir -p "${PERSIST_PRESEEDED}/.codex/skills/bd-to-br-migration"
 start_container "${PERSIST_PRESEEDED}" "UTC"
 
-grep -qx 'custom zshrc' "${PERSIST_PRESEEDED}/.zshrc"
-grep -qx 'custom p10k' "${PERSIST_PRESEEDED}/.p10k.zsh"
-assert_container_command "grep -qx 'custom zshrc' /home/agent/.zshrc"
-assert_container_command "grep -qx 'custom p10k' /home/agent/.p10k.zsh"
+# A stale .zshrc/.p10k.zsh in an older profile volume must NOT shadow the image
+# copy: the home links resolve to the image defaults, so the custom persisted
+# content is ignored (this is the regression that left containers on an old
+# prompt palette after an image bump).
+assert_container_command 'readlink -f /home/agent/.zshrc | grep -qx /opt/home-defaults/.zshrc'
+assert_container_command 'readlink -f /home/agent/.p10k.zsh | grep -qx /opt/home-defaults/.p10k.zsh'
+assert_container_command "! grep -qx 'custom zshrc' /home/agent/.zshrc"
+assert_container_command "! grep -qx 'custom p10k' /home/agent/.p10k.zsh"
 assert_container_command "test ! -e /home/agent/.claude/skills/bd-to-br-migration"
 assert_container_command "test ! -e /home/agent/.codex/skills/bd-to-br-migration"
 

@@ -57,6 +57,21 @@ link_path() {
   ln -s "${persist_path}" "${home_path}"
 }
 
+# Image-owned shell config (theme + rc). Symlink straight to the image defaults
+# rather than seeding into the persist volume: seeding only copies when the
+# destination is absent, so a profile created on an older image would shadow
+# every future update with its stale copy. Linking to the defaults means version
+# bumps reach existing profiles on the next start.
+link_default() {
+  local rel="$1"
+  local home_path="${HOME_DIR}/${rel}"
+  local default_path="${DEFAULTS_DIR}/${rel}"
+
+  rm -rf "${home_path}"
+  ensure_dir "$(dirname "${home_path}")"
+  ln -s "${default_path}" "${home_path}"
+}
+
 remove_unwanted_skill() {
   local skill_name="$1"
 
@@ -75,8 +90,6 @@ seed_dir ".config/gh"
 seed_dir ".gemini"
 seed_file ".gitconfig"
 seed_file ".git-credentials"
-seed_file ".zshrc"
-seed_file ".p10k.zsh"
 seed_file ".claude.json"
 
 remove_unwanted_skill "bd-to-br-migration"
@@ -89,9 +102,11 @@ link_path ".config/gh" ".config/gh"
 link_path ".gemini" ".gemini"
 link_path ".gitconfig" ".gitconfig"
 link_path ".git-credentials" ".git-credentials"
-link_path ".zshrc" ".zshrc"
-link_path ".p10k.zsh" ".p10k.zsh"
 link_path ".claude.json" ".claude.json"
+
+# Theme + rc are image-owned; link to the defaults so updates always apply.
+link_default ".zshrc"
+link_default ".p10k.zsh"
 
 if [ ! -e "${HOME_DIR}/.agent-shell-setup.sh" ]; then
   cp -a "${DEFAULTS_DIR}/.agent-shell-setup.sh" "${HOME_DIR}/.agent-shell-setup.sh"
