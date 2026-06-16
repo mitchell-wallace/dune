@@ -55,3 +55,6 @@ assert_container_command "laps version"
 
 assert_container_command "update-tools agy"
 assert_container_command "agy --version"
+
+assert_container_command "update-tools thenn"
+assert_container_command "thenn version"

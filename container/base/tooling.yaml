@@ -76,6 +76,12 @@ release_scripts:
     verify: agy --version
     update: true
     update_pin: ""
+  - name: thenn
+    install_script: /usr/local/bin/install-thenn.sh
+    version_env: THENN_VERSION
+    verify: thenn version
+    update: true
+    update_pin: ""
 
 binary_releases:
   - name: eza

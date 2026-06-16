@@ -145,13 +145,14 @@ COPY container/base/home-defaults/ /opt/home-defaults/
 COPY container/base/scripts/configure-agents.sh /usr/local/bin/configure-agents.sh
 COPY container/base/scripts/install-laps.sh /usr/local/bin/install-laps.sh
 COPY container/base/scripts/install-agy.sh /usr/local/bin/install-agy.sh
+COPY container/base/scripts/install-thenn.sh /usr/local/bin/install-thenn.sh
 COPY container/base/scripts/install-rally.sh /usr/local/bin/install-rally.sh
 COPY container/base/scripts/setup-persist.sh /usr/local/bin/setup-persist.sh
 COPY container/base/scripts/tooling-data.sh /usr/local/bin/tooling-data.sh
 COPY container/base/scripts/update-tools.sh /usr/local/bin/update-tools
 COPY container/base/s6-overlay/ /etc/s6-overlay/
 
-RUN chmod 0755 /usr/local/bin/configure-agents.sh /usr/local/bin/install-laps.sh /usr/local/bin/install-agy.sh /usr/local/bin/install-rally.sh /usr/local/bin/setup-persist.sh /usr/local/bin/update-tools \
+RUN chmod 0755 /usr/local/bin/configure-agents.sh /usr/local/bin/install-laps.sh /usr/local/bin/install-agy.sh /usr/local/bin/install-thenn.sh /usr/local/bin/install-rally.sh /usr/local/bin/setup-persist.sh /usr/local/bin/update-tools \
   && chmod 0644 /usr/local/bin/tooling-data.sh \
   && ln -sf /usr/local/bin/update-tools /usr/local/bin/update-tools.sh \
   && find /etc/s6-overlay -type f -exec chmod 0755 {} + \
@@ -193,7 +194,9 @@ RUN runuser -u agent -- bash -lc 'git clone --depth=1 https://github.com/romkatv
   && runuser -u agent -- bash -lc '/usr/local/bin/configure-agents.sh' \
   && if [ "${INSTALL_RALLY}" = "1" ]; then runuser -u agent -- bash -lc '/usr/local/bin/install-rally.sh'; fi \
   && runuser -u agent -- bash -lc '/usr/local/bin/install-laps.sh' \
-  && runuser -u agent -- bash -lc '/usr/local/bin/install-agy.sh'
+  && runuser -u agent -- bash -lc '/usr/local/bin/install-agy.sh' \
+  && runuser -u agent -- bash -lc '/usr/local/bin/install-thenn.sh' \
+  && runuser -u agent -- bash -lc 'cp ~/.claude.json /opt/home-defaults/.claude.json'
 
 RUN runuser -u agent -- bash -lc 'for bin in python python3 uv go; do ln -sf "$HOME/.local/share/mise/shims/$bin" "$HOME/.local/bin/$bin"; done'
 

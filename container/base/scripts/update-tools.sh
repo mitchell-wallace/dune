@@ -9,7 +9,7 @@ usage() {
   cat <<'EOF'
 Usage: update-tools [--all | TOOL [VERSION] | TOOL@VERSION]
 
-Tools: claude, codex, opencode, gemini, rally, laps, agy
+Tools: claude, codex, opencode, gemini, rally, laps, agy, thenn
 
 Examples:
   update-tools --all
@@ -53,10 +53,12 @@ update_npm_tool() {
 }
 
 update_release_tool() {
-  local name="$1" script="$2" version_env="$3" version="${4:-}"
+  local name="$1" script="$2" version_env="$3" mode="${4:-}" version="${5:-}"
   echo "Updating ${name}..."
   if [ -n "${version}" ]; then
     env "${version_env}=${version}" bash "${script}"
+  elif [ "${mode}" = "self" ]; then
+    "${name}" update
   else
     bash "${script}"
   fi
@@ -76,9 +78,11 @@ update_single() {
 
   for entry in "${RELEASE_TOOLS[@]}"; do
     local key="${entry%%:*}" rest="${entry#*:}"
-    local script="${rest%%:*}" version_env="${rest#*:}"
+    local script="${rest%%:*}" remainder="${rest#*:}"
+    local version_env="${remainder%%:*}" mode="${remainder#*:}"
+    [ "${mode}" = "${remainder}" ] && mode=""
     if [ "${key}" = "${TOOL_NAME}" ]; then
-      update_release_tool "${key}" "${script}" "${version_env}" "${TOOL_VERSION:-}"
+      update_release_tool "${key}" "${script}" "${version_env}" "${mode}" "${TOOL_VERSION:-}"
       return 0
     fi
   done
@@ -94,8 +98,10 @@ update_all() {
   done
   for entry in "${RELEASE_TOOLS[@]}"; do
     local key="${entry%%:*}" rest="${entry#*:}"
-    local script="${rest%%:*}" version_env="${rest#*:}"
-    update_release_tool "${key}" "${script}" "${version_env}" ""
+    local script="${rest%%:*}" remainder="${rest#*:}"
+    local version_env="${remainder%%:*}" mode="${remainder#*:}"
+    [ "${mode}" = "${remainder}" ] && mode=""
+    update_release_tool "${key}" "${script}" "${version_env}" "${mode}" ""
   done
 }
 

@@ -77,6 +77,7 @@ seed_file ".gitconfig"
 seed_file ".git-credentials"
 seed_file ".zshrc"
 seed_file ".p10k.zsh"
+seed_file ".claude.json"
 
 remove_unwanted_skill "bd-to-br-migration"
 
@@ -90,6 +91,7 @@ link_path ".gitconfig" ".gitconfig"
 link_path ".git-credentials" ".git-credentials"
 link_path ".zshrc" ".zshrc"
 link_path ".p10k.zsh" ".p10k.zsh"
+link_path ".claude.json" ".claude.json"
 
 if [ ! -e "${HOME_DIR}/.agent-shell-setup.sh" ]; then
   cp -a "${DEFAULTS_DIR}/.agent-shell-setup.sh" "${HOME_DIR}/.agent-shell-setup.sh"
