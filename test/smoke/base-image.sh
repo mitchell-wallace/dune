@@ -103,6 +103,32 @@ assert_container_command 'readlink -f /home/agent/.zshrc | grep -qx /opt/home-de
 assert_container_command 'readlink -f /home/agent/.p10k.zsh | grep -qx /opt/home-defaults/.p10k.zsh'
 assert_container_command 'readlink -f /home/agent/.codex | grep -qx /persist/agent/.codex'
 
+# TERM normalisation: .zshrc must resolve every inbound TERM to a 256-colour
+# entry that exists in the image, or powerlevel10k renders monochrome/collapsed.
+# - xterm-ghostty/kitty: host-terminal names with no terminfo entry here, fall
+#   back to xterm-256color (the bug: an unknown TERM left the prompt monochrome).
+# - screen/tmux: bare 8-colour multiplexer names, upgraded to their 256 variants.
+assert_term_normalises() {
+  local raw="$1" want="$2" got
+  # $TERM is intentionally single-quoted: it must be expanded by zsh inside the
+  # container (after .zshrc normalises it), not by this host shell.
+  # shellcheck disable=SC2016
+  got="$(timeout 30 docker exec -e "TERM=${raw}" -e POWERLEVEL9K_INSTANT_PROMPT=off \
+    "${CONTAINER_NAME}" zsh -ic 'print -rn -- $TERM' 2>/dev/null | tr -d '\r')"
+  if [ "${got}" != "${want}" ]; then
+    echo "TERM=${raw} normalised to '${got}', expected '${want}'" >&2
+    exit 1
+  fi
+  docker exec "${CONTAINER_NAME}" bash -lc "infocmp -- '${got}' >/dev/null 2>&1" || {
+    echo "Normalised TERM '${got}' has no terminfo entry in the image" >&2
+    exit 1
+  }
+}
+assert_term_normalises xterm-ghostty xterm-256color
+assert_term_normalises kitty xterm-256color
+assert_term_normalises screen screen-256color
+assert_term_normalises tmux tmux-256color
+
 printf 'custom zshrc\n' > "${PERSIST_PRESEEDED}/.zshrc"
 printf 'custom p10k\n' > "${PERSIST_PRESEEDED}/.p10k.zsh"
 mkdir -p "${PERSIST_PRESEEDED}/.codex"
