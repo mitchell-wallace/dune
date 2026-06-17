@@ -17,11 +17,11 @@
       "title": "Install Dune toolchain parity into the sbx template",
       "description": "Context: Builds on the previous lap's container/sbx/ tree. Reproduces the current base image's toolchain inside the sbx template (tasks 4.1-4.3; design D1 Playwright caveat). The reusable installers already exist under container/base/scripts/ and the version pins live in container/base/tooling.yaml.\n\nOutcome: The template installs zsh + Dune shell defaults (Powerlevel10k), Rally, Laps, the agent CLIs (claude, codex, opencode, gemini), openspec, git/gh and common CLI tooling, the language toolchains (Go/Node/Python/uv/pnpm via mise), and Playwright + Chromium.\n\nFiles \u0026 scope: container/sbx/Dockerfile.sbx, reusing container/base/scripts/install-*.sh, configure-agents.sh, tooling.yaml, and home-defaults/. No changes to the root Dockerfile or container/base.\n\nDesign: Reuse the existing installers and tooling.yaml rather than re-deriving versions. The one subtlety (resolved by spike 4, design D1): the Ubuntu 26.04 base has no stable Playwright — install Playwright 1.60.0 with PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-\u003carch\u003e (Chromium 148 launch was verified in-sandbox). Leave a comment that the override can be dropped once Playwright 1.61 is stable.\n\nAcceptance: Ephemeral build succeeds. Inside a sandbox a parity smoke check passes: rally --version, laps --version, playwright --version, and a representative agent CLI (e.g. claude --version) all run, and a minimal Playwright Chromium launch succeeds (tasks 4.2/4.3). Do not tick tasks.md boxes. Remove any sandboxes you create.",
       "assignee": "JUNIOR",
-      "isDone": false,
+      "isDone": true,
       "order": 131072,
       "createdAt": "2026-06-17T07:00:27.695997108Z",
-      "updatedAt": "2026-06-17T07:00:27.695997108Z",
-      "completedAt": null
+      "updatedAt": "2026-06-17T23:55:51.417225263Z",
+      "completedAt": "2026-06-17T23:55:51.417225263Z"
     },
     {
       "id": "dune-fbe4",
