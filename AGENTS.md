@@ -6,6 +6,17 @@ When working through a plan, you should break your work into commits to checkpoi
 
 Ad-hoc work that forms a sizeable change should come with an offer to commit, pending confirmation of build status.
 
+## The `dunex` branch: the sbx migration line
+
+This branch (`dunex`) is the integration line for a deliberate **breaking hard-cut** of Dune's runtime substrate: from the local Docker Compose topology (an `agent` + `pipelock` pair) on `main` to the standalone `sbx` microVM-sandbox CLI launching a dedicated **Dune sbx template image**. `Dockerfile.dune` and Pipelock are dropped, not carried forward.
+
+- **Staged as OpenSpec changes** under `openspec/changes/`: `sbx-1` (research spikes, done) → `sbx-2` (the sbx template image) → `sbx-3` (CLI runtime backend, the central cutover) → `sbx-4` (egress/secrets + Pipelock removal) → `sbx-5` (lifecycle/doctor) → `sbx-6` (kits + legacy teardown). Each depends on the **landed** implementation of the prior one, so they land on this branch in order. Execution is driven through Rally laps (`.laps/laps.json`).
+- **Two divergent lines, one repo (for now).** `main` keeps the current Compose backend and is still released; `dunex` carries the sbx future. They are incompatible product directions once sbx lands. Keep them in one repo until the trigger below, because the sbx template still **reuses `container/base/` assets** (`scripts/*`, `tooling.yaml`, `home-defaults/`) — so config-layer fixes on `main` should flow to both.
+- **Merge `main` in regularly; never rebase/force-push** this branch (it is shared and pushed). The prepare-laps convention also forbids history rewrites as a cleanup strategy.
+- **Split trigger:** revisit promoting `dunex` to a separate repo / release line only *after* `sbx-6` removes the `container/base/` tree (the last shared asset) — at that point a split is lossless. A "separate release" identity does **not** require a separate repo: the sbx template gets its own image ref (`dune-sbx`) and its own version source (`container/sbx/IMAGE_VERSION`, introduced in `sbx-2`); `sbx-6` updates the version-bump checklist below to point the lockstep at the template.
+
+The `## Architecture` section below still describes the **current** (Compose) code, which is accurate until `sbx-3` cuts the backend over.
+
 ## Architecture: host vs container
 
 The container's `/workspace` contains the **user's project**, not the dune source code. The host-side `dune` CLI is responsible for generating the compose file, creating the profile-specific persist volume, and starting the `agent` and `pipelock` containers.
