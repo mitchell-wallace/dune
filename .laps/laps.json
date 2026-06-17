@@ -2,54 +2,92 @@
   "version": 2,
   "tasks": [
     {
-      "id": "dune-0d4b",
-      "title": "Review sbx-2 openspec plan",
-      "description": "Look through the sbx-2 openspec plan and look for improvements to tighten the plan.\n- read the sbx proposal.md documents\n- send out subagents to gather relevant context from the dune codebase and the spike reports\n- look for aspects where the shape is weakly defined or doesn't have a verification point against the `sbx` binary, where we can improve things for a clearer plan or stronger integration verification point\n- avoid shifting product direction - we're burning a few bridges here, this is a breaking change ultimately, but docker sbx will provide a much stronger baseline for our use case",
-      "isDone": true,
+      "id": "dune-af33",
+      "title": "Stand up the Docker-enabled Dune sbx template base",
+      "description": "Context: First lap of the sbx-2-dune-sbx-template OpenSpec change (openspec/changes/sbx-2-dune-sbx-template/ — read proposal.md and design.md D1/D2/D2a/D3/D5; tasks 1.2-1.4, 2.1, 2.4). Spike 4 already proved the recipe: openspec/changes/sbx-1-runtime-spike/spike-reports/spike-4-artifacts/Dockerfile.sbx-spike builds FROM docker/sandbox-templates:shell-docker and passed the full D8 matrix. This lap productionizes that recipe into a canonical, SEPARATE build tree; it must not modify the root Dockerfile (the Compose base image stays buildable until sbx-3 cuts over).\n\nOutcome: A new container/sbx/ tree (e.g. Dockerfile.sbx) that builds a Docker-enabled template FROM docker/sandbox-templates:shell-docker, inheriting tini as PID 1, the docker group, USER agent (uid 1000), and the com.docker.sandboxes.start-docker=true label so dockerd auto-starts on the first sbx exec (D5). s6-overlay and the Postgres/Redis/Mailpit packages, their s6 service scripts, the initdb step, and the /var/run/postgresql handling are NOT carried over (D2a/D3).\n\nFiles \u0026 scope: New container/sbx/ (Dockerfile.sbx + any helper files). Do NOT touch the root Dockerfile, container/base/s6-overlay/, or the app-service installs. Full toolchain parity (zsh, agent CLIs, mise, Playwright) is the next lap — keep this lap to the minimal layers needed to prove the Docker-enabled base + tree structure.\n\nDesign: Derive, do not reinstall Docker — D1 confirms shell-docker is pullable as a normal FROM base and inherits the start-docker label and flavor detection. The install-Docker-directly path is only a contingency for base drift. Native init owns PID 1; do not install or wire s6-overlay. Keep layers cache-friendly (a full build is ~12-15 min).\n\nAcceptance: An ephemeral build succeeds. In a single sbx exec against a sandbox created from the freshly built image: docker version reports the engine, docker compose version works, docker run --rm hello-world succeeds, and a nested docker compose up -d bringing up a real service (e.g. a postgres container bound to 0.0.0.0) is reachable from inside the sandbox — with the sbx init not crash-looping (tasks 1.4 + 2.4). Do not tick tasks.md boxes (a VERIFY lap does that). Remove any sandboxes you create.",
+      "assignee": "SENIOR",
+      "isDone": false,
       "order": 65536,
-      "createdAt": "2026-06-11T11:14:13.824801143Z",
-      "updatedAt": "2026-06-11T11:36:09.649063203Z",
-      "completedAt": "2026-06-11T11:36:09.649063203Z"
+      "createdAt": "2026-06-17T07:00:27.695988216Z",
+      "updatedAt": "2026-06-17T07:00:27.695988216Z",
+      "completedAt": null
     },
     {
-      "id": "dune-76f6",
-      "title": "Review sbx-3 openspec plan",
-      "description": "Look through the sbx-3 openspec plan and look for improvements to tighten the plan.\n- read the sbx proposal.md documents\n- send out subagents to gather relevant context from the dune codebase and the spike reports\n- look for aspects where the shape is weakly defined or doesn't have a verification point against the `sbx` binary, where we can improve things for a clearer plan or stronger integration verification point\n- avoid shifting product direction - we're burning a few bridges here, this is a breaking change ultimately, but docker sbx will provide a much stronger baseline for our use case",
-      "isDone": true,
+      "id": "dune-4925",
+      "title": "Install Dune toolchain parity into the sbx template",
+      "description": "Context: Builds on the previous lap's container/sbx/ tree. Reproduces the current base image's toolchain inside the sbx template (tasks 4.1-4.3; design D1 Playwright caveat). The reusable installers already exist under container/base/scripts/ and the version pins live in container/base/tooling.yaml.\n\nOutcome: The template installs zsh + Dune shell defaults (Powerlevel10k), Rally, Laps, the agent CLIs (claude, codex, opencode, gemini), openspec, git/gh and common CLI tooling, the language toolchains (Go/Node/Python/uv/pnpm via mise), and Playwright + Chromium.\n\nFiles \u0026 scope: container/sbx/Dockerfile.sbx, reusing container/base/scripts/install-*.sh, configure-agents.sh, tooling.yaml, and home-defaults/. No changes to the root Dockerfile or container/base.\n\nDesign: Reuse the existing installers and tooling.yaml rather than re-deriving versions. The one subtlety (resolved by spike 4, design D1): the Ubuntu 26.04 base has no stable Playwright — install Playwright 1.60.0 with PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-\u003carch\u003e (Chromium 148 launch was verified in-sandbox). Leave a comment that the override can be dropped once Playwright 1.61 is stable.\n\nAcceptance: Ephemeral build succeeds. Inside a sandbox a parity smoke check passes: rally --version, laps --version, playwright --version, and a representative agent CLI (e.g. claude --version) all run, and a minimal Playwright Chromium launch succeeds (tasks 4.2/4.3). Do not tick tasks.md boxes. Remove any sandboxes you create.",
+      "assignee": "JUNIOR",
+      "isDone": false,
       "order": 131072,
-      "createdAt": "2026-06-11T11:14:13.824806052Z",
-      "updatedAt": "2026-06-11T11:40:46.006978258Z",
-      "completedAt": "2026-06-11T11:40:46.006978258Z"
+      "createdAt": "2026-06-17T07:00:27.695997108Z",
+      "updatedAt": "2026-06-17T07:00:27.695997108Z",
+      "completedAt": null
     },
     {
-      "id": "dune-6fd5",
-      "title": "Review sbx-4 openspec plan",
-      "description": "Look through the sbx-4 openspec plan and look for improvements to tighten the plan.\n- read the sbx proposal.md documents\n- send out subagents to gather relevant context from the dune codebase and the spike reports\n- look for aspects where the shape is weakly defined or doesn't have a verification point against the `sbx` binary, where we can improve things for a clearer plan or stronger integration verification point\n- avoid shifting product direction - we're burning a few bridges here, this is a breaking change ultimately, but docker sbx will provide a much stronger baseline for our use case",
-      "isDone": true,
+      "id": "dune-fbe4",
+      "title": "Re-home setup-persist onto a login-shell sentinel boot hook",
+      "description": "Context: The base image ran setup-persist as an s6 oneshot; s6 is gone (D2a). This lap re-homes that credential-wiring step onto the login-shell sentinel hook resolved by spike 4 (design D2a/D5a; tasks 2.2-2.3). container/base/scripts/setup-persist.sh is the existing body and is SILENT on success.\n\nOutcome: On every fresh sandbox a one-time boot hook runs setup-persist once and wires the agent-home symlinks into /persist/agent (e.g. ~/.claude -\u003e /persist/agent/.claude), writing timestamped start/done lines plus script output to /var/log/dune/setup-persist.log.\n\nFiles \u0026 scope: container/sbx/ — hook body at /etc/dune/setup-persist-hook.sh, sourced from /etc/profile.d/dune-setup-persist.sh (bash/sh login shells) and /etc/zsh/zprofile (zsh login shells); sentinel ~/.dune-setup-persist-done in the NON-persisted home so recreation re-runs it; log at /var/log/dune/setup-persist.log. Reuse container/base/scripts/setup-persist.sh as the body.\n\nDesign (critical pitfall from spike 4, D2a): the image build's own bash -lc RUN steps are login shells and WILL fire the hook during docker build, baking the sentinel into the image so fresh sandboxes never run it. Guard build RUN steps with DUNE_SETUP_PERSIST_SKIP and rm -f the sentinel + log as the final build step. Add explicit log lines in the hook because setup-persist.sh is silent on success. (The sbx-3 backend will later force the hook post-create with one sbx exec \u003cname\u003e bash -lc true; plain bash -c does not source profile files.)\n\nAcceptance: Ephemeral build succeeds. In a fresh sandbox, after forcing the hook with one bash -lc true exec: readlink ~/.claude resolves to /persist/agent/.claude (and the other agent homes resolve into /persist/agent), and /var/log/dune/setup-persist.log exists with start/done lines (task 2.3). Confirm a docker build of the template does NOT bake the sentinel in (a fresh sandbox still runs the hook). Do not tick tasks.md boxes. Remove any sandboxes you create.",
+      "assignee": "SENIOR",
+      "isDone": false,
       "order": 196608,
-      "createdAt": "2026-06-11T11:14:13.824807385Z",
-      "updatedAt": "2026-06-11T11:49:19.285592432Z",
-      "completedAt": "2026-06-11T11:49:19.285592432Z"
+      "createdAt": "2026-06-17T07:00:27.69599975Z",
+      "updatedAt": "2026-06-17T07:00:27.69599975Z",
+      "completedAt": null
     },
     {
-      "id": "dune-ad1d",
-      "title": "Review sbx-5 openspec plan",
-      "description": "Look through the sbx-5 openspec plan and look for improvements to tighten the plan.\n- read the sbx proposal.md documents\n- send out subagents to gather relevant context from the dune codebase and the spike reports\n- look for aspects where the shape is weakly defined or doesn't have a verification point against the `sbx` binary, where we can improve things for a clearer plan or stronger integration verification point\n- avoid shifting product direction - we're burning a few bridges here, this is a breaking change ultimately, but docker sbx will provide a much stronger baseline for our use case",
-      "isDone": true,
+      "id": "dune-d150",
+      "title": "Make /workspace a runtime symlink to the mount and record the DUNE_WORKSPACE contract",
+      "description": "Context: The root Dockerfile ships a static WORKDIR /workspace (around line 211) plus a build-time chown of /workspace that masks the real mount under direct-mount sbx (design D4; tasks 3.1-3.3). The template must instead provide /workspace as a runtime symlink to the real mounted repo path, which only the backend knows.\n\nOutcome: The sbx template does not ship a static /workspace that masks the mount; a first-run/login step creates/refreshes /workspace as a symlink to the resolved mount path supplied via the DUNE_WORKSPACE env var, and the chosen delivery mechanism is written down as the contract sbx-3 D4 will adopt.\n\nFiles \u0026 scope: container/sbx/ (the first-run/login step — natural to co-locate with the setup-persist hook from the prior lap). Ensure the new template does NOT set WORKDIR /workspace or chown /workspace (those live in the root Dockerfile, which this change leaves alone — just don't reproduce them in container/sbx/). Record the delivery decision in the tasks.md 1.1/3.2 note and/or design.md as the handoff to sbx-3.\n\nDesign: Per D4, sbx create has no --env flag. Verified delivery options: exec-time -e DUNE_WORKSPACE=\u003cpath\u003e on the hook-firing sbx exec (recommended); a Dune-generated per-sandbox kit's environment.variables (experimental, create-time); or in-sandbox derivation (must disambiguate the primary rw virtiofs workspace from the profile-persist dir, which is also a workspace). Land ONE as the verified contract — recommended: exec-time -e for the hook invocation, with kit-based env noted as the create-time option. The canonical working dir is the real mount; /workspace is a compatibility bridge only.\n\nAcceptance: Ephemeral build succeeds. In a sandbox created with the chosen mechanism (e.g. sbx create --name \u003cn\u003e --template \u003cref\u003e shell \u003cmount path\u003e, then a hook exec carrying -e DUNE_WORKSPACE=\u003cmount path\u003e): readlink -f /workspace resolves to the mounted repo and git -C /workspace rev-parse --show-toplevel succeeds (task 3.3). The recorded DUNE_WORKSPACE contract for sbx-3 is written down. Do not tick tasks.md boxes. Remove any sandboxes you create.",
+      "assignee": "SENIOR",
+      "isDone": false,
       "order": 262144,
-      "createdAt": "2026-06-11T11:14:13.824808353Z",
-      "updatedAt": "2026-06-11T11:54:47.795781204Z",
-      "completedAt": "2026-06-11T11:54:47.795781204Z"
+      "createdAt": "2026-06-17T07:00:27.696001926Z",
+      "updatedAt": "2026-06-17T07:00:27.696001926Z",
+      "completedAt": null
     },
     {
-      "id": "dune-12ba",
-      "title": "Review sbx-6 openspec plan",
-      "description": "Look through the sbx-6 openspec plan and look for improvements to tighten the plan.\n- read the sbx proposal.md documents\n- send out subagents to gather relevant context from the dune codebase and the spike reports\n- look for aspects where the shape is weakly defined or doesn't have a verification point against the `sbx` binary, where we can improve things for a clearer plan or stronger integration verification point\n- avoid shifting product direction - we're burning a few bridges here, this is a breaking change ultimately, but docker sbx will provide a much stronger baseline for our use case",
-      "isDone": true,
+      "id": "dune-9469",
+      "title": "Verify the template builds and behaves (sbx-2 phases 1-4)",
+      "description": "Context: Phases 1-4 of sbx-2 are the high-risk core (Docker-enabled base, toolchain parity, re-homed setup-persist, /workspace compat). Verify them before the lower-risk versioning/docs work. Use the openspec-verify-change skill against sbx-2-dune-sbx-template, focused on phases 1-4.\n\nOutcome: Confirmation (or focused gap head-laps) that a fresh ephemeral build of container/sbx/ produces a template whose Docker stack, toolchain, setup-persist wiring, and /workspace symlink all behave per design D1/D2a/D3/D4/D5.\n\nWhat to check: build the template ephemerally; in a sandbox confirm — docker engine + docker compose + docker run --rm hello-world + a nested docker compose up -d reachable service; rally/laps/playwright/an agent CLI versions plus a Chromium launch; readlink ~/.claude -\u003e /persist/agent/.claude and /var/log/dune/setup-persist.log present after a bash -lc true exec; a fresh build does NOT bake the sentinel; readlink -f /workspace -\u003e mount and git -C /workspace rev-parse --show-toplevel works. Trace the actual Dockerfile.sbx layers, hook sourcing, and the build-time guard — \"it built\" is not sufficient for this brownfield boot-behavior work.\n\nProcess: Identify the branch merge target before diffing (ask the user / PR metadata / branch config / recent history — do NOT assume main; the current branch is experiment/docker-sbx) and use it in git diff \u003ctarget\u003e...HEAD. Treat the pre-batch plan-review/docs commits and the OpenSpec change docs as baseline, not in-scope cleanup. For substantive gaps, laps add head a focused fix lap — fix nothing beyond tiny safe one-liners here, and never rewrite git history. Then check off the tasks.md boxes for tasks 1.2-4.3 that are verified correct AND thorough (a checked box means verified-done, not attempted). Remove all temporary sandboxes.",
+      "assignee": "VERIFY",
+      "isDone": false,
       "order": 327680,
-      "createdAt": "2026-06-11T11:14:13.824809131Z",
-      "updatedAt": "2026-06-11T12:02:25.692708124Z",
-      "completedAt": "2026-06-11T12:02:25.692708124Z"
+      "createdAt": "2026-06-17T07:00:27.696003852Z",
+      "updatedAt": "2026-06-17T07:00:27.696003852Z",
+      "completedAt": null
+    },
+    {
+      "id": "dune-b0ad",
+      "title": "Define template versioning and the GHCR build-and-publish path",
+      "description": "Context: tasks 5.1-5.4; design D6/D7. Today the CLI version and image version are kept in lockstep via VERSION + container/base/IMAGE_VERSION. The template needs its own ref and version source. Note (sbx-3 D10): version.SbxTemplateRef() will read container/sbx/IMAGE_VERSION, so introduce that file here.\n\nOutcome: A chosen template image reference (proposed ghcr.io/mitchell-wallace/dune-sbx:\u003cversion\u003e) with a container/sbx/IMAGE_VERSION version source kept in lockstep with VERSION; a build-and-push job (extend image.yml or add a workflow) publishing the template to GHCR; and docs covering sbx create --template \u003cref\u003e, sbx template load for offline use, and sbx secret set --registry for private registries.\n\nFiles \u0026 scope: container/sbx/IMAGE_VERSION, .github/workflows/image.yml (or a new workflow file), and README/docs for the load/registry usage. Mirror the existing base-image publish job's structure. Do NOT remove the base-image job (that is sbx-6).\n\nDesign: Keep the version lockstep convention (AGENTS.md ties VERSION + container/base/IMAGE_VERSION; this adds the template's container/sbx/IMAGE_VERSION — leave the AGENTS.md lockstep rewording to sbx-6, don't pre-empt it). Document D7: the template is built from source only, never via sbx template save, and is not a secret boundary. Authoring the workflow is not the same as publishing — the actual GHCR push happens via the workflow on merge to main per AGENTS.md.\n\nAcceptance: container/sbx/IMAGE_VERSION exists and matches VERSION; the workflow's template job parses/lints (actionlint if available, else a careful read mirroring the existing job); the documented commands are correct against sbx create/template/secret --help. Do not tick tasks.md boxes.",
+      "assignee": "JUNIOR",
+      "isDone": false,
+      "order": 393216,
+      "createdAt": "2026-06-17T07:00:27.696005814Z",
+      "updatedAt": "2026-06-17T07:00:27.696005814Z",
+      "completedAt": null
+    },
+    {
+      "id": "dune-5382",
+      "title": "Document the Dune sbx template",
+      "description": "Context: task 7.1 — user-facing/architecture docs for the template.\n\nOutcome: Docs describe what the template contains, how it is built/published/versioned, the /workspace compatibility behavior, the removal of in-container Postgres/Redis/Mailpit + s6-overlay (app deps now come from project-owned docker compose inside the sandbox — a breaking change, with a short migration note), and the re-homed setup-persist boot hook + /var/log/dune/ log path. Note that the CLI runtime which launches the template lands in sbx-3.\n\nFiles \u0026 scope: README / architecture docs. Touch AGENTS.md only if a template-build note is genuinely warranted — the version-bump lockstep rewording to AGENTS.md is sbx-6's job, so don't pre-empt it. No code or build changes.\n\nAcceptance: Docs are accurate against the landed container/sbx/ tree and design D2a/D3/D4/D5a/D6. Do not tick tasks.md boxes.",
+      "assignee": "JUNIOR",
+      "isDone": false,
+      "order": 458752,
+      "createdAt": "2026-06-17T07:00:27.696007527Z",
+      "updatedAt": "2026-06-17T07:00:27.696007527Z",
+      "completedAt": null
+    },
+    {
+      "id": "dune-7695",
+      "title": "Final sbx-2 acceptance: run the spike-2 D8 matrix and close the change",
+      "description": "Context: Final full-outcome verification of sbx-2. Run the gating spike-2 acceptance matrix (design D8; tasks 6.1-6.3) against a sandbox built from the template ref defined two laps back, then complete OpenSpec verification. Use the openspec-verify-change skill against sbx-2-dune-sbx-template over the whole change.\n\nOutcome: The full D8 matrix passes against the installed sbx binary, the whole diff is sound, and the change's tasks.md is fully checked off (or remaining gaps are captured as head laps).\n\nWhat to run (D8, exact verified command forms — name is --name on create and positional on sbx ports; scope is --sandbox on policy): sbx create --name \u003cn\u003e --template \u003cref\u003e shell \u003cabsolute mount path\u003e succeeds and shows in sbx ls --json; readlink -f /workspace -\u003e mount and git -C /workspace rev-parse --show-toplevel; on a fresh sandbox the setup-persist symlinks resolve into /persist/agent and /var/log/dune/setup-persist.log is present, docker version responds, init not crash-looping; docker compose version + docker run --rm hello-world; nested docker compose up -d with a 0.0.0.0-bound service reachable; Playwright launches Chromium; sbx ports \u003cn\u003e --publish \u003cport\u003e --json exposes the nested service and the host reaches it (the service must bind 0.0.0.0 — loopback-only is not publishable); sbx policy deny network --sandbox \u003cn\u003e example.com blocks both shell (forward) and nested-Docker (transparent) traffic with blocked records in sbx policy log \u003cn\u003e --limit \u003cn\u003e (tasks 6.1-6.2). Remove all temporary sandboxes (task 6.3).\n\nProcess: Identify the branch merge target before diffing (ask the user / PR metadata / branch config / recent history; current branch experiment/docker-sbx — do not assume main); treat pre-batch commits as baseline. Run the complete openspec-verify-change and inspect the whole git diff \u003ctarget\u003e...HEAD. Check off all remaining tasks.md boxes (5.x, 6.x, 7.x and any of phases 1-4 not already ticked) that are verified correct and thorough — only tick a box when verified-done, not attempted. For substantive gaps, add focused head laps; do not rewrite git history.",
+      "assignee": "VERIFY",
+      "isDone": false,
+      "order": 524288,
+      "createdAt": "2026-06-17T07:00:27.696009355Z",
+      "updatedAt": "2026-06-17T07:00:27.696009355Z",
+      "completedAt": null
     }
   ]
 }
