@@ -1,4 +1,4 @@
-# Dune sbx template — Docker-enabled sandbox base.
+# Dune sbx template — Docker-enabled sandbox base with Dune toolchain parity.
 #
 # Builds on Docker's Docker-enabled shell template, inheriting:
 #   - tini as PID 1  (ENTRYPOINT ["tini", "--"])
@@ -6,14 +6,22 @@
 #   - docker compose plugin
 #   - USER agent (uid 1000, passwordless sudo, docker group)
 #   - com.docker.sandboxes.start-docker=true label (D5)
+#   - Node 22.x (so, unlike the Compose root Dockerfile, no NodeSource step)
+#
+# Layered on top (sbx-2 task 4 — toolchain parity): zsh + Dune shell defaults
+# (Powerlevel10k), the agent CLIs (claude/codex/opencode/gemini) + openspec,
+# Rally + Laps (+ agy/thenn), git/gh and common CLI tooling, the language
+# toolchains (Go/Node/Python/uv/pnpm via mise), and Playwright + Chromium.
 #
 # Deliberately absent vs. the Compose base image (root Dockerfile):
 #   - s6-overlay (the base's tini + the sbx runtime's start-docker label own init)
 #   - Postgres / Redis / Mailpit services and their initdb/runtime-dir steps (D3)
 #   - WORKDIR /workspace and the static /workspace directory (D4)
+#   - NodeSource Node 22 (base already ships Node 22.x)
 #
-# This is the MINIMAL Docker-enabled base layer. Toolchain parity (zsh, agent
-# CLIs, mise, Playwright) is layered on top in subsequent laps.
+# Not yet wired in this lap (land in subsequent sbx-2 laps):
+#   - setup-persist re-homed onto a login-shell boot hook (sbx-2 task 2.2)
+#   - /workspace runtime symlink to the mounted repo (sbx-2 task 3.2)
 #
 # Build from the repo root:
 #   docker build -f container/sbx/Dockerfile.sbx -t dune-sbx:dev .
@@ -21,32 +29,201 @@
 FROM docker/sandbox-templates:shell-docker
 
 ARG DEBIAN_FRONTEND=noninteractive
+ARG TZ=UTC
+ARG EZA_VERSION=v0.23.4
+ARG DELTA_VERSION=0.18.2
+ARG GITUI_VERSION=v0.28.1
+# No stable Playwright supports the base's Ubuntu 26.04 yet (1.58.2 — the
+# Compose-base pin — and 1.60.0 both hard-fail with "Playwright does not support
+# chromium on ubuntu26.04-x64"). The 1.61 alphas add native ubuntu26.04 dep
+# mappings. Until 1.61 is stable, install 1.60.0 with the documented
+# PLAYWRIGHT_HOST_PLATFORM_OVERRIDE escape hatch pointing at ubuntu24.04
+# (Chromium 148 launch verified in-sandbox by spike 4). Drop the override once
+# Playwright 1.61 is stable.
+ARG PLAYWRIGHT_VERSION=1.60.0
+ARG INSTALL_RALLY=1
+ARG GITHUB_TOKEN
 
-# ── Locale ───────────────────────────────────────────────────────────────────
-# The base image is Ubuntu 26.04 but ships a minimal locale; set up en_US.UTF-8
-# so downstream tools (git, mise, agent CLIs) produce consistent output.
 ENV LANG=en_US.UTF-8
 ENV LANGUAGE=en_US:en
 ENV LC_ALL=en_US.UTF-8
+ENV TZ=${TZ}
+ENV SHELL=/bin/zsh
+ENV EDITOR=nano
+ENV VISUAL=nano
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+ENV PATH=/home/agent/.local/bin:/home/agent/.local/share/mise/shims:${PATH}
+ENV GITHUB_TOKEN=${GITHUB_TOKEN}
 
 USER root
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
+# ── Locale + CLI toolchain (apt) ────────────────────────────────────────────
+# Reproduces the Compose base image's apt set minus the dropped in-container app
+# services (postgresql/redis-server — D3). Their *client* tools are kept so
+# projects can reach their own compose-hosted PG/Redis; redis-tools provides
+# redis-cli without the dropped server. The shell-docker base already ships
+# git/curl/sudo/etc., but listing them keeps the set explicit and matches the
+# base image's toolchain (harmless if already present).
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    bash \
+    bat \
+    build-essential \
+    ca-certificates \
+    curl \
+    fd-find \
+    fzf \
+    gh \
+    git \
+    gnupg \
+    iputils-ping \
+    jq \
     locales \
+    micro \
+    nano \
+    postgresql-client \
+    procps \
+    redis-tools \
+    ripgrep \
+    sudo \
+    tmux \
+    tre-command \
+    tree \
+    tzdata \
+    unzip \
+    vim \
+    xz-utils \
+    zsh \
   && sed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen \
   && locale-gen \
   && update-locale LANG=en_US.UTF-8 LANGUAGE=en_US:en LC_ALL=en_US.UTF-8 \
+  && ln -snf "/usr/share/zoneinfo/${TZ}" /etc/localtime \
+  && echo "${TZ}" > /etc/timezone \
   && rm -rf /var/lib/apt/lists/*
 
-# ── Dune runtime directories ────────────────────────────────────────────────
-# /persist/agent  – profile-persist volume mount target (agent home symlinks)
+# ── Dune runtime directories + agent login shell ────────────────────────────
+# /persist/agent  – profile-persist volume mount target (symlinks wired by
+#                  setup-persist once its boot hook lands in sbx-2 task 2.2)
 # /var/log/dune   – canonical Dune log path (D5a contract for sbx-5)
-RUN install -d -m 0755 -o agent -g agent /persist/agent /var/log/dune
+# /opt/home-defaults – image-baked shell/agent defaults consumed by setup-persist
+RUN usermod -s /bin/zsh agent \
+  && install -d -m 0755 -o agent -g agent /persist/agent /var/log/dune /opt/home-defaults
 
-# ── Restore agent user ──────────────────────────────────────────────────────
+# ── Binary releases (eza / delta / gitui) ───────────────────────────────────
+# Reproduces the base image's binary_releases minus s6-overlay and mailpit (D2a/D3).
+RUN arch="$(dpkg --print-architecture)" \
+  && case "${arch}" in \
+      amd64) eza_arch="x86_64-unknown-linux-gnu"; delta_pkg_arch="amd64"; gitui_arch="x86_64" ;; \
+      arm64) eza_arch="aarch64-unknown-linux-gnu"; delta_pkg_arch="arm64"; gitui_arch="aarch64" ;; \
+      *) echo "Unsupported architecture: ${arch}" >&2; exit 1 ;; \
+    esac \
+  && curl -fsSL -o /tmp/eza.tar.gz \
+      "https://github.com/eza-community/eza/releases/download/${EZA_VERSION}/eza_${eza_arch}.tar.gz" \
+  && tar -xzf /tmp/eza.tar.gz -C /tmp \
+  && install -m 0755 /tmp/eza /usr/local/bin/eza \
+  && curl -fsSL -o /tmp/git-delta.deb \
+      "https://github.com/dandavison/delta/releases/download/${DELTA_VERSION}/git-delta_${DELTA_VERSION}_${delta_pkg_arch}.deb" \
+  && dpkg -i /tmp/git-delta.deb \
+  && curl -fsSL -o /tmp/gitui.tar.gz \
+      "https://github.com/gitui-org/gitui/releases/download/${GITUI_VERSION}/gitui-linux-${gitui_arch}.tar.gz" \
+  && install -d -m 0755 /tmp/gitui-install \
+  && tar -xzf /tmp/gitui.tar.gz -C /tmp/gitui-install \
+  && install -m 0755 /tmp/gitui-install/gitui /usr/local/bin/gitui \
+  && rm -rf /tmp/eza.tar.gz /tmp/eza /tmp/git-delta.deb /tmp/gitui.tar.gz /tmp/gitui-install
+
+# Debian/Ubuntu ship bat/fd as batcat/fdfind; alias them to the upstream names.
+RUN ln -sf "$(command -v batcat)" /usr/local/bin/bat \
+  && ln -sf "$(command -v fdfind)" /usr/local/bin/fd
+
+# ── Agent CLIs + openspec + pnpm/turbo + Playwright (npm global) ────────────
+# opencode-ai bundles *-musl native variants that are dead weight on this glibc
+# image; drop every musl variant regardless of arch.
+RUN npm install -g \
+    @anthropic-ai/claude-code \
+    @fission-ai/openspec \
+    @google/gemini-cli \
+    @openai/codex \
+    opencode-ai \
+    playwright@${PLAYWRIGHT_VERSION} \
+    pnpm \
+    turbo \
+  && find "$(npm root -g)/opencode-ai/node_modules" -maxdepth 1 -name 'opencode-linux-*-musl' -exec rm -rf {} +
+
+# ── Playwright + Chromium ───────────────────────────────────────────────────
+# Ubuntu 26.04 has no stable Playwright yet (D1 caveat); install Chromium via
+# the ubuntu24.04 platform override. See the PLAYWRIGHT_VERSION note above.
+RUN arch="$(dpkg --print-architecture)" \
+  && case "${arch}" in \
+      amd64) pw_platform="ubuntu24.04-x64" ;; \
+      arm64) pw_platform="ubuntu24.04-arm64" ;; \
+      *) echo "Unsupported architecture: ${arch}" >&2; exit 1 ;; \
+    esac \
+  && PLAYWRIGHT_SKIP_BROWSER_GC=1 PLAYWRIGHT_HOST_PLATFORM_OVERRIDE="${pw_platform}" \
+      playwright install --with-deps chromium
+
+# ── Dune build assets: home-defaults + reusable installers ──────────────────
+COPY container/base/home-defaults/ /opt/home-defaults/
+COPY container/base/scripts/configure-agents.sh /usr/local/bin/configure-agents.sh
+COPY container/base/scripts/install-laps.sh /usr/local/bin/install-laps.sh
+COPY container/base/scripts/install-agy.sh /usr/local/bin/install-agy.sh
+COPY container/base/scripts/install-thenn.sh /usr/local/bin/install-thenn.sh
+COPY container/base/scripts/install-rally.sh /usr/local/bin/install-rally.sh
+COPY container/base/scripts/tooling-data.sh /usr/local/bin/tooling-data.sh
+COPY container/base/scripts/update-tools.sh /usr/local/bin/update-tools
+
+RUN chmod 0755 /usr/local/bin/configure-agents.sh /usr/local/bin/install-laps.sh /usr/local/bin/install-agy.sh /usr/local/bin/install-thenn.sh /usr/local/bin/install-rally.sh /usr/local/bin/update-tools \
+  && chmod 0644 /usr/local/bin/tooling-data.sh \
+  && ln -sf /usr/local/bin/update-tools /usr/local/bin/update-tools.sh \
+  && find /opt/home-defaults -type f -name '*.json' -exec chmod 0644 {} + \
+  && find /opt/home-defaults -type f -name '*.toml' -exec chmod 0644 {} + \
+  && chmod 0644 /opt/home-defaults/.zshrc /opt/home-defaults/.p10k.zsh /opt/home-defaults/.agent-shell-setup.sh
+
+# ── Agent home: shell defaults + agent config + mise toolchain pin ──────────
+RUN cp /opt/home-defaults/.zshrc /home/agent/.zshrc \
+  && cp /opt/home-defaults/.p10k.zsh /home/agent/.p10k.zsh \
+  && cp /opt/home-defaults/.agent-shell-setup.sh /home/agent/.agent-shell-setup.sh \
+  && install -d -m 0755 -o agent -g agent \
+      /home/agent/.claude \
+      /home/agent/.codex \
+      /home/agent/.config/opencode \
+      /home/agent/.local/share/opencode \
+      /home/agent/.config/gh \
+      /home/agent/.config/mise \
+      /home/agent/.gemini \
+  && cp /opt/home-defaults/.claude/settings.json /home/agent/.claude/settings.json \
+  && cp /opt/home-defaults/.codex/config.toml /home/agent/.codex/config.toml \
+  && cp /opt/home-defaults/.codex/mcp-servers.toml /home/agent/.codex/mcp-servers.toml \
+  && cat <<'EOF' > /home/agent/.config/mise/config.toml
+[tools]
+node = "latest"
+go = "latest"
+python = "latest"
+uv = "latest"
+EOF
+
+RUN chown -R agent:agent /home/agent /opt/home-defaults /persist/agent /var/log/dune
+
+# ── Per-user toolchain install (as agent) ───────────────────────────────────
+# Powerlevel10k (Dune shell theme), mise (Go/Node/Python/uv/pnpm), agent CLI
+# MCP/GH wiring, and the release installers (Rally/Laps/agy/thenn). These run
+# as login shells so the agent's PATH/profile apply; no setup-persist boot hook
+# is installed in this lap, so no DUNE_SETUP_PERSIST_SKIP guard is needed yet
+# (that hook and its build-time guard land with sbx-2 task 2.2).
+RUN runuser -u agent -- bash -lc 'git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ~/.powerlevel10k' \
+  && runuser -u agent -- bash -lc '~/.powerlevel10k/gitstatus/install' \
+  && runuser -u agent -- bash -lc 'curl -fsSL https://mise.run | sh' \
+  && runuser -u agent -- bash -lc 'mise --version && mise install' \
+  && runuser -u agent -- bash -lc '/usr/local/bin/configure-agents.sh' \
+  && if [ "${INSTALL_RALLY}" = "1" ]; then runuser -u agent -- bash -lc '/usr/local/bin/install-rally.sh'; fi \
+  && runuser -u agent -- bash -lc '/usr/local/bin/install-laps.sh' \
+  && runuser -u agent -- bash -lc '/usr/local/bin/install-agy.sh' \
+  && runuser -u agent -- bash -lc '/usr/local/bin/install-thenn.sh' \
+  && runuser -u agent -- bash -lc 'cp ~/.claude.json /opt/home-defaults/.claude.json'
+
+# Expose mise-managed python/uv/go on ~/.local/bin (parity with the Compose base).
+RUN runuser -u agent -- bash -lc 'for bin in python python3 uv go; do ln -sf "$HOME/.local/share/mise/shims/$bin" "$HOME/.local/bin/$bin"; done'
+
 USER agent
-
 # ENTRYPOINT / CMD / WORKDIR are inherited from docker/sandbox-templates:shell-docker:
 #   ENTRYPOINT ["tini", "--"]
 #   CMD ["bash"]
