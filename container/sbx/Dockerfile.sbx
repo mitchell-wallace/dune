@@ -1,0 +1,56 @@
+# Dune sbx template — Docker-enabled sandbox base.
+#
+# Builds on Docker's Docker-enabled shell template, inheriting:
+#   - tini as PID 1  (ENTRYPOINT ["tini", "--"])
+#   - Docker Engine + containerd (auto-started by the sbx runtime)
+#   - docker compose plugin
+#   - USER agent (uid 1000, passwordless sudo, docker group)
+#   - com.docker.sandboxes.start-docker=true label (D5)
+#
+# Deliberately absent vs. the Compose base image (root Dockerfile):
+#   - s6-overlay (the base's tini + the sbx runtime's start-docker label own init)
+#   - Postgres / Redis / Mailpit services and their initdb/runtime-dir steps (D3)
+#   - WORKDIR /workspace and the static /workspace directory (D4)
+#
+# This is the MINIMAL Docker-enabled base layer. Toolchain parity (zsh, agent
+# CLIs, mise, Playwright) is layered on top in subsequent laps.
+#
+# Build from the repo root:
+#   docker build -f container/sbx/Dockerfile.sbx -t dune-sbx:dev .
+
+FROM docker/sandbox-templates:shell-docker
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+# ── Locale ───────────────────────────────────────────────────────────────────
+# The base image is Ubuntu 26.04 but ships a minimal locale; set up en_US.UTF-8
+# so downstream tools (git, mise, agent CLIs) produce consistent output.
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:en
+ENV LC_ALL=en_US.UTF-8
+
+USER root
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    locales \
+  && sed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen \
+  && locale-gen \
+  && update-locale LANG=en_US.UTF-8 LANGUAGE=en_US:en LC_ALL=en_US.UTF-8 \
+  && rm -rf /var/lib/apt/lists/*
+
+# ── Dune runtime directories ────────────────────────────────────────────────
+# /persist/agent  – profile-persist volume mount target (agent home symlinks)
+# /var/log/dune   – canonical Dune log path (D5a contract for sbx-5)
+RUN install -d -m 0755 -o agent -g agent /persist/agent /var/log/dune
+
+# ── Restore agent user ──────────────────────────────────────────────────────
+USER agent
+
+# ENTRYPOINT / CMD / WORKDIR are inherited from docker/sandbox-templates:shell-docker:
+#   ENTRYPOINT ["tini", "--"]
+#   CMD ["bash"]
+#   WORKDIR (base default, NOT /workspace — no static /workspace shipped, per D4)
+#
+# The com.docker.sandboxes.start-docker=true label is inherited, which makes
+# the sbx runtime auto-start dockerd in sandboxes from this template (D5).
