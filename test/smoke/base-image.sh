@@ -52,7 +52,10 @@ start_container "${PERSIST_EMPTY}" "Australia/Melbourne"
 assert_container_command "whoami | grep -qx agent"
 assert_container_command "echo \"\$SHELL\" | grep -qx /bin/zsh"
 assert_container_command "sudo whoami | grep -qx root"
+# These must expand inside the container shell, not in this host smoke script.
+# shellcheck disable=SC2016
 assert_container_command 'test -z "${GITHUB_TOKEN-}"'
+# shellcheck disable=SC2016
 assert_container_command 'test -z "${GH_TOKEN-}"'
 assert_container_command "! tr '\\0' '\\n' < /proc/1/environ | grep -Eiq '(^|_)(token|secret|credential|password|passwd|api_?key|access_?key|private_?key|auth_?token)='"
 
