@@ -6,11 +6,11 @@
       "title": "Stand up the Docker-enabled Dune sbx template base",
       "description": "Context: First lap of the sbx-2-dune-sbx-template OpenSpec change (openspec/changes/sbx-2-dune-sbx-template/ — read proposal.md and design.md D1/D2/D2a/D3/D5; tasks 1.2-1.4, 2.1, 2.4). Spike 4 already proved the recipe: openspec/changes/sbx-1-runtime-spike/spike-reports/spike-4-artifacts/Dockerfile.sbx-spike builds FROM docker/sandbox-templates:shell-docker and passed the full D8 matrix. This lap productionizes that recipe into a canonical, SEPARATE build tree; it must not modify the root Dockerfile (the Compose base image stays buildable until sbx-3 cuts over).\n\nOutcome: A new container/sbx/ tree (e.g. Dockerfile.sbx) that builds a Docker-enabled template FROM docker/sandbox-templates:shell-docker, inheriting tini as PID 1, the docker group, USER agent (uid 1000), and the com.docker.sandboxes.start-docker=true label so dockerd auto-starts on the first sbx exec (D5). s6-overlay and the Postgres/Redis/Mailpit packages, their s6 service scripts, the initdb step, and the /var/run/postgresql handling are NOT carried over (D2a/D3).\n\nFiles \u0026 scope: New container/sbx/ (Dockerfile.sbx + any helper files). Do NOT touch the root Dockerfile, container/base/s6-overlay/, or the app-service installs. Full toolchain parity (zsh, agent CLIs, mise, Playwright) is the next lap — keep this lap to the minimal layers needed to prove the Docker-enabled base + tree structure.\n\nDesign: Derive, do not reinstall Docker — D1 confirms shell-docker is pullable as a normal FROM base and inherits the start-docker label and flavor detection. The install-Docker-directly path is only a contingency for base drift. Native init owns PID 1; do not install or wire s6-overlay. Keep layers cache-friendly (a full build is ~12-15 min).\n\nAcceptance: An ephemeral build succeeds. In a single sbx exec against a sandbox created from the freshly built image: docker version reports the engine, docker compose version works, docker run --rm hello-world succeeds, and a nested docker compose up -d bringing up a real service (e.g. a postgres container bound to 0.0.0.0) is reachable from inside the sandbox — with the sbx init not crash-looping (tasks 1.4 + 2.4). Do not tick tasks.md boxes (a VERIFY lap does that). Remove any sandboxes you create.",
       "assignee": "SENIOR",
-      "isDone": false,
+      "isDone": true,
       "order": 65536,
       "createdAt": "2026-06-17T07:00:27.695988216Z",
-      "updatedAt": "2026-06-17T07:00:27.695988216Z",
-      "completedAt": null
+      "updatedAt": "2026-06-17T23:35:54.143634832Z",
+      "completedAt": "2026-06-17T23:35:54.143634832Z"
     },
     {
       "id": "dune-4925",
