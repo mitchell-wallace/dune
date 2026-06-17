@@ -196,6 +196,8 @@ exit 1
 	t.Setenv("XDG_CONFIG_HOME", configHome)
 	t.Setenv("HOME", homeDir)
 	t.Setenv("TZ", "Australia/Melbourne")
+	t.Setenv("TERM", "xterm-256color")
+	t.Setenv("COLORTERM", "truecolor")
 
 	var stdout, stderr strings.Builder
 	err = Run(context.Background(), []string{}, Environment{
@@ -255,8 +257,8 @@ exit 1
 	if !strings.Contains(logText, "compose -f "+composePath) || !strings.Contains(logText, " up -d") {
 		t.Fatalf("expected compose up invocation, got log:\n%s", logText)
 	}
-	if !strings.Contains(logText, "compose -f "+composePath) || !strings.Contains(logText, " exec agent zsh") {
-		t.Fatalf("expected agent exec invocation, got log:\n%s", logText)
+	if !strings.Contains(logText, "compose -f "+composePath) || !strings.Contains(logText, " exec -e TERM=xterm-256color -e COLORTERM=truecolor agent zsh") {
+		t.Fatalf("expected agent exec invocation forwarding TERM/COLORTERM, got log:\n%s", logText)
 	}
 }
 

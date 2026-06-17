@@ -107,6 +107,9 @@ assert_container_command 'readlink -f /home/agent/.codex | grep -qx /persist/age
 # entry that exists in the image, or powerlevel10k renders monochrome/collapsed.
 # - xterm-ghostty/kitty: host-terminal names with no terminfo entry here, fall
 #   back to xterm-256color (the bug: an unknown TERM left the prompt monochrome).
+# - xterm: the 8-colour TERM `docker compose exec` defaults the container to;
+#   upgraded to xterm-256color (the bug: dune's attach showed a monochrome prompt
+#   on every host terminal because Compose v2 doesn't forward the real TERM).
 # - screen/tmux: bare 8-colour multiplexer names, upgraded to their 256 variants.
 assert_term_normalises() {
   local raw="$1" want="$2" got
@@ -126,6 +129,7 @@ assert_term_normalises() {
 }
 assert_term_normalises xterm-ghostty xterm-256color
 assert_term_normalises kitty xterm-256color
+assert_term_normalises xterm xterm-256color
 assert_term_normalises screen screen-256color
 assert_term_normalises tmux tmux-256color
 

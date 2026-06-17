@@ -240,7 +240,7 @@ func Run(ctx context.Context, argv []string, env Environment, stdout, stderr io.
 		} else {
 			_, _ = fmt.Fprintln(stderr, "Attaching to container...")
 		}
-		return runStreaming(ctx, "", stdout, stderr, "docker", composeArgs(proj, "exec", "agent", composeShell)...)
+		return runStreaming(ctx, "", stdout, stderr, "docker", attachArgs(proj)...)
 	default:
 		return fmt.Errorf("unsupported command %q", opts.Command)
 	}
@@ -588,6 +588,24 @@ func validateDockerPrerequisites(ctx context.Context) error {
 func composeArgs(proj project, args ...string) []string {
 	base := []string{"compose", "-f", proj.ComposePath, "-p", proj.ComposeProject}
 	return append(base, args...)
+}
+
+// attachArgs builds the `docker compose exec` invocation used to attach an
+// interactive shell. `docker compose exec` (Compose v2) does not propagate the
+// caller's TERM into the container the way `docker exec -t` does -- it defaults
+// the container to TERM=xterm (8 colours), which collapses powerlevel10k's
+// 256-colour prompt to monochrome. Forward TERM (and COLORTERM) explicitly so
+// the prompt renders in full colour; the image's .zshrc normalises any TERM the
+// container has no terminfo entry for.
+func attachArgs(proj project) []string {
+	exec := []string{"exec"}
+	for _, key := range []string{"TERM", "COLORTERM"} {
+		if value := os.Getenv(key); value != "" {
+			exec = append(exec, "-e", key+"="+value)
+		}
+	}
+	exec = append(exec, "agent", composeShell)
+	return composeArgs(proj, exec...)
 }
 
 func localImageExists(ctx context.Context, image string) bool {

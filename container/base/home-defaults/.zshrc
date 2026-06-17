@@ -5,17 +5,22 @@ export VISUAL=nano
 export SHELL=/bin/zsh
 
 # Normalise TERM to a 256-colour entry the image actually ships before the theme
-# loads. Two distinct failure modes, both of which break powerlevel10k:
+# loads. Three failure modes, all of which break powerlevel10k:
 #   1. A multiplexer hands us a bare 8-colour TERM ("screen"/"tmux"); p10k then
 #      collapses its 256-colour palette to the nearest ANSI slot.
-#   2. The host terminal hands us a TERM with no terminfo entry in the container
+#   2. `docker compose exec` (how `dune` attaches) defaults the container to
+#      bare "xterm" -- a real terminfo entry, but only 8 colours -- so the
+#      prompt renders effectively monochrome. The host's real terminal is
+#      virtually always 256-colour, so treat bare xterm as xterm-256color.
+#   3. The host terminal hands us a TERM with no terminfo entry in the container
 #      (e.g. Ghostty's "xterm-ghostty", or kitty/wezterm/foot's own entries);
 #      p10k can't query colour support and renders the prompt monochrome.
-# Upgrade the known multiplexer names first, then fall back to xterm-256color for
+# Upgrade the known 8-colour names first, then fall back to xterm-256color for
 # anything the container's terminfo DB doesn't recognise.
 case "${TERM}" in
   screen) export TERM=screen-256color ;;
   tmux)   export TERM=tmux-256color ;;
+  xterm)  export TERM=xterm-256color ;;
 esac
 if ! infocmp -- "${TERM}" >/dev/null 2>&1; then
   export TERM=xterm-256color
