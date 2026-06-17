@@ -2,12 +2,7 @@
 set -euo pipefail
 
 tmpdir="$(mktemp -d)"
-# Invoked indirectly via the EXIT trap below.
-# shellcheck disable=SC2329
-cleanup() {
-  rm -rf "${tmpdir}"
-}
-trap cleanup EXIT
+trap 'rm -rf "${tmpdir}"' EXIT
 
 # rally's upstream installer resolves its version from the GitHub API. That call
 # occasionally returns a transient 504, after which the installer proceeds with
