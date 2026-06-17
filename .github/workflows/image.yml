@@ -51,7 +51,6 @@ jobs:
         run: |
           docker build \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
-            --build-arg GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} \
             -t ghcr.io/mitchell-wallace/dune-base:${{ steps.version.outputs.value }} \
             .
 
@@ -94,4 +93,3 @@ jobs:
             ghcr.io/mitchell-wallace/dune-base:latest
           build-args: |
             BUILDKIT_INLINE_CACHE=1
-            GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
