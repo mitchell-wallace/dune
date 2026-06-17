@@ -19,6 +19,9 @@ antigravity_model = 'Gemini 3.5 Flash (High)'
 [reliability]
 stall_threshold_secs = 900
 retry_budget = 5
+run_timeout_secs = 4500
+try_timeout_secs = 3600
+handoff_timeout_secs = 300
 recent_try_count = 5
 
 [harness]
@@ -26,6 +29,7 @@ recent_try_count = 5
 [routes]
 default = ['opencode']
 junior = ['opencode']
+recovery = ['claude']
 senior = ['claude']
 ui = ['gemini']
 verify = ['codex']
