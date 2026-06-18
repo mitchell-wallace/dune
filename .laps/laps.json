@@ -68,6 +68,16 @@
       "completedAt": "2026-06-18T15:19:14.93564802Z"
     },
     {
+      "id": "dune-d210",
+      "title": "Authenticate sbx on the host, ...",
+      "description": "Authenticate sbx on the host, then run just smoke-sbx-egress (optionally --report tmp/sbx-egress-smoke.\u003cdate\u003e.log) against ghcr.io/mitchell-wallace/dune-sbx:0.4.8; capture the report, confirm temp sandbox cleanup, record toolchain blocked-host findings, then check sbx-4 tasks 1.3, 2.3, 6.2, and 6.3 if the evidence passes.",
+      "isDone": false,
+      "order": 393216,
+      "createdAt": "2026-06-18T16:28:40.36518066Z",
+      "updatedAt": "2026-06-18T16:28:40.36518066Z",
+      "completedAt": null
+    },
+    {
       "id": "dune-b029",
       "title": "Smoke-verify the sbx egress posture against the dune-sbx template",
       "description": "Context: sbx-4 tasks 1.3, 2.3, 6.2, 6.3 — the empirical end-to-end proof against a real installed `sbx` and the Dune sbx template (ghcr.io/mitchell-wallace/dune-sbx, container/sbx/IMAGE_VERSION), mirroring the sbx-3 smoke lap. This runs after Pipelock removal so it validates the unified end state: no Pipelock + egress governed solely by sbx policy.\n\nOutcome: in an ephemeral sandbox, demonstrate and record: (a) under the non-Open baseline a representative documentation site is BLOCKED (403/denied), and the denial appears in `sbx policy log \u003cinstance\u003e`; (b) opening the exact + specific-wildcard domains for that docs site UNBLOCKS it immediately on the running sandbox without recreation, and REMOVING the rule re-blocks it (task 2.3); (c) `sbx policy log` records both shell (forward) and nested-Docker (transparent) traffic; (d) Dune's actual toolchain traffic works under the baseline (npm/pip/go/cargo, AI providers) — record any domains that must be added for parity (task 1.3); (e) no Pipelock sidecar starts and no pipelock.yaml is generated (spec scenario 'No Pipelock in the sbx egress path').\n\nFiles \u0026 scope: a smoke test/harness consistent with the sbx-3 smoke approach; may shell out to the real sbx. Remove any temporary sandboxes at the end (task 6.3). Build an ephemeral container to test in if needed (permitted by AGENTS.md).\n\nDesign: keep the smoke gate honest — if a toolchain domain is missing from Balanced, record it as guidance (kits handle the durable allowlist in sbx-6); do not silently weaken to Open. If `sbx`/template are unavailable in this environment, report that explicitly rather than faking a pass.\n\nAcceptance: the five observations above captured with the actual commands/output; `go build ./cmd/dune` and `go test ./...` green; temp sandboxes removed. Report the recorded toolchain-domain findings for the docs lap.",
