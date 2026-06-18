@@ -39,11 +39,11 @@
       "title": "Verify the egress policy surface (sbx-4 phases 1-3)",
       "description": "Scope: verify the egress code surface only — the verify-only baseline + warn-closed boot wiring, the sandbox-scoped allow/deny/rm rule construction + domain-opening shape, and the policy-log wrapper. Empirical sandbox smoke (toolchain traffic, immediacy of open/remove, blocking a real docs site, nested Docker) is deferred to the later smoke lap and the final acceptance — do NOT tick those boxes here.\n\nUse the openspec-verify-change skill against sbx-4-sbx-network-and-secrets, focused on phases 1-3.\n\nBranch/diff: the integration target is `dunex` (NOT main); confirm from the user/branch config/recent history, then diff with `git diff dunex...HEAD` (or the merge-base). The first lap of THIS batch is the verify-only-baseline lap; treat everything before it (through the sbx-3 close) as pre-existing baseline — flag pre-existing issues but do not add cleanup laps for them unless the user asks.\n\nReview depth (not just 'tests pass'): trace the actual `sbx policy ls`/`allow`/`deny`/`rm`/`log` argument vectors emitted through the runner seam against design.md D2/D4; confirm the warn-closed-vs-hard-fail decision logic matches D1 exactly (unconfirmable =\u003e warn+proceed; observed Open when asked to operate =\u003e fail; never weakens to Open; never mutates global policy); confirm the domain-opening affordance emits exact + specific-wildcard and never a broad catch-all; confirm the policy-log parse pins observed field names. Run `go build ./cmd/dune` and `go test ./...`.\n\nDo not rewrite git history. If you find a substantive gap, add a focused fix lap at the head of the queue rather than fixing it here (tiny safe one-liners excepted).\n\nTick in tasks.md only what is verified correct and thorough: 1.1, 1.2, 2.1, 2.2, 3.1, 3.2. Leave 1.3, 2.3, 6.1 (until secret-shape tests land), 6.2 for later laps. Report findings first.",
       "assignee": "VERIFY",
-      "isDone": false,
+      "isDone": true,
       "order": 262144,
       "createdAt": "2026-06-18T11:44:49.714715448Z",
-      "updatedAt": "2026-06-18T11:44:49.714715448Z",
-      "completedAt": null
+      "updatedAt": "2026-06-18T15:04:02.11244764Z",
+      "completedAt": "2026-06-18T15:04:02.11244764Z"
     },
     {
       "id": "dune-f7c0",
