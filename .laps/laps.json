@@ -28,11 +28,11 @@
       "title": "Re-home setup-persist onto a login-shell sentinel boot hook",
       "description": "Context: The base image ran setup-persist as an s6 oneshot; s6 is gone (D2a). This lap re-homes that credential-wiring step onto the login-shell sentinel hook resolved by spike 4 (design D2a/D5a; tasks 2.2-2.3). container/base/scripts/setup-persist.sh is the existing body and is SILENT on success.\n\nOutcome: On every fresh sandbox a one-time boot hook runs setup-persist once and wires the agent-home symlinks into /persist/agent (e.g. ~/.claude -\u003e /persist/agent/.claude), writing timestamped start/done lines plus script output to /var/log/dune/setup-persist.log.\n\nFiles \u0026 scope: container/sbx/ — hook body at /etc/dune/setup-persist-hook.sh, sourced from /etc/profile.d/dune-setup-persist.sh (bash/sh login shells) and /etc/zsh/zprofile (zsh login shells); sentinel ~/.dune-setup-persist-done in the NON-persisted home so recreation re-runs it; log at /var/log/dune/setup-persist.log. Reuse container/base/scripts/setup-persist.sh as the body.\n\nDesign (critical pitfall from spike 4, D2a): the image build's own bash -lc RUN steps are login shells and WILL fire the hook during docker build, baking the sentinel into the image so fresh sandboxes never run it. Guard build RUN steps with DUNE_SETUP_PERSIST_SKIP and rm -f the sentinel + log as the final build step. Add explicit log lines in the hook because setup-persist.sh is silent on success. (The sbx-3 backend will later force the hook post-create with one sbx exec \u003cname\u003e bash -lc true; plain bash -c does not source profile files.)\n\nAcceptance: Ephemeral build succeeds. In a fresh sandbox, after forcing the hook with one bash -lc true exec: readlink ~/.claude resolves to /persist/agent/.claude (and the other agent homes resolve into /persist/agent), and /var/log/dune/setup-persist.log exists with start/done lines (task 2.3). Confirm a docker build of the template does NOT bake the sentinel in (a fresh sandbox still runs the hook). Do not tick tasks.md boxes. Remove any sandboxes you create.",
       "assignee": "SENIOR",
-      "isDone": false,
+      "isDone": true,
       "order": 196608,
       "createdAt": "2026-06-17T07:00:27.69599975Z",
-      "updatedAt": "2026-06-17T07:00:27.69599975Z",
-      "completedAt": null
+      "updatedAt": "2026-06-18T00:19:47.640411077Z",
+      "completedAt": "2026-06-18T00:19:47.640411077Z"
     },
     {
       "id": "dune-d150",
