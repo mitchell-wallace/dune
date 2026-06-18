@@ -61,11 +61,11 @@
       "title": "Define template versioning and the GHCR build-and-publish path",
       "description": "Context: tasks 5.1-5.4; design D6/D7. Today the CLI version and image version are kept in lockstep via VERSION + container/base/IMAGE_VERSION. The template needs its own ref and version source. Note (sbx-3 D10): version.SbxTemplateRef() will read container/sbx/IMAGE_VERSION, so introduce that file here.\n\nOutcome: A chosen template image reference (proposed ghcr.io/mitchell-wallace/dune-sbx:\u003cversion\u003e) with a container/sbx/IMAGE_VERSION version source kept in lockstep with VERSION; a build-and-push job (extend image.yml or add a workflow) publishing the template to GHCR; and docs covering sbx create --template \u003cref\u003e, sbx template load for offline use, and sbx secret set --registry for private registries.\n\nFiles \u0026 scope: container/sbx/IMAGE_VERSION, .github/workflows/image.yml (or a new workflow file), and README/docs for the load/registry usage. Mirror the existing base-image publish job's structure. Do NOT remove the base-image job (that is sbx-6).\n\nDesign: Keep the version lockstep convention (AGENTS.md ties VERSION + container/base/IMAGE_VERSION; this adds the template's container/sbx/IMAGE_VERSION — leave the AGENTS.md lockstep rewording to sbx-6, don't pre-empt it). Document D7: the template is built from source only, never via sbx template save, and is not a secret boundary. Authoring the workflow is not the same as publishing — the actual GHCR push happens via the workflow on merge to main per AGENTS.md.\n\nAcceptance: container/sbx/IMAGE_VERSION exists and matches VERSION; the workflow's template job parses/lints (actionlint if available, else a careful read mirroring the existing job); the documented commands are correct against sbx create/template/secret --help. Do not tick tasks.md boxes.",
       "assignee": "JUNIOR",
-      "isDone": false,
+      "isDone": true,
       "order": 393216,
       "createdAt": "2026-06-17T07:00:27.696005814Z",
-      "updatedAt": "2026-06-17T07:00:27.696005814Z",
-      "completedAt": null
+      "updatedAt": "2026-06-18T01:57:04.086462677Z",
+      "completedAt": "2026-06-18T01:57:04.086462677Z"
     },
     {
       "id": "dune-5382",
