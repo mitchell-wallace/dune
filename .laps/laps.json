@@ -83,11 +83,11 @@
       "title": "Final sbx-2 acceptance: run the spike-2 D8 matrix and close the change",
       "description": "Context: Final full-outcome verification of sbx-2. Run the gating spike-2 acceptance matrix (design D8; tasks 6.1-6.3) against a sandbox built from the template ref defined two laps back, then complete OpenSpec verification. Use the openspec-verify-change skill against sbx-2-dune-sbx-template over the whole change.\n\nOutcome: The full D8 matrix passes against the installed sbx binary, the whole diff is sound, and the change's tasks.md is fully checked off (or remaining gaps are captured as head laps).\n\nWhat to run (D8, exact verified command forms — name is --name on create and positional on sbx ports; scope is --sandbox on policy): sbx create --name \u003cn\u003e --template \u003cref\u003e shell \u003cabsolute mount path\u003e succeeds and shows in sbx ls --json; readlink -f /workspace -\u003e mount and git -C /workspace rev-parse --show-toplevel; on a fresh sandbox the setup-persist symlinks resolve into /persist/agent and /var/log/dune/setup-persist.log is present, docker version responds, init not crash-looping; docker compose version + docker run --rm hello-world; nested docker compose up -d with a 0.0.0.0-bound service reachable; Playwright launches Chromium; sbx ports \u003cn\u003e --publish \u003cport\u003e --json exposes the nested service and the host reaches it (the service must bind 0.0.0.0 — loopback-only is not publishable); sbx policy deny network --sandbox \u003cn\u003e example.com blocks both shell (forward) and nested-Docker (transparent) traffic with blocked records in sbx policy log \u003cn\u003e --limit \u003cn\u003e (tasks 6.1-6.2). Remove all temporary sandboxes (task 6.3).\n\nProcess: Identify the branch merge target before diffing (ask the user / PR metadata / branch config / recent history; current branch experiment/docker-sbx — do not assume main); treat pre-batch commits as baseline. Run the complete openspec-verify-change and inspect the whole git diff \u003ctarget\u003e...HEAD. Check off all remaining tasks.md boxes (5.x, 6.x, 7.x and any of phases 1-4 not already ticked) that are verified correct and thorough — only tick a box when verified-done, not attempted. For substantive gaps, add focused head laps; do not rewrite git history.",
       "assignee": "VERIFY",
-      "isDone": false,
+      "isDone": true,
       "order": 524288,
       "createdAt": "2026-06-17T07:00:27.696009355Z",
-      "updatedAt": "2026-06-17T07:00:27.696009355Z",
-      "completedAt": null
+      "updatedAt": "2026-06-18T03:34:01.703009483Z",
+      "completedAt": "2026-06-18T03:34:01.703009483Z"
     }
   ]
 }
