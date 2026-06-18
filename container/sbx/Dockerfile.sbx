@@ -19,11 +19,11 @@
 #   - WORKDIR /workspace and the static /workspace directory (D4)
 #   - NodeSource Node 22 (base already ships Node 22.x)
 #
-# Not yet wired in this lap (land in subsequent sbx-2 laps):
-#   - /workspace runtime symlink to the mounted repo (sbx-2 task 3.2)
-#
-# setup-persist is re-homed onto a login-shell sentinel boot hook (sbx-2
-# task 2.2): /etc/dune/setup-persist-hook.sh, sourced from
+# Runtime boot/login hook:
+#   - refreshes /workspace -> $DUNE_WORKSPACE when the backend supplies
+#     DUNE_WORKSPACE on the hook-firing sbx exec (D4)
+#   - runs setup-persist once per sandbox via a sentinel (D2a)
+# The hook body is /etc/dune/setup-persist-hook.sh, sourced from
 # /etc/profile.d/dune-setup-persist.sh (bash/sh) and /etc/zsh/zprofile (zsh).
 # Build-time bash -lc steps are guarded with DUNE_SETUP_PERSIST_SKIP=1 and the
 # sentinel/log are rm -f'd as the final root step so they are never baked in.
@@ -246,11 +246,17 @@ RUN export DUNE_SETUP_PERSIST_SKIP=1 \
 RUN export DUNE_SETUP_PERSIST_SKIP=1 \
   && runuser -u agent -- bash -lc 'for bin in python python3 uv go; do ln -sf "$HOME/.local/share/mise/shims/$bin" "$HOME/.local/bin/$bin"; done'
 
-# ── Final build-time guard: scrub sentinel + log (D2a pitfall) ──────────────
+# ── Final build-time guard: scrub sentinel, log, and static /workspace ───────
 # Even with DUNE_SETUP_PERSIST_SKIP=1, belt-and-suspenders: rm -f the sentinel
 # and log so they are guaranteed absent in the final image. A fresh sandbox
 # must re-run the hook on its first login shell.
-RUN rm -f /home/agent/.dune-setup-persist-done /var/log/dune/setup-persist.log
+#
+# D4 requires the sbx template to not ship a static /workspace. If an upstream
+# base ever introduces an empty /workspace, remove it; if it is non-empty, fail
+# the build rather than producing an image that masks the real mount.
+RUN rm -f /home/agent/.dune-setup-persist-done /var/log/dune/setup-persist.log \
+  && cd / \
+  && if [ -L /workspace ]; then rm -f /workspace; elif [ -e /workspace ]; then rmdir /workspace; fi
 
 USER agent
 # ENTRYPOINT / CMD / WORKDIR are inherited from docker/sandbox-templates:shell-docker:

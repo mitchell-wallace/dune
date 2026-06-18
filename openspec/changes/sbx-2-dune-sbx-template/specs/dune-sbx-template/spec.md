@@ -24,7 +24,7 @@ The Dune sbx template SHALL provide a working Docker Engine and the `docker comp
 The Dune sbx template SHALL treat the real mounted repository path as the canonical working directory and SHALL provide `/workspace` as a symlink to that mounted path. The template SHALL NOT ship a static `/workspace` directory that masks the mount.
 
 #### Scenario: /workspace resolves to the mounted repository
-- **GIVEN** a sandbox created from the Dune sbx template with the workspace mounted and its absolute path supplied to the template (via the verified `DUNE_WORKSPACE` mechanism or, if create-time env injection is unsupported by `sbx`, in-sandbox derivation of the mount path)
+- **GIVEN** a sandbox created from the Dune sbx template with the workspace mounted and its absolute path supplied to the hook-firing login shell via `sbx exec -e DUNE_WORKSPACE=<absolute mount path> <name> bash -lc true`
 - **WHEN** `readlink -f /workspace` and `git -C /workspace rev-parse --show-toplevel` are run inside the sandbox
 - **THEN** `/workspace` resolves to the mounted repository path
 - **AND** the repository top-level is reported

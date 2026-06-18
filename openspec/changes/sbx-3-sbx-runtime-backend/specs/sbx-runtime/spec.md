@@ -40,7 +40,7 @@ The runtime SHALL map a Dune workspace/profile instance to an `sbx` sandbox name
 
 ### Requirement: The workspace is direct-mounted and the shell attaches at the mounted repo path
 
-The runtime SHALL create the sandbox from the Dune sbx template with the workspace direct-mounted, and SHALL attach the interactive shell with its working directory set to the real mounted repository path (not the sandbox default home). It SHALL supply the mounted path to the template so `/workspace` resolves to the repository.
+The runtime SHALL create the sandbox from the Dune sbx template with the workspace direct-mounted, and SHALL attach the interactive shell with its working directory set to the real mounted repository path (not the sandbox default home). It SHALL supply the mounted path to the template with the post-create hook exec `sbx exec -e DUNE_WORKSPACE=<absolute host path> <instance> bash -lc true` so `/workspace` resolves to the repository.
 
 #### Scenario: Shell starts in the repository
 - **GIVEN** a sandbox created for a workspace rooted at an absolute host path
