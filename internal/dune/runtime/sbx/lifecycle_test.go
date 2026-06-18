@@ -268,6 +268,52 @@ func TestStop_StopsSandbox(t *testing.T) {
 	assertCaptureCall(t, fr.calls[0], "sbx", "stop", spec.InstanceName)
 }
 
+func TestRebuild_RemovesWithForceThenRecreatesAndStarts(t *testing.T) {
+	dataHome := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", dataHome)
+
+	spec := testSpec()
+	persistPath := filepath.Join(dataHome, "dune", "persist", spec.Profile)
+	fr := &fakeRunner{
+		responses: []fakeRunnerResponse{
+			{output: []byte(`{"sandboxes":[{"name":"` + spec.InstanceName + `","status":"running"}]}`)},
+			{},
+			{output: []byte(`{"sandboxes":[]}`)},
+			{},
+			{},
+			{},
+		},
+	}
+	b := newBackend(fr)
+
+	if err := b.Rebuild(context.Background(), spec); err != nil {
+		t.Fatalf("Rebuild() error = %v", err)
+	}
+
+	if len(fr.calls) != 6 {
+		t.Fatalf("got %d calls, want 6: %+v", len(fr.calls), fr.calls)
+	}
+	assertCaptureCall(t, fr.calls[0], "sbx", "ls", "--json")
+	assertCaptureCall(t, fr.calls[1], "sbx", "rm", "--force", spec.InstanceName)
+	assertCaptureCall(t, fr.calls[2], "sbx", "ls", "--json")
+	assertCaptureCall(t, fr.calls[3], "sbx",
+		"create",
+		"--name", spec.InstanceName,
+		"--template", spec.TemplateRef,
+		"shell",
+		spec.WorkspaceHostPath,
+		persistPath,
+	)
+	assertCaptureCall(t, fr.calls[4], "sbx",
+		"exec",
+		"-e", "DUNE_WORKSPACE="+spec.WorkspaceHostPath,
+		"-e", "PERSIST_DIR="+persistPath,
+		spec.InstanceName,
+		"bash", "-lc", "true",
+	)
+	assertCaptureCall(t, fr.calls[5], "sbx", "run", spec.InstanceName)
+}
+
 func TestShell_OmitsUnsetTerminalEnv(t *testing.T) {
 	t.Setenv("TERM", "")
 	t.Setenv("COLORTERM", "")

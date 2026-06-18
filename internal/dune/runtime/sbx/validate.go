@@ -62,9 +62,9 @@ func (b *backend) Validate(ctx context.Context) error {
 // these field names in fakeRunner tests so a future sbx output change surfaces
 // as a failing test.
 type diagnoseReport struct {
-	Version string          `json:"version"`
-	Checks  []diagnoseCheck `json:"checks"`
-	Summary diagnoseSummary `json:"summary"`
+	Version string           `json:"version"`
+	Checks  []diagnoseCheck  `json:"checks"`
+	Summary *diagnoseSummary `json:"summary"`
 }
 
 type diagnoseCheck struct {
@@ -87,7 +87,45 @@ func parseDiagnose(output []byte) (diagnoseReport, error) {
 	if err := json.Unmarshal(output, &report); err != nil {
 		return report, fmt.Errorf("parse diagnose JSON: %w", err)
 	}
+	if err := validateDiagnoseReport(report); err != nil {
+		return report, err
+	}
 	return report, nil
+}
+
+func validateDiagnoseReport(report diagnoseReport) error {
+	if len(report.Checks) == 0 {
+		return errors.New(`diagnose JSON missing required non-empty "checks" array`)
+	}
+	if report.Summary == nil {
+		return errors.New(`diagnose JSON missing required "summary" object`)
+	}
+
+	counts := diagnoseSummary{}
+	for i, check := range report.Checks {
+		if strings.TrimSpace(check.Name) == "" {
+			return fmt.Errorf("diagnose check %d missing required name", i)
+		}
+		switch check.Status {
+		case "pass":
+			counts.Pass++
+		case "warn":
+			counts.Warn++
+		case "fail":
+			counts.Fail++
+		case "skip":
+			counts.Skip++
+		case "":
+			return fmt.Errorf("diagnose check %q missing required status", check.Name)
+		default:
+			return fmt.Errorf("diagnose check %q has unknown status %q", check.Name, check.Status)
+		}
+	}
+
+	if counts != *report.Summary {
+		return fmt.Errorf("diagnose summary counts %+v do not match checks %+v", *report.Summary, counts)
+	}
+	return nil
 }
 
 // nonPassingChecks returns every check whose status is not "pass". A healthy

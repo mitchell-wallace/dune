@@ -38,7 +38,7 @@
 
 ## 7. Tests
 
-- [ ] 7.1 Add fakeRunner command-construction/sequencing tests for `up` (create/start/attach and reuse), `down`, and `rebuild`, asserting exact `sbx` args, instance name, mount path, and order.
+- [x] 7.1 Add fakeRunner command-construction/sequencing tests for `up` (create/start/attach and reuse), `down`, and `rebuild`, asserting exact `sbx` args, instance name, mount path, and order.
 - [x] 7.2 Add tests for `Validate` failure modes (missing sbx, failed diagnose, below-min version).
 - [ ] 7.3 Retire or replace the Docker Compose golden/validation and shell-shim tests tied to the removed path.
 

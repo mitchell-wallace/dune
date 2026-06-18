@@ -87,6 +87,28 @@ func (b *backend) Stop(ctx context.Context, spec Spec) error {
 	return nil
 }
 
+func (b *backend) Rebuild(ctx context.Context, spec Spec) error {
+	if err := validateEnsureSpec(spec); err != nil {
+		return err
+	}
+	state, err := b.Status(ctx, spec)
+	if err != nil {
+		return err
+	}
+	if state.Exists {
+		if _, err := b.runner.Capture(ctx, "", "sbx", "rm", "--force", spec.InstanceName); err != nil {
+			return fmt.Errorf("remove sbx sandbox %q: %w", spec.InstanceName, err)
+		}
+	}
+	if err := b.Ensure(ctx, spec); err != nil {
+		return err
+	}
+	if err := b.Start(ctx, spec); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (b *backend) Status(ctx context.Context, spec Spec) (State, error) {
 	if err := validateInstanceName(spec.InstanceName); err != nil {
 		return State{}, err

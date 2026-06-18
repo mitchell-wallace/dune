@@ -111,6 +111,79 @@ func TestValidate_DiagnoseFailure(t *testing.T) {
 	assertCaptureCall(t, fr.calls[0], "sbx", "diagnose", "--output", "json")
 }
 
+func TestValidate_DiagnoseRejectsMalformedCheckShape(t *testing.T) {
+	cases := []struct {
+		name   string
+		output string
+		want   string
+	}{
+		{
+			name:   "empty object",
+			output: `{}`,
+			want:   "checks",
+		},
+		{
+			name:   "missing checks",
+			output: `{"version":"1.0","summary":{"pass":0,"warn":0,"fail":0,"skip":0}}`,
+			want:   "checks",
+		},
+		{
+			name:   "empty checks",
+			output: `{"version":"1.0","checks":[],"summary":{"pass":0,"warn":0,"fail":0,"skip":0}}`,
+			want:   "checks",
+		},
+		{
+			name:   "missing summary",
+			output: `{"version":"1.0","checks":[{"name":"Daemon","status":"pass"}]}`,
+			want:   "summary",
+		},
+		{
+			name:   "renamed status field",
+			output: `{"version":"1.0","checks":[{"name":"Daemon","state":"pass"}],"summary":{"pass":1,"warn":0,"fail":0,"skip":0}}`,
+			want:   "missing required status",
+		},
+		{
+			name:   "renamed name field",
+			output: `{"version":"1.0","checks":[{"label":"Daemon","status":"pass"}],"summary":{"pass":1,"warn":0,"fail":0,"skip":0}}`,
+			want:   "missing required name",
+		},
+		{
+			name:   "unknown status",
+			output: `{"version":"1.0","checks":[{"name":"Daemon","status":"ok"}],"summary":{"pass":1,"warn":0,"fail":0,"skip":0}}`,
+			want:   "unknown status",
+		},
+		{
+			name:   "summary mismatch",
+			output: `{"version":"1.0","checks":[{"name":"Daemon","status":"pass"}],"summary":{"pass":0,"warn":0,"fail":0,"skip":0}}`,
+			want:   "do not match",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fr := &fakeRunner{
+				responses: []fakeRunnerResponse{
+					{output: []byte(tc.output)},
+				},
+			}
+			b := newBackend(fr)
+			b.lookPath = lookPathFound
+
+			err := b.Validate(context.Background())
+			if err == nil {
+				t.Fatalf("Validate() want malformed diagnose error, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("Validate() error = %q, want it to contain %q", err.Error(), tc.want)
+			}
+			if len(fr.calls) != 1 {
+				t.Fatalf("got %d runner calls, want 1 (diagnose only): %+v", len(fr.calls), fr.calls)
+			}
+			assertCaptureCall(t, fr.calls[0], "sbx", "diagnose", "--output", "json")
+		})
+	}
+}
+
 func TestValidate_BelowMinimumVersion(t *testing.T) {
 	fr := &fakeRunner{
 		responses: []fakeRunnerResponse{

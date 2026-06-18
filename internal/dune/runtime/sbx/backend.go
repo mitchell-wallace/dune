@@ -13,6 +13,7 @@ type Backend interface {
 	Start(ctx context.Context, spec Spec) error
 	Shell(ctx context.Context, spec Spec, streams StdIO) error
 	Stop(ctx context.Context, spec Spec) error
+	Rebuild(ctx context.Context, spec Spec) error
 	Status(ctx context.Context, spec Spec) (State, error)
 }
 
