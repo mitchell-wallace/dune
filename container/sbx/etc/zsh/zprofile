@@ -1,0 +1,9 @@
+# /etc/zsh/zprofile - Dune setup-persist boot hook (zsh)
+#
+# Sourced automatically by zsh login shells. Sources the sentinel-guarded
+# hook that runs setup-persist.sh once per sandbox instance.
+# (bash/sh login shells are handled by /etc/profile.d/dune-setup-persist.sh.)
+
+if [[ -f /etc/dune/setup-persist-hook.sh ]]; then
+  . /etc/dune/setup-persist-hook.sh
+fi

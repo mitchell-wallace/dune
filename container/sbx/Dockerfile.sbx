@@ -20,8 +20,13 @@
 #   - NodeSource Node 22 (base already ships Node 22.x)
 #
 # Not yet wired in this lap (land in subsequent sbx-2 laps):
-#   - setup-persist re-homed onto a login-shell boot hook (sbx-2 task 2.2)
 #   - /workspace runtime symlink to the mounted repo (sbx-2 task 3.2)
+#
+# setup-persist is re-homed onto a login-shell sentinel boot hook (sbx-2
+# task 2.2): /etc/dune/setup-persist-hook.sh, sourced from
+# /etc/profile.d/dune-setup-persist.sh (bash/sh) and /etc/zsh/zprofile (zsh).
+# Build-time bash -lc steps are guarded with DUNE_SETUP_PERSIST_SKIP=1 and the
+# sentinel/log are rm -f'd as the final root step so they are never baked in.
 #
 # Build from the repo root:
 #   docker build -f container/sbx/Dockerfile.sbx -t dune-sbx:dev .
@@ -164,6 +169,7 @@ RUN arch="$(dpkg --print-architecture)" \
 # ── Dune build assets: home-defaults + reusable installers ──────────────────
 COPY container/base/home-defaults/ /opt/home-defaults/
 COPY container/base/scripts/configure-agents.sh /usr/local/bin/configure-agents.sh
+COPY container/base/scripts/setup-persist.sh /usr/local/bin/setup-persist.sh
 COPY container/base/scripts/install-laps.sh /usr/local/bin/install-laps.sh
 COPY container/base/scripts/install-agy.sh /usr/local/bin/install-agy.sh
 COPY container/base/scripts/install-thenn.sh /usr/local/bin/install-thenn.sh
@@ -171,8 +177,19 @@ COPY container/base/scripts/install-rally.sh /usr/local/bin/install-rally.sh
 COPY container/base/scripts/tooling-data.sh /usr/local/bin/tooling-data.sh
 COPY container/base/scripts/update-tools.sh /usr/local/bin/update-tools
 
-RUN chmod 0755 /usr/local/bin/configure-agents.sh /usr/local/bin/install-laps.sh /usr/local/bin/install-agy.sh /usr/local/bin/install-thenn.sh /usr/local/bin/install-rally.sh /usr/local/bin/update-tools \
+# ── Login-shell boot hook: setup-persist (D2a) ─────────────────────────────
+# Hook body + profile.d / zprofile sourcers. The sentinel
+# (~/.dune-setup-persist-done) lives in the non-persisted home so sandbox
+# recreation re-runs the hook. Build-time bash -lc steps are guarded with
+# DUNE_SETUP_PERSIST_SKIP=1 and the sentinel/log are rm -f'd as the last root
+# step (see the end of this file) so they are never baked into the image.
+COPY container/sbx/etc/dune/setup-persist-hook.sh /etc/dune/setup-persist-hook.sh
+COPY container/sbx/etc/profile.d/dune-setup-persist.sh /etc/profile.d/dune-setup-persist.sh
+COPY container/sbx/etc/zsh/zprofile /etc/zsh/zprofile
+
+RUN chmod 0755 /usr/local/bin/configure-agents.sh /usr/local/bin/setup-persist.sh /usr/local/bin/install-laps.sh /usr/local/bin/install-agy.sh /usr/local/bin/install-thenn.sh /usr/local/bin/install-rally.sh /usr/local/bin/update-tools \
   && chmod 0644 /usr/local/bin/tooling-data.sh \
+  && chmod 0644 /etc/dune/setup-persist-hook.sh /etc/profile.d/dune-setup-persist.sh /etc/zsh/zprofile \
   && ln -sf /usr/local/bin/update-tools /usr/local/bin/update-tools.sh \
   && find /opt/home-defaults -type f -name '*.json' -exec chmod 0644 {} + \
   && find /opt/home-defaults -type f -name '*.toml' -exec chmod 0644 {} + \
@@ -206,10 +223,15 @@ RUN chown -R agent:agent /home/agent /opt/home-defaults /persist/agent /var/log/
 # ── Per-user toolchain install (as agent) ───────────────────────────────────
 # Powerlevel10k (Dune shell theme), mise (Go/Node/Python/uv/pnpm), agent CLI
 # MCP/GH wiring, and the release installers (Rally/Laps/agy/thenn). These run
-# as login shells so the agent's PATH/profile apply; no setup-persist boot hook
-# is installed in this lap, so no DUNE_SETUP_PERSIST_SKIP guard is needed yet
-# (that hook and its build-time guard land with sbx-2 task 2.2).
-RUN runuser -u agent -- bash -lc 'git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ~/.powerlevel10k' \
+# as login shells so the agent's PATH/profile apply.
+#
+# DUNE_SETUP_PERSIST_SKIP=1 prevents the setup-persist hook from firing during
+# the build (it sources via /etc/profile.d and /etc/zsh/zprofile). Without the
+# guard the sentinel would be baked into the image layer and fresh sandboxes
+# would never run the hook. The sentinel/log are also rm -f'd as the final root
+# step below, as a belt-and-suspenders guard.
+RUN export DUNE_SETUP_PERSIST_SKIP=1 \
+  && runuser -u agent -- bash -lc 'git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ~/.powerlevel10k' \
   && runuser -u agent -- bash -lc '~/.powerlevel10k/gitstatus/install' \
   && runuser -u agent -- bash -lc 'curl -fsSL https://mise.run | sh' \
   && runuser -u agent -- bash -lc 'mise --version && mise install' \
@@ -221,7 +243,14 @@ RUN runuser -u agent -- bash -lc 'git clone --depth=1 https://github.com/romkatv
   && runuser -u agent -- bash -lc 'cp ~/.claude.json /opt/home-defaults/.claude.json'
 
 # Expose mise-managed python/uv/go on ~/.local/bin (parity with the Compose base).
-RUN runuser -u agent -- bash -lc 'for bin in python python3 uv go; do ln -sf "$HOME/.local/share/mise/shims/$bin" "$HOME/.local/bin/$bin"; done'
+RUN export DUNE_SETUP_PERSIST_SKIP=1 \
+  && runuser -u agent -- bash -lc 'for bin in python python3 uv go; do ln -sf "$HOME/.local/share/mise/shims/$bin" "$HOME/.local/bin/$bin"; done'
+
+# ── Final build-time guard: scrub sentinel + log (D2a pitfall) ──────────────
+# Even with DUNE_SETUP_PERSIST_SKIP=1, belt-and-suspenders: rm -f the sentinel
+# and log so they are guaranteed absent in the final image. A fresh sandbox
+# must re-run the hook on its first login shell.
+RUN rm -f /home/agent/.dune-setup-persist-done /var/log/dune/setup-persist.log
 
 USER agent
 # ENTRYPOINT / CMD / WORKDIR are inherited from docker/sandbox-templates:shell-docker:
