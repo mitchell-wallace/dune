@@ -21,6 +21,9 @@ type Backend interface {
 	Rebuild(ctx context.Context, spec Spec) error
 	Logs(ctx context.Context, spec Spec, service string, streams StdIO) error
 	PolicyLog(ctx context.Context, spec Spec, limit int) (PolicyLogReport, error)
+	SetServiceSecret(ctx context.Context, spec Spec, service, token string) error
+	ListServiceSecrets(ctx context.Context, spec Spec) ([]byte, error)
+	RemoveServiceSecret(ctx context.Context, spec Spec, service string) error
 	Status(ctx context.Context, spec Spec) (State, error)
 }
 

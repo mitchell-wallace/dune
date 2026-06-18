@@ -348,6 +348,21 @@ func (f *fakeRuntimeBackend) PolicyLog(_ context.Context, spec sbxruntime.Spec, 
 	return sbxruntime.PolicyLogReport{}, nil
 }
 
+func (f *fakeRuntimeBackend) SetServiceSecret(_ context.Context, spec sbxruntime.Spec, service, _ string) error {
+	f.calls = append(f.calls, fakeRuntimeCall{name: "SetServiceSecret", spec: spec, service: service})
+	return nil
+}
+
+func (f *fakeRuntimeBackend) ListServiceSecrets(_ context.Context, spec sbxruntime.Spec) ([]byte, error) {
+	f.calls = append(f.calls, fakeRuntimeCall{name: "ListServiceSecrets", spec: spec})
+	return nil, nil
+}
+
+func (f *fakeRuntimeBackend) RemoveServiceSecret(_ context.Context, spec sbxruntime.Spec, service string) error {
+	f.calls = append(f.calls, fakeRuntimeCall{name: "RemoveServiceSecret", spec: spec, service: service})
+	return nil
+}
+
 func (f *fakeRuntimeBackend) Status(_ context.Context, spec sbxruntime.Spec) (sbxruntime.State, error) {
 	f.calls = append(f.calls, fakeRuntimeCall{name: "Status", spec: spec})
 	if len(f.statuses) == 0 {

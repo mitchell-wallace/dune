@@ -31,7 +31,7 @@
 
 ## 6. Tests and verification
 
-- [ ] 6.1 Add fakeRunner tests (via the `sbx-3` D5 seam) asserting the constructed argument shapes for: sandbox-scoped allow/deny/rm rules and the domain-opening rule shape (exact + wildcard, `<domain>:443`, removal via `--resource`); the `sbx policy log <instance> --limit <n>` invocation; and the service-secret `set`/`ls`/`rm` shapes (D2, D4, D5). These pin against silent `sbx` flag drift.
+- [x] 6.1 Add fakeRunner tests (via the `sbx-3` D5 seam) asserting the constructed argument shapes for: sandbox-scoped allow/deny/rm rules and the domain-opening rule shape (exact + wildcard, `<domain>:443`, removal via `--resource`); the `sbx policy log <instance> --limit <n>` invocation; and the service-secret `set`/`ls`/`rm` shapes (D2, D4, D5). These pin against silent `sbx` flag drift.
 - [ ] 6.2 Smoke-verify in an ephemeral sandbox: baseline blocks a representative docs site; opening its exact + wildcard domains unblocks it; `sbx policy log` shows the records; nested Docker traffic is also governed.
 - [ ] 6.3 Run `go build ./cmd/dune` and `go test ./...`; remove temporary sandboxes.
 
