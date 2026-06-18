@@ -109,6 +109,17 @@
       "createdAt": "2026-06-18T11:44:49.714719739Z",
       "updatedAt": "2026-06-18T18:18:08.703164671Z",
       "completedAt": "2026-06-18T18:18:08.703164671Z"
+    },
+    {
+      "id": "dune-125a",
+      "title": "Post-acceptance fix: rebuild enforces sbx egress posture",
+      "description": "Verification found that dune rebuild recreated and started a sandbox without rerunning the sbx non-Open egress posture check. Route rebuild through the same VerifyEgressPosture gate before start, cover the call order plus warn-closed stderr behavior in tests, and re-run go build ./cmd/dune plus go test ./... .",
+      "assignee": "VERIFY",
+      "isDone": true,
+      "order": 65536,
+      "createdAt": "2026-06-18T18:30:29.302411257Z",
+      "updatedAt": "2026-06-18T18:30:36.579649685Z",
+      "completedAt": "2026-06-18T18:30:36.579649685Z"
     }
   ]
 }
