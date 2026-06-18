@@ -22,7 +22,7 @@ Profiles and persistence are a core feature, not an implementation detail. Dune 
 
 4. Isolated microVM sandbox
 
-The workspace runs inside an `sbx` microVM sandbox rather than as loose host processes. The sandbox owns its own kernel, filesystem, and Docker engine, and its outbound network egress is mediated by the `sbx` sandbox policy layer. The previous Pipelock HTTP(S) proxy sidecar is no longer started on the sbx runtime path.
+The workspace runs inside an `sbx` microVM sandbox rather than as loose host processes. The sandbox owns its own kernel, filesystem, and Docker engine, and its outbound network egress is mediated by the `sbx` sandbox policy layer.
 
 5. Bundled workflow harnesses
 
@@ -178,13 +178,11 @@ App-level service dependencies (Postgres, Redis, Mailpit, etc.) are no longer au
 
 ## Networking
 
-The workspace runs inside an `sbx` microVM sandbox with its own kernel and network namespace. The sandbox does not bypass `sbx` mediation: outbound egress is governed by the `sbx` sandbox policy layer, not by a host-side proxy.
-
-Pipelock, the previous outbound HTTP(S) policy and monitoring sidecar, is no longer started on the sbx runtime path. The explicit Dune network-policy baseline, domain-opening affordance, and `sbx policy log` surfacing land in `sbx-4-sbx-network-and-secrets`; until then egress relies on the host's current `sbx` default policy. `dune logs` reads the sandbox's `/var/log/dune/` log directory via `sbx exec`.
+The workspace runs inside an `sbx` microVM sandbox with its own kernel and network namespace. The sandbox does not bypass `sbx` mediation: outbound egress is governed by the `sbx` sandbox policy layer, not by a host-side proxy. The Dune network-policy baseline, domain-opening affordance, and `sbx policy log` source are tracked in `sbx-4-sbx-network-and-secrets`. `dune logs` reads the sandbox's `/var/log/dune/` log directory via `sbx exec`.
 
 ## Migrating from Docker Compose workspaces
 
-The sbx runtime is a deliberate breaking hard-cut from the previous Docker Compose topology (an `agent` + `pipelock` container pair). Existing Compose workspaces are **not** migrated automatically:
+The sbx runtime is a deliberate breaking hard-cut from the previous multi-container Docker Compose topology. Existing Compose workspaces are **not** migrated automatically:
 
 - the `dune-persist-<profile>` Docker volumes are replaced by the profile persist directory under `~/.local/share/dune/persist/<profile>`; Dune does not copy volume contents across, so re-auth agent CLIs on first use of a profile
 - orphaned Compose containers, volumes, networks, and generated `compose.yaml` files under `~/.local/share/dune/projects/` are left in place — full cleanup of stale Docker artifacts is part of `sbx-6-sbx-kits-and-cleanup`

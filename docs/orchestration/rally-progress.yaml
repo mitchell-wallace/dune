@@ -35,7 +35,7 @@ recent_sessions:
       started_at: "2026-03-31T06:59:28Z"
       ended_at: "2026-03-31T07:00:00Z"
       runtime_seconds: 31
-      summary: 'Read go.mod, README.md, and justfile to identify one codebase fact: Dune is a Go CLI (module claudebox) using Charm TUI libraries that manages a two-container (agent + pipelock) dev workspace.'
+      summary: 'Read go.mod, README.md, and justfile to identify one codebase fact: Dune is a Go CLI (module claudebox) using Charm TUI libraries that manages a multi-container dev workspace.'
       transcript_path: /home/agent/.local/share/rally/sessions/session-3/terminal.log
     - session_id: 4
       batch_id: 2

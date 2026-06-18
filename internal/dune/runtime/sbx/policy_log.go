@@ -38,8 +38,8 @@ type PolicyLogRecord struct {
 
 // PolicyLog returns the recorded network policy events for the instance's
 // sandbox, wrapping `sbx policy log <instance> --json --limit <limit>` through
-// the sbx-3 runner seam. It is the egress observability source that replaces
-// `dune logs pipelock` (sbx-4 D4); the final `dune logs` composition is sbx-5.
+// the sbx-3 runner seam. It is the sbx egress observability source; the final
+// `dune logs` composition is sbx-5.
 //
 // limit caps the number of records sbx returns and is forwarded as --limit; it
 // must be greater than zero. The structured --json form is used so the parsed

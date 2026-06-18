@@ -24,10 +24,10 @@
 
 ## 5. Complete Pipelock removal (sequenced last)
 
-- [ ] 5.1 Confirm the egress baseline (tasks 1–2) is in place so `sbx` policy governs egress before removing Pipelock (D6 ordering).
-- [ ] 5.2 Delete the `internal/dune/pipelock` package, `ensurePipelockConfig`, and `~/.config/dune/pipelock.yaml` generation.
-- [ ] 5.3 Remove the proxy-env (`HTTP(S)_PROXY`) model and the `dune logs pipelock` surface (replaced by `sbx policy log`, task 3.1).
-- [ ] 5.4 Remove any remaining Pipelock references left present-but-unused by `sbx-3`.
+- [x] 5.1 Confirm the egress baseline (tasks 1–2) is in place so `sbx` policy governs egress before removing Pipelock (D6 ordering).
+- [x] 5.2 Delete the `internal/dune/pipelock` package, `ensurePipelockConfig`, and `~/.config/dune/pipelock.yaml` generation.
+- [x] 5.3 Remove the proxy-env (`HTTP(S)_PROXY`) model and the `dune logs pipelock` surface (replaced by `sbx policy log`, task 3.1).
+- [x] 5.4 Remove any remaining Pipelock references left present-but-unused by `sbx-3`.
 
 ## 6. Tests and verification
 
