@@ -15,13 +15,13 @@ This branch (`dunex`) is the integration line for a deliberate **breaking hard-c
 - **Merge `main` in regularly; never rebase/force-push** this branch (it is shared and pushed). The prepare-laps convention also forbids history rewrites as a cleanup strategy.
 - **Split trigger:** revisit promoting `dunex` to a separate repo / release line only *after* `sbx-6` removes the `container/base/` tree (the last shared asset) — at that point a split is lossless. A "separate release" identity does **not** require a separate repo: the sbx template gets its own image ref (`dune-sbx`) and its own version source (`container/sbx/IMAGE_VERSION`, introduced in `sbx-2`); `sbx-6` updates the version-bump checklist below to point the lockstep at the template.
 
-The `## Architecture` section below still describes the **current** (Compose) code, which is accurate until `sbx-3` cuts the backend over.
+The `## Architecture` section below now describes the **sbx** runtime that `sbx-3` cut this branch over to. (`main` still runs the Docker Compose topology; see *Two divergent lines, one repo* above.)
 
 ## Architecture: host vs container
 
-The container's `/workspace` contains the **user's project**, not the dune source code. The host-side `dune` CLI is responsible for generating the compose file, creating the profile-specific persist volume, and starting the `agent` and `pipelock` containers.
+The sandbox's repository mount (visible at its absolute host path, with `/workspace` as a compatibility symlink) contains the **user's project**, not the dune source code. The host-side `dune` CLI resolves the workspace and profile, builds a backend-agnostic environment `Spec`, validates the host `sbx` install (present, authenticated, daemon-healthy, minimum version), ensures the profile-specific persist directory, and launches a sandbox built from the **Dune sbx template** — there is no Docker Compose pair and no `Dockerfile.dune`.
 
-Rally is an independently released tool that is installed into the base image from GitHub Releases and can self-update inside the container. Repo-specific Rally configuration lives in `/workspace/rally.toml`.
+Rally is an independently released tool that is installed into the sbx template from GitHub Releases and can self-update inside the sandbox. Repo-specific Rally configuration lives in `/workspace/rally.toml`.
 
 ## Manually publishing the base image
 

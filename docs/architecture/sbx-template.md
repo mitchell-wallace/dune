@@ -11,10 +11,10 @@ boundary — those live in
 [Distribution, Versioning, and Registry Access](./sbx-template-distribution.md)
 (D6/D7). The CLI runtime that *launches* this template — the `dune` command
 mapping onto `sbx create`/`sbx exec`, the `version.SbxTemplateRef()` accessor,
-and the post-create hook exec — lands in
-[`sbx-3-sbx-runtime-backend`](../../openspec/changes/sbx-3-sbx-runtime-backend).
-Until `sbx-3` lands, the template is a build/publish artifact, not something
-`dune` invokes.
+and the post-create hook exec — landed in
+[`sbx-3-sbx-runtime-backend`](../../openspec/changes/sbx-3-sbx-runtime-backend);
+`dune` now launches the template on `up`/`rebuild`, so it is no longer just a
+build/publish artifact.
 
 The legacy Compose base image (`ghcr.io/mitchell-wallace/dune-base`) and the
 [`container/base/`](../../container/base) tree remain until `sbx-6` retires
@@ -211,10 +211,10 @@ project-owned Compose stack, not to the template.
 
 ## What lands later
 
-- **`sbx-3-sbx-runtime-backend`** — the `dune` CLI runtime that launches this
-  template: the `sbx create`/`sbx exec` command mapping, the
+- **`sbx-3-sbx-runtime-backend`** *(landed)* — the `dune` CLI runtime that
+  launches this template: the `sbx create`/`sbx exec` command mapping, the
   `version.SbxTemplateRef()` accessor, and the post-create hook exec carrying
-  `DUNE_WORKSPACE`. Until sbx-3 lands, no `dune` command invokes the template.
+  `DUNE_WORKSPACE`. `dune` now invokes the template on `up`/`rebuild`.
 - **`sbx-4-sbx-network-and-secrets`** — the network policy baseline and
   `sbx secret` wiring (replacing Pipelock's role).
 - **`sbx-5-sbx-lifecycle-and-doctor`** — `dune doctor`, the diagnostics
