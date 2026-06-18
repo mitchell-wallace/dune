@@ -58,7 +58,6 @@ ENV EDITOR=nano
 ENV VISUAL=nano
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 ENV PATH=/home/agent/.local/bin:/home/agent/.local/share/mise/shims:${PATH}
-ENV GITHUB_TOKEN=${GITHUB_TOKEN}
 
 USER root
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
