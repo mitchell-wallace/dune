@@ -93,11 +93,11 @@
       "title": "Document the sbx egress and secrets posture",
       "description": "Context: sbx-4 task 7.1. Document the posture this change establishes, consistent with the architecture/README docs updated in sbx-3's docs lap.\n\nOutcome: docs describe (1) the egress posture — the non-Open Balanced-derived baseline, that Dune never weakens to Open and never mutates global sbx policy, the verify-only/warn-closed up-time behavior, sandbox-scoped rules (`sbx policy allow/deny network --sandbox \u003cinstance\u003e ...`), and opening project domains with exact + specific-wildcard (preferring those over broad catch-alls); (2) egress observability via `sbx policy log \u003cinstance\u003e` as the replacement for `dune logs pipelock`, noting `dune logs pipelock` is gone and the final composed `dune logs` lands in sbx-5; (3) the secrets posture — prefer service-identifier secrets, custom secrets are experimental/out-of-lifecycle (manual cleanup caveat), no secrets baked into the template, agent creds in /persist/agent. Fold in any toolchain domains the smoke lap recorded as needed for parity.\n\nFiles \u0026 scope: the same docs surface sbx-3 updated (README / architecture docs); do not edit openspec change files as docs. Match the existing doc tone/structure.\n\nAcceptance: docs build/render cleanly and a reader can find how to open a domain and where egress logs come from; the Pipelock-is-gone note is present. No code changes.",
       "assignee": "JUNIOR",
-      "isDone": false,
+      "isDone": true,
       "order": 524288,
       "createdAt": "2026-06-18T11:44:49.714718942Z",
-      "updatedAt": "2026-06-18T11:44:49.714718942Z",
-      "completedAt": null
+      "updatedAt": "2026-06-18T18:11:03.807628872Z",
+      "completedAt": "2026-06-18T18:11:03.807628872Z"
     },
     {
       "id": "dune-7265",
