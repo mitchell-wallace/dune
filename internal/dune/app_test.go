@@ -343,6 +343,11 @@ func (f *fakeRuntimeBackend) Logs(_ context.Context, spec sbxruntime.Spec, servi
 	return nil
 }
 
+func (f *fakeRuntimeBackend) PolicyLog(_ context.Context, spec sbxruntime.Spec, _ int) (sbxruntime.PolicyLogReport, error) {
+	f.calls = append(f.calls, fakeRuntimeCall{name: "PolicyLog", spec: spec})
+	return sbxruntime.PolicyLogReport{}, nil
+}
+
 func (f *fakeRuntimeBackend) Status(_ context.Context, spec sbxruntime.Spec) (sbxruntime.State, error) {
 	f.calls = append(f.calls, fakeRuntimeCall{name: "Status", spec: spec})
 	if len(f.statuses) == 0 {

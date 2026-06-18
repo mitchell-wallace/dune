@@ -13,8 +13,8 @@
 
 ## 3. Egress observability
 
-- [ ] 3.1 Expose/wrap `sbx policy log <instance>` access for an instance's sandbox as the egress observability source replacing `dune logs pipelock` (D4), constructed through the `sbx-3` D5 runner seam. (Final `dune logs` composition is `sbx-5`.)
-- [ ] 3.2 Use the structured `sbx policy log [SANDBOX] --json` form (confirmed by spike 4, with `--limit`/`--type`); pin the command shape and observed field names in fakeRunner tests (D4).
+- [x] 3.1 Expose/wrap `sbx policy log <instance>` access for an instance's sandbox as the egress observability source replacing `dune logs pipelock` (D4), constructed through the `sbx-3` D5 runner seam. (Final `dune logs` composition is `sbx-5`.)
+- [x] 3.2 Use the structured `sbx policy log [SANDBOX] --json` form (confirmed by spike 4, with `--limit`/`--type`); pin the command shape and observed field names in fakeRunner tests (D4).
 
 ## 4. Secrets posture
 

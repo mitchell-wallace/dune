@@ -20,6 +20,7 @@ type Backend interface {
 	Stop(ctx context.Context, spec Spec) error
 	Rebuild(ctx context.Context, spec Spec) error
 	Logs(ctx context.Context, spec Spec, service string, streams StdIO) error
+	PolicyLog(ctx context.Context, spec Spec, limit int) (PolicyLogReport, error)
 	Status(ctx context.Context, spec Spec) (State, error)
 }
 
