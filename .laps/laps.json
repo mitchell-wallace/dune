@@ -72,11 +72,11 @@
       "title": "Document the Dune sbx template",
       "description": "Context: task 7.1 — user-facing/architecture docs for the template.\n\nOutcome: Docs describe what the template contains, how it is built/published/versioned, the /workspace compatibility behavior, the removal of in-container Postgres/Redis/Mailpit + s6-overlay (app deps now come from project-owned docker compose inside the sandbox — a breaking change, with a short migration note), and the re-homed setup-persist boot hook + /var/log/dune/ log path. Note that the CLI runtime which launches the template lands in sbx-3.\n\nFiles \u0026 scope: README / architecture docs. Touch AGENTS.md only if a template-build note is genuinely warranted — the version-bump lockstep rewording to AGENTS.md is sbx-6's job, so don't pre-empt it. No code or build changes.\n\nAcceptance: Docs are accurate against the landed container/sbx/ tree and design D2a/D3/D4/D5a/D6. Do not tick tasks.md boxes.",
       "assignee": "JUNIOR",
-      "isDone": false,
+      "isDone": true,
       "order": 458752,
       "createdAt": "2026-06-17T07:00:27.696007527Z",
-      "updatedAt": "2026-06-17T07:00:27.696007527Z",
-      "completedAt": null
+      "updatedAt": "2026-06-18T02:00:54.988359222Z",
+      "completedAt": "2026-06-18T02:00:54.988359222Z"
     },
     {
       "id": "dune-7695",
