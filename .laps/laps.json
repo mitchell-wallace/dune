@@ -105,11 +105,11 @@
       "title": "Document the sbx runtime cutover",
       "description": "Context\nTask 8.3. The backend, cutover, removals, and smoke verification are done.\n\nOutcome\nArchitecture/README docs updated to state: sbx (installed, authenticated, daemon healthy, minimum version) replaces Docker as the host prerequisite; the runtime launches the dune-sbx template instead of a Compose pair; Dockerfile.dune and the compose path are gone; and a note on the one-time transition from Docker Compose workspaces (existing Compose containers/volumes are not auto-migrated — full cleanup is sbx-6).\n\nFiles \u0026 scope\nREADME / architecture docs, and the AGENTS.md 'Architecture: host vs container' section if it now misdescribes the runtime. Do NOT change the version-bump checklist lockstep target — that is sbx-6's job.\n\nDesign\nDescriptive, not a redesign. Match the surrounding docs' tone and depth. The AGENTS.md dunex-branch section already documents the migration strategy; only adjust it where it now reads as stale post-cutover.\n\nAcceptance\nDocs describe the sbx runtime accurately, with no references implying Docker Compose is still the active backend except clearly-labelled migration/cleanup notes. Do not tick any tasks.md boxes.",
       "assignee": "JUNIOR",
-      "isDone": false,
+      "isDone": true,
       "order": 524288,
       "createdAt": "2026-06-18T05:31:37.028948308Z",
-      "updatedAt": "2026-06-18T05:31:37.028948308Z",
-      "completedAt": null
+      "updatedAt": "2026-06-18T10:04:59.069338998Z",
+      "completedAt": "2026-06-18T10:04:59.069338998Z"
     },
     {
       "id": "dune-ccbc",
