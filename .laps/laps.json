@@ -50,11 +50,11 @@
       "title": "Close remaining sbx-runtime foundation verification gaps",
       "description": "Context\nVERIFY found two phase-1-4 gaps in sbx-3 before the app.go cutover. First, internal/dune/runtime/sbx/validate.go accepts structurally-empty or drifted sbx diagnose --output json payloads as healthy because it only unmarshals JSON and does not require the expected checks shape, so D6's exact-shape pinning is weaker than intended. Second, task 7.1 is not actually complete yet: the fakeRunner lifecycle suite covers create/start/attach, running reuse, down/stop, and the -w fallback, but it does not cover a rebuild / sbx rm --force sequence.\n\nOutcome\nHarden the readiness parser/tests so malformed or shape-drifted diagnose JSON fails validation, and complete or explicitly re-scope the missing rebuild sequencing coverage so task 7.1 only gets ticked when that assertion exists.\n\nFiles \u0026 scope\ninternal/dune/runtime/sbx/{validate.go,validate_test.go,lifecycle.go,lifecycle_test.go} and openspec/changes/sbx-3-sbx-runtime-backend/tasks.md if task status changes. Keep the change additive; do not rewrite history.\n\nAcceptance\ngo test ./internal/dune/runtime/sbx/... passes. Validation rejects missing/shape-drifted diagnose check data. The lifecycle fakeRunner suite either asserts the rebuild / sbx rm --force path explicitly or the task/deferred scope is updated coherently so 7.1 is no longer overstated.",
       "assignee": "SENIOR",
-      "isDone": false,
+      "isDone": true,
       "order": 196608,
       "createdAt": "2026-06-18T08:14:19.514175047Z",
-      "updatedAt": "2026-06-18T08:14:19.514175047Z",
-      "completedAt": null
+      "updatedAt": "2026-06-18T08:23:02.252033842Z",
+      "completedAt": "2026-06-18T08:23:02.252033842Z"
     },
     {
       "id": "dune-7e09",
