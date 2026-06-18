@@ -215,8 +215,10 @@ project-owned Compose stack, not to the template.
   launches this template: the `sbx create`/`sbx exec` command mapping, the
   `version.SbxTemplateRef()` accessor, and the post-create hook exec carrying
   `DUNE_WORKSPACE`. `dune` now invokes the template on `up`/`rebuild`.
-- **`sbx-4-sbx-network-and-secrets`** — the network policy baseline and
-  `sbx secret` wiring.
+- **`sbx-4-sbx-network-and-secrets`** *(landed)* — the network policy baseline,
+  sandbox-scoped rules, the domain-opening affordance, `sbx policy log`
+  observability, and the secrets posture. Pipelock removal is complete. See
+  [sbx Network and Secrets Posture](./sbx-network-and-secrets.md).
 - **`sbx-5-sbx-lifecycle-and-doctor`** — `dune doctor`, the diagnostics
   taxonomy, and `dune logs` reading `/var/log/dune/`.
 - **`sbx-6-sbx-kits-and-cleanup`** — `sbx` kits as the customization layer,

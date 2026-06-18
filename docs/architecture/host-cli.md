@@ -15,6 +15,10 @@ The CLI follows a `resolve → build Spec → execute` flow:
 - map the instance to a sandbox named `dune-<slug>-<profile>` and drive
   `sbx create`/`run`/`exec`/`stop`/`rm`/`ls` through the backend; the concrete
   sbx command shapes stay private to the package and are pinned by tests
+- on `up`, after the sandbox is created, verify the instance's active egress
+  posture via `sbx policy ls` (non-`Open` baseline, warn-closed on
+  unconfirmable, hard-fail on observed `Open`) — see
+  [sbx Network and Secrets Posture](./sbx-network-and-secrets.md)
 
 Docker is no longer a host requirement; `sbx` (installed, authenticated, daemon
 healthy, minimum version) is the prerequisite. The Dune sbx template ref comes

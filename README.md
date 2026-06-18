@@ -178,7 +178,21 @@ App-level service dependencies (Postgres, Redis, Mailpit, etc.) are no longer au
 
 ## Networking
 
-The workspace runs inside an `sbx` microVM sandbox with its own kernel and network namespace. The sandbox does not bypass `sbx` mediation: outbound egress is governed by the `sbx` sandbox policy layer, not by a host-side proxy. The Dune network-policy baseline, domain-opening affordance, and `sbx policy log` source are tracked in `sbx-4-sbx-network-and-secrets`. `dune logs` reads the sandbox's `/var/log/dune/` log directory via `sbx exec`.
+The workspace runs inside an `sbx` microVM sandbox with its own kernel and network namespace. The sandbox does not bypass `sbx` mediation: outbound egress — both shell traffic and nested Docker traffic — is governed by the `sbx` sandbox policy layer, not by a host-side proxy.
+
+Dune's egress baseline starts from `sbx`'s non-`Open` `Balanced` preset (default-deny plus a developer-infrastructure allowlist: AI providers, package managers, code hosts, container registries, cloud, OS packages, cert validation). On `up`, `dune` inspects the instance's active posture with `sbx policy ls` and never weakens it to `Open` and never mutates the host's global `sbx` policy: a positively-observed `Open` posture fails hard, and an unconfirmable posture warns closed and continues. `Balanced` deliberately blocks arbitrary docs sites (e.g. `docs.python.org`), so you re-enable specific domains with sandbox-scoped rules:
+
+```sh
+INSTANCE="dune-<workspace-slug>-<profile>"   # the sbx sandbox name dune uses
+
+# Open a domain: exact + specific wildcard, immediate effect
+sbx policy allow network --sandbox "$INSTANCE" docs.python.org:443
+sbx policy allow network --sandbox "$INSTANCE" *.docs.python.org:443
+```
+
+Egress observability comes from `sbx policy log <instance>` (`--json` / `--limit`), which records blocked and allowed hosts for the sandbox. This **replaces the old `dune logs pipelock`**, which is gone — Pipelock, its generated `pipelock.yaml`, and the proxy-env model are fully removed for the sbx backend. The final composed `dune logs` (Dune runtime logs from `/var/log/dune/` plus the policy-log source) lands in `sbx-5`.
+
+The full egress baseline, domain-opening guidance, observability field reference, and the secrets posture (prefer service-identifier secrets; custom secrets are experimental/out-of-lifecycle; no secrets baked into the template; agent creds under `/persist/agent`) are documented in [sbx Network and Secrets Posture](./docs/architecture/sbx-network-and-secrets.md).
 
 ## Migrating from Docker Compose workspaces
 
