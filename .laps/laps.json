@@ -50,11 +50,11 @@
       "title": "Implement the v1 secrets posture and service-secret construction helpers",
       "description": "Context: sbx-4 design D5 / tasks 4.1, 4.2, 4.3. The v1 decision is already made in the design: PREFER service-identifier secrets; treat custom secrets as experimental/out-of-lifecycle; no secrets in the template; agent-provider creds stay in the profile-scoped /persist/agent location (sbx-3 D3) until a built-in agent or kit declares a service identifier. Note: in v1 no core boot path actually sets a service secret — these helpers are a forward-looking, tested surface, not yet wired into `up`.\n\nOutcome: service-secret construction helpers (sbx package) for set/ls/rm built through the sbx-3 runner seam, with the verified spike-3 shapes pinned: `sbx secret set \u003cinstance\u003e \u003cservice\u003e -t \u003cENV_VAR\u003e`, `sbx secret ls \u003cinstance\u003e`, `sbx secret rm \u003cinstance\u003e \u003cservice\u003e -f` (the scope is the dune-\u003cslug\u003e-\u003cprofile\u003e instance name). A code-level assertion/guard (and/or test) that no core Dune boot path depends on `sbx secret set-custom`.\n\nFiles \u0026 scope: internal/dune/runtime/sbx (helpers + tests). Do not wire these into the up/Ensure boot path (none is required in v1). Documentation of the posture lands in the later docs lap, not here.\n\nDesign: reconfirm via `sbx secret --help` before pinning (flags may drift). Mirror the runner-seam construction pattern from the egress laps. Custom secrets (set-custom) are explicitly out of v1 lifecycle ownership — do not build a lifecycle around them.\n\nAcceptance: fakeRunner tests pin the exact set/ls/rm argument vectors, completing the service-secret portion of task 6.1. A test (or the absence, demonstrable) confirms no boot path invokes set-custom. `go build ./cmd/dune` and `go test ./internal/dune/...` green.",
       "assignee": "JUNIOR",
-      "isDone": false,
+      "isDone": true,
       "order": 327680,
       "createdAt": "2026-06-18T11:44:49.714716247Z",
-      "updatedAt": "2026-06-18T11:44:49.714716247Z",
-      "completedAt": null
+      "updatedAt": "2026-06-18T15:13:17.060355645Z",
+      "completedAt": "2026-06-18T15:13:17.060355645Z"
     },
     {
       "id": "dune-e2d6",
