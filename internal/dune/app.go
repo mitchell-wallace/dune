@@ -156,7 +156,7 @@ func dispatchRuntimeCommand(ctx context.Context, opts cli.Options, spec sbxrunti
 		if err := backend.Validate(ctx); err != nil {
 			return err
 		}
-		return backend.Rebuild(ctx, spec)
+		return backend.Rebuild(ctx, spec, streams)
 	case cli.CommandLogs:
 		if err := backend.Validate(ctx); err != nil {
 			return err

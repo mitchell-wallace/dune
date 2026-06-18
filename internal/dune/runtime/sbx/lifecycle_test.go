@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -323,7 +324,7 @@ func TestLogs_RejectsUnsafeServiceName(t *testing.T) {
 	}
 }
 
-func TestRebuild_RemovesWithForceThenRecreatesAndStarts(t *testing.T) {
+func TestRebuild_RemovesWithForceThenRecreatesVerifiesAndStarts(t *testing.T) {
 	dataHome := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", dataHome)
 
@@ -336,17 +337,20 @@ func TestRebuild_RemovesWithForceThenRecreatesAndStarts(t *testing.T) {
 			{output: []byte(`{"sandboxes":[]}`)},
 			{},
 			{},
+			{output: []byte(`PROVENANCE   APPLIES_TO   POLICY/RULE               TYPE      DECISION   RESOURCES
+local        all          default-package-managers  network   allow      registry.npmjs.org:443
+`)},
 			{},
 		},
 	}
 	b := newBackend(fr)
 
-	if err := b.Rebuild(context.Background(), spec); err != nil {
+	if err := b.Rebuild(context.Background(), spec, StdIO{}); err != nil {
 		t.Fatalf("Rebuild() error = %v", err)
 	}
 
-	if len(fr.calls) != 6 {
-		t.Fatalf("got %d calls, want 6: %+v", len(fr.calls), fr.calls)
+	if len(fr.calls) != 7 {
+		t.Fatalf("got %d calls, want 7: %+v", len(fr.calls), fr.calls)
 	}
 	assertCaptureCall(t, fr.calls[0], "sbx", "ls", "--json")
 	assertCaptureCall(t, fr.calls[1], "sbx", "rm", "--force", spec.InstanceName)
@@ -366,7 +370,44 @@ func TestRebuild_RemovesWithForceThenRecreatesAndStarts(t *testing.T) {
 		spec.InstanceName,
 		"bash", "-lc", "true",
 	)
+	assertCaptureCall(t, fr.calls[5], "sbx", "policy", "ls", spec.InstanceName, "--type", "network")
+	assertCaptureCall(t, fr.calls[6], "sbx", "run", spec.InstanceName)
+}
+
+func TestRebuild_WarnsClosedWhenPostureIsUnconfirmable(t *testing.T) {
+	dataHome := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", dataHome)
+
+	spec := testSpec()
+	fr := &fakeRunner{
+		responses: []fakeRunnerResponse{
+			{output: []byte(`{"sandboxes":[]}`)},
+			{output: []byte(`{"sandboxes":[]}`)},
+			{},
+			{},
+			{
+				output: []byte("ERROR: list policies: no valid user session found, please sign in to Docker to proceed\n"),
+				err:    errors.New("exit status 1"),
+			},
+			{},
+		},
+	}
+	b := newBackend(fr)
+
+	var stderr strings.Builder
+	if err := b.Rebuild(context.Background(), spec, StdIO{Stderr: &stderr}); err != nil {
+		t.Fatalf("Rebuild() error = %v", err)
+	}
+
+	if len(fr.calls) != 6 {
+		t.Fatalf("got %d calls, want 6: %+v", len(fr.calls), fr.calls)
+	}
+	assertCaptureCall(t, fr.calls[4], "sbx", "policy", "ls", spec.InstanceName, "--type", "network")
 	assertCaptureCall(t, fr.calls[5], "sbx", "run", spec.InstanceName)
+
+	if got := stderr.String(); !strings.Contains(got, "WARNING: could not confirm a non-Open sbx egress posture") {
+		t.Fatalf("stderr = %q, want warn-closed message", got)
+	}
 }
 
 func TestShell_OmitsUnsetTerminalEnv(t *testing.T) {

@@ -333,7 +333,7 @@ func (f *fakeRuntimeBackend) Stop(_ context.Context, spec sbxruntime.Spec) error
 	return nil
 }
 
-func (f *fakeRuntimeBackend) Rebuild(_ context.Context, spec sbxruntime.Spec) error {
+func (f *fakeRuntimeBackend) Rebuild(_ context.Context, spec sbxruntime.Spec, _ sbxruntime.StdIO) error {
 	f.calls = append(f.calls, fakeRuntimeCall{name: "Rebuild", spec: spec})
 	return nil
 }

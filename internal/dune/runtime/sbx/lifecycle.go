@@ -103,7 +103,7 @@ func (b *backend) Logs(ctx context.Context, spec Spec, service string, streams S
 	return nil
 }
 
-func (b *backend) Rebuild(ctx context.Context, spec Spec) error {
+func (b *backend) Rebuild(ctx context.Context, spec Spec, streams StdIO) error {
 	if err := validateEnsureSpec(spec); err != nil {
 		return err
 	}
@@ -117,6 +117,9 @@ func (b *backend) Rebuild(ctx context.Context, spec Spec) error {
 		}
 	}
 	if err := b.Ensure(ctx, spec); err != nil {
+		return err
+	}
+	if err := b.VerifyEgressPosture(ctx, spec, streams); err != nil {
 		return err
 	}
 	if err := b.Start(ctx, spec); err != nil {

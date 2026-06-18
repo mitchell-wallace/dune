@@ -18,7 +18,7 @@ type Backend interface {
 	Start(ctx context.Context, spec Spec) error
 	Shell(ctx context.Context, spec Spec, streams StdIO) error
 	Stop(ctx context.Context, spec Spec) error
-	Rebuild(ctx context.Context, spec Spec) error
+	Rebuild(ctx context.Context, spec Spec, streams StdIO) error
 	Logs(ctx context.Context, spec Spec, service string, streams StdIO) error
 	PolicyLog(ctx context.Context, spec Spec, limit int) (PolicyLogReport, error)
 	SetServiceSecret(ctx context.Context, spec Spec, service, token string) error
