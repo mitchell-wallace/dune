@@ -22,21 +22,23 @@ import (
 
 	"claudebox/internal/dune/cli"
 	"claudebox/internal/dune/pipelock"
+	sbxruntime "claudebox/internal/dune/runtime/sbx"
 	"claudebox/internal/dune/workspace"
 	"claudebox/internal/version"
 )
 
 const (
 	defaultProfile   = "default"
-	composeShell     = "zsh"
+	defaultShell     = "zsh"
+	composeShell     = defaultShell
 	logTailLineCount = "60"
 	helpText         = `Usage: dune [command] [options]
 
 Commands:
-  up               Start or attach to the agent container (default)
-  down             Stop and remove the agent container
-  rebuild          Force rebuild the agent image and recreate the container
-  logs [service]   Stream logs from a service (default: all)
+  up               Start or attach to the sandbox (default)
+  down             Stop the sandbox
+  rebuild          Recreate the sandbox from the Dune sbx template
+  logs [service]   Stream Dune runtime logs (default: all)
   version          Print dune version
   profile set      Set the active profile for the current workspace
   profile list     List stored profile mappings
@@ -46,7 +48,7 @@ Global flags:
   -h, --help       Show this help message and exit
   -u, --update     Update the dune CLI to the latest release
 
-Container flags (for up/down/rebuild/logs):
+Runtime flags (for up/down/rebuild/logs):
   -d, --directory  Workspace directory (default: current directory)
   -p, --profile    Profile name (default: default)
 `
@@ -59,6 +61,10 @@ var (
 	composeTemplate = template.Must(template.New("compose.yaml.tmpl").Parse(composeTemplateText))
 	profileNameRE   = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 )
+
+var newRuntimeBackend = func() sbxruntime.Backend {
+	return sbxruntime.NewBackend()
+}
 
 type Environment struct {
 	CallerPWD string
@@ -116,10 +122,6 @@ func Run(ctx context.Context, argv []string, env Environment, stdout, stderr io.
 	if err != nil {
 		return fmt.Errorf("resolve config directory: %w", err)
 	}
-	dataHome, err := dataHomeDir()
-	if err != nil {
-		return err
-	}
 
 	storePath := filepath.Join(configDir, "dune", "profiles.json")
 	store, err := loadProfileStore(storePath)
@@ -147,103 +149,69 @@ func Run(ctx context.Context, argv []string, env Environment, stdout, stderr io.
 		return err
 	}
 
-	proj := project{
-		WorkspaceRoot:      ws.Root,
-		WorkspaceSlug:      ws.Slug,
-		Profile:            profile,
-		ComposeProject:     fmt.Sprintf("dune-%s-%s", ws.Slug, profile),
-		ComposeDir:         filepath.Join(dataHome, "dune", "projects", ws.Slug),
-		ComposePath:        filepath.Join(dataHome, "dune", "projects", ws.Slug, "compose.yaml"),
-		PersistVolume:      "dune-persist-" + profile,
-		BaseImage:          version.BaseImageRef(),
-		AgentImage:         version.BaseImageRef(),
-		UseBuild:           fileExists(filepath.Join(ws.Root, "Dockerfile.dune")),
-		PipelockImage:      pipelock.ImageRef(),
-		PipelockConfigPath: filepath.Join(configDir, "dune", "pipelock.yaml"),
-		TZ:                 effectiveTimezone(),
+	spec := buildRuntimeSpec(ws, profile)
+	return dispatchRuntimeCommand(ctx, opts, spec, newRuntimeBackend(), stdout, stderr)
+}
+
+func buildRuntimeSpec(ws workspace.Ref, profile string) sbxruntime.Spec {
+	return sbxruntime.Spec{
+		InstanceName:      sbxruntime.InstanceName(ws.Slug, profile),
+		WorkspaceHostPath: ws.Root,
+		Profile:           profile,
+		TemplateRef:       version.SbxTemplateRef(),
+		WorkingDir:        ws.Root,
+		Shell:             defaultShell,
+		Timezone:          effectiveTimezone(),
 	}
-	if proj.UseBuild {
-		proj.AgentImage = "dune-local-" + ws.Slug + ":latest"
+}
+
+func dispatchRuntimeCommand(ctx context.Context, opts cli.Options, spec sbxruntime.Spec, backend sbxruntime.Backend, stdout, stderr io.Writer) error {
+	streams := sbxruntime.StdIO{
+		Stdout: stdout,
+		Stderr: stderr,
 	}
 
 	switch opts.Command {
-	case cli.CommandDown:
-		if err := validateDockerPrerequisites(ctx); err != nil {
-			return err
-		}
-		if err := ensureComposeFile(ctx, proj); err != nil {
-			return err
-		}
-		return runStreaming(ctx, "", stdout, stderr, "docker", composeArgs(proj, "down")...)
-	case cli.CommandLogs:
-		if err := validateDockerPrerequisites(ctx); err != nil {
-			return err
-		}
-		if err := ensureComposeFile(ctx, proj); err != nil {
-			return err
-		}
-		args := append(composeArgs(proj, "logs", "-f"), opts.LogService)
-		return runStreaming(ctx, "", stdout, stderr, "docker", compact(args)...)
-	case cli.CommandRebuild:
-		if err := validateDockerPrerequisites(ctx); err != nil {
-			return err
-		}
-		if err := ensurePipelockConfig(ctx, proj.PipelockConfigPath); err != nil {
-			return err
-		}
-		if err := ensureComposeFile(ctx, proj); err != nil {
-			return err
-		}
-		if err := ensureVolume(ctx, proj.PersistVolume); err != nil {
-			return err
-		}
-		if err := prepareAgentImage(ctx, proj, true, stdout, stderr); err != nil {
-			return err
-		}
-		return runStreaming(ctx, "", stdout, stderr, "docker", composeArgs(proj, "up", "-d", "--force-recreate")...)
 	case cli.CommandUp:
-		if err := validateDockerPrerequisites(ctx); err != nil {
+		return runUp(ctx, backend, spec, streams)
+	case cli.CommandDown:
+		if err := backend.Validate(ctx); err != nil {
 			return err
 		}
-		if err := ensurePipelockConfig(ctx, proj.PipelockConfigPath); err != nil {
+		return backend.Stop(ctx, spec)
+	case cli.CommandRebuild:
+		if err := backend.Validate(ctx); err != nil {
 			return err
 		}
-		if err := ensureComposeFile(ctx, proj); err != nil {
+		return backend.Rebuild(ctx, spec)
+	case cli.CommandLogs:
+		if err := backend.Validate(ctx); err != nil {
 			return err
 		}
-		if err := ensureVolume(ctx, proj.PersistVolume); err != nil {
-			return err
-		}
-
-		created, err := isAgentCreated(ctx, proj)
-		if err != nil {
-			return err
-		}
-		running, err := isAgentRunning(ctx, proj)
-		if err != nil {
-			return err
-		}
-
-		if !created {
-			if err := prepareAgentImage(ctx, proj, false, stdout, stderr); err != nil {
-				return err
-			}
-			_, _ = fmt.Fprintln(stderr, "Starting container...")
-			if err := composeUp(ctx, proj, stderr); err != nil {
-				return err
-			}
-		} else if !running {
-			_, _ = fmt.Fprintln(stderr, "Starting container...")
-			if err := composeUp(ctx, proj, stderr); err != nil {
-				return err
-			}
-		} else {
-			_, _ = fmt.Fprintln(stderr, "Attaching to container...")
-		}
-		return runStreaming(ctx, "", stdout, stderr, "docker", attachArgs(proj)...)
+		return backend.Logs(ctx, spec, opts.LogService, streams)
 	default:
 		return fmt.Errorf("unsupported command %q", opts.Command)
 	}
+}
+
+func runUp(ctx context.Context, backend sbxruntime.Backend, spec sbxruntime.Spec, streams sbxruntime.StdIO) error {
+	if err := backend.Validate(ctx); err != nil {
+		return err
+	}
+	// Template availability is realised by Ensure/create against spec.TemplateRef.
+	if err := backend.Ensure(ctx, spec); err != nil {
+		return err
+	}
+	state, err := backend.Status(ctx, spec)
+	if err != nil {
+		return err
+	}
+	if !state.Running {
+		if err := backend.Start(ctx, spec); err != nil {
+			return err
+		}
+	}
+	return backend.Shell(ctx, spec, streams)
 }
 
 func selfUpdate(ctx context.Context, stdout, stderr io.Writer) error {

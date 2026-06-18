@@ -268,6 +268,61 @@ func TestStop_StopsSandbox(t *testing.T) {
 	assertCaptureCall(t, fr.calls[0], "sbx", "stop", spec.InstanceName)
 }
 
+func TestLogs_StreamsDuneLogFiles(t *testing.T) {
+	spec := testSpec()
+	fr := &fakeRunner{
+		responses: []fakeRunnerResponse{{}},
+	}
+	b := newBackend(fr)
+
+	if err := b.Logs(context.Background(), spec, "", StdIO{}); err != nil {
+		t.Fatalf("Logs() error = %v", err)
+	}
+
+	if len(fr.calls) != 1 {
+		t.Fatalf("got %d calls, want 1: %+v", len(fr.calls), fr.calls)
+	}
+	assertStreamCall(t, fr.calls[0], "sbx",
+		"exec",
+		spec.InstanceName,
+		"bash", "-lc", "if compgen -G '/var/log/dune/*.log' >/dev/null; then tail -n +1 -f /var/log/dune/*.log; else echo 'No Dune logs found under /var/log/dune'; fi",
+	)
+}
+
+func TestLogs_StreamsNamedDuneLogFile(t *testing.T) {
+	spec := testSpec()
+	fr := &fakeRunner{
+		responses: []fakeRunnerResponse{{}},
+	}
+	b := newBackend(fr)
+
+	if err := b.Logs(context.Background(), spec, "setup-persist", StdIO{}); err != nil {
+		t.Fatalf("Logs() error = %v", err)
+	}
+
+	if len(fr.calls) != 1 {
+		t.Fatalf("got %d calls, want 1: %+v", len(fr.calls), fr.calls)
+	}
+	assertStreamCall(t, fr.calls[0], "sbx",
+		"exec",
+		spec.InstanceName,
+		"bash", "-lc", "if [ -f '/var/log/dune/setup-persist.log' ]; then tail -n +1 -f '/var/log/dune/setup-persist.log'; else echo 'No Dune log found for setup-persist at /var/log/dune/setup-persist.log'; fi",
+	)
+}
+
+func TestLogs_RejectsUnsafeServiceName(t *testing.T) {
+	spec := testSpec()
+	fr := &fakeRunner{}
+	b := newBackend(fr)
+
+	if err := b.Logs(context.Background(), spec, "../setup-persist", StdIO{}); err == nil {
+		t.Fatal("Logs() error = nil, want invalid service error")
+	}
+	if len(fr.calls) != 0 {
+		t.Fatalf("got %d calls, want none: %+v", len(fr.calls), fr.calls)
+	}
+}
+
 func TestRebuild_RemovesWithForceThenRecreatesAndStarts(t *testing.T) {
 	dataHome := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", dataHome)

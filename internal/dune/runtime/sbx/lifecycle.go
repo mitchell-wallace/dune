@@ -87,6 +87,22 @@ func (b *backend) Stop(ctx context.Context, spec Spec) error {
 	return nil
 }
 
+func (b *backend) Logs(ctx context.Context, spec Spec, service string, streams StdIO) error {
+	if err := validateInstanceName(spec.InstanceName); err != nil {
+		return err
+	}
+
+	script, err := logsScript(service)
+	if err != nil {
+		return err
+	}
+
+	if err := b.runner.Stream(ctx, "", streams, "sbx", "exec", spec.InstanceName, "bash", "-lc", script); err != nil {
+		return fmt.Errorf("stream sbx logs for sandbox %q: %w", spec.InstanceName, err)
+	}
+	return nil
+}
+
 func (b *backend) Rebuild(ctx context.Context, spec Spec) error {
 	if err := validateEnsureSpec(spec); err != nil {
 		return err
@@ -297,6 +313,32 @@ func shellName(spec Spec) string {
 		return spec.Shell
 	}
 	return defaultShell
+}
+
+func logsScript(service string) (string, error) {
+	service = strings.TrimSpace(service)
+	if service == "" || service == "all" {
+		return "if compgen -G '/var/log/dune/*.log' >/dev/null; then tail -n +1 -f /var/log/dune/*.log; else echo 'No Dune logs found under /var/log/dune'; fi", nil
+	}
+	if !validLogServiceName(service) {
+		return "", fmt.Errorf("invalid log service %q: use letters, numbers, dots, underscores, or hyphens", service)
+	}
+
+	path := "/var/log/dune/" + service + ".log"
+	return "if [ -f " + shellQuote(path) + " ]; then tail -n +1 -f " + shellQuote(path) + "; else echo " + shellQuote("No Dune log found for "+service+" at "+path) + "; fi", nil
+}
+
+func validLogServiceName(service string) bool {
+	if service == "" {
+		return false
+	}
+	for _, r := range service {
+		if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '.' || r == '_' || r == '-' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func shellQuote(value string) string {

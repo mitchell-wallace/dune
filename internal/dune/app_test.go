@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"claudebox/internal/dune/cli"
+	sbxruntime "claudebox/internal/dune/runtime/sbx"
 	"claudebox/internal/dune/workspace"
 	"claudebox/internal/testutil"
 	"claudebox/internal/version"
@@ -96,7 +97,7 @@ func TestRenderComposeFileGolden(t *testing.T) {
 	}
 }
 
-func TestRunUsesSampleProjectFixtureForDockerfileWorkflow(t *testing.T) {
+func TestRunUpDispatchesToSbxBackendAndIgnoresDockerfile(t *testing.T) {
 	fixtureRoot := testutil.CopyProjectFixture(t, "sample-project")
 	testutil.InitGitRepo(t, fixtureRoot)
 
@@ -119,85 +120,15 @@ func TestRunUsesSampleProjectFixtureForDockerfileWorkflow(t *testing.T) {
 		t.Fatalf("MkdirAll(homeDir) error = %v", err)
 	}
 
-	baselinePath := filepath.Join("pipelock", "testdata", "balanced-2.0.0.yaml")
-	commandLog := filepath.Join(t.TempDir(), "docker.log")
-	binDir := filepath.Join(t.TempDir(), "bin")
-	if err := os.MkdirAll(binDir, 0o755); err != nil {
-		t.Fatalf("MkdirAll(binDir) error = %v", err)
+	backend := &fakeRuntimeBackend{
+		statuses: []sbxruntime.State{{Exists: true, Running: false}},
 	}
+	withRuntimeBackend(t, backend)
 
-	dockerShimPath := filepath.Join(binDir, "docker")
-	dockerShim := fmt.Sprintf(`#!/usr/bin/env bash
-set -euo pipefail
-
-printf '%%s\n' "$*" >> %q
-
-if [ "$#" -ge 2 ] && [ "$1" = "compose" ] && [ "$2" = "version" ]; then
-  echo "Docker Compose version v2.33.0"
-  exit 0
-fi
-
-if [ "$#" -ge 1 ] && [ "$1" = "info" ]; then
-  echo "Server: Docker Engine"
-  exit 0
-fi
-
-if [ "$#" -ge 7 ] && [ "$1" = "run" ] && [ "$2" = "--rm" ] && [ "$4" = "generate" ] && [ "$5" = "config" ]; then
-  cat %q
-  exit 0
-fi
-
-if [ "$#" -ge 1 ] && [ "$1" = "pull" ]; then
-  echo "Pulled $2"
-  exit 0
-fi
-
-if [ "$#" -ge 1 ] && [ "$1" = "volume" ] && [ "$2" = "create" ]; then
-  echo "$3"
-  exit 0
-fi
-
-if [ "$#" -ge 1 ] && [ "$1" = "compose" ]; then
-  for arg in "$@"; do
-    case "$arg" in
-      config)
-        echo "services:"
-        echo "  agent: {}"
-        exit 0
-        ;;
-      ps)
-        exit 0
-        ;;
-      build)
-        echo "build ok"
-        exit 0
-        ;;
-      up)
-        echo "up ok"
-        exit 0
-        ;;
-      exec)
-        echo "exec ok"
-        exit 0
-        ;;
-    esac
-  done
-fi
-
-echo "unexpected docker invocation: $*" >&2
-exit 1
-`, commandLog, baselinePath)
-	if err := os.WriteFile(dockerShimPath, []byte(dockerShim), 0o755); err != nil {
-		t.Fatalf("WriteFile(docker shim) error = %v", err)
-	}
-
-	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv("XDG_DATA_HOME", dataHome)
 	t.Setenv("XDG_CONFIG_HOME", configHome)
 	t.Setenv("HOME", homeDir)
 	t.Setenv("TZ", "Australia/Melbourne")
-	t.Setenv("TERM", "xterm-256color")
-	t.Setenv("COLORTERM", "truecolor")
 
 	var stdout, stderr strings.Builder
 	err = Run(context.Background(), []string{}, Environment{
@@ -207,58 +138,34 @@ exit 1
 		t.Fatalf("Run() error = %v\nstderr:\n%s", err, stderr.String())
 	}
 
-	composePath := filepath.Join(dataHome, "dune", "projects", ws.Slug, "compose.yaml")
-	composeData, err := os.ReadFile(composePath)
-	if err != nil {
-		t.Fatalf("ReadFile(composePath) error = %v", err)
+	wantCalls := []string{"Validate", "Ensure", "Status", "Start", "Shell"}
+	if got := backend.callNames(); strings.Join(got, ",") != strings.Join(wantCalls, ",") {
+		t.Fatalf("runtime calls = %v, want %v", got, wantCalls)
 	}
 
-	composeText := string(composeData)
-	if !strings.Contains(composeText, fmt.Sprintf("context: %q", fixtureRoot)) {
-		t.Fatalf("compose file does not use fixture root as build context:\n%s", composeText)
+	wantSpec := sbxruntime.Spec{
+		InstanceName:      sbxruntime.InstanceName(ws.Slug, defaultProfile),
+		WorkspaceHostPath: fixtureRoot,
+		Profile:           defaultProfile,
+		TemplateRef:       version.SbxTemplateRef(),
+		WorkingDir:        fixtureRoot,
+		Shell:             defaultShell,
+		Timezone:          "Australia/Melbourne",
 	}
-	if !strings.Contains(composeText, `dockerfile: "Dockerfile.dune"`) {
-		t.Fatalf("compose file does not reference Dockerfile.dune:\n%s", composeText)
-	}
-	if !strings.Contains(composeText, fmt.Sprintf(`image: "dune-local-%s:latest"`, ws.Slug)) {
-		t.Fatalf("compose file does not use local agent image for Dockerfile builds:\n%s", composeText)
-	}
-
-	pipelockPath := filepath.Join(configHome, "dune", "pipelock.yaml")
-	pipelockData, err := os.ReadFile(pipelockPath)
-	if err != nil {
-		t.Fatalf("ReadFile(pipelockPath) error = %v", err)
-	}
-	pipelockText := string(pipelockData)
-	if !strings.Contains(pipelockText, "response_scanning:") || !strings.Contains(pipelockText, "action: warn") {
-		t.Fatalf("pipelock config missing expected customization:\n%s", pipelockText)
+	for _, call := range backend.calls {
+		if call.name == "Validate" {
+			continue
+		}
+		if call.spec != wantSpec {
+			t.Fatalf("%s spec = %+v, want %+v", call.name, call.spec, wantSpec)
+		}
 	}
 
-	logData, err := os.ReadFile(commandLog)
-	if err != nil {
-		t.Fatalf("ReadFile(commandLog) error = %v", err)
+	if _, err := os.Stat(filepath.Join(dataHome, "dune", "projects", ws.Slug, "compose.yaml")); !os.IsNotExist(err) {
+		t.Fatalf("compose file was created on sbx path: %v", err)
 	}
-	logText := string(logData)
-	if !strings.Contains(logText, "compose version") {
-		t.Fatalf("expected docker compose version check, got log:\n%s", logText)
-	}
-	if !strings.Contains(logText, "info") {
-		t.Fatalf("expected docker info check, got log:\n%s", logText)
-	}
-	if !strings.Contains(logText, "run --rm ghcr.io/luckypipewrench/pipelock:2.0.0 generate config --preset balanced") {
-		t.Fatalf("expected pipelock baseline generation, got log:\n%s", logText)
-	}
-	if !strings.Contains(logText, "pull "+version.BaseImageRef()) {
-		t.Fatalf("expected base image pull before build, got log:\n%s", logText)
-	}
-	if !strings.Contains(logText, "compose -f "+composePath) || !strings.Contains(logText, " build agent") {
-		t.Fatalf("expected compose build invocation, got log:\n%s", logText)
-	}
-	if !strings.Contains(logText, "compose -f "+composePath) || !strings.Contains(logText, " up -d") {
-		t.Fatalf("expected compose up invocation, got log:\n%s", logText)
-	}
-	if !strings.Contains(logText, "compose -f "+composePath) || !strings.Contains(logText, " exec -e TERM=xterm-256color -e COLORTERM=truecolor agent zsh") {
-		t.Fatalf("expected agent exec invocation forwarding TERM/COLORTERM, got log:\n%s", logText)
+	if _, err := os.Stat(filepath.Join(configHome, "dune", "pipelock.yaml")); !os.IsNotExist(err) {
+		t.Fatalf("pipelock config was created on sbx path: %v", err)
 	}
 }
 
@@ -317,6 +224,109 @@ exit 1
 	}
 	if !strings.Contains(stderrText, "Building agent image from Dockerfile.dune...") {
 		t.Fatalf("expected Dockerfile.dune build progress output, got:\n%s", stderrText)
+	}
+}
+
+func TestRunUpReusesRunningSbxSandbox(t *testing.T) {
+	root := t.TempDir()
+	configHome := filepath.Join(t.TempDir(), "config")
+	t.Setenv("XDG_CONFIG_HOME", configHome)
+	t.Setenv("TZ", "UTC")
+
+	backend := &fakeRuntimeBackend{
+		statuses: []sbxruntime.State{{Exists: true, Running: true}},
+	}
+	withRuntimeBackend(t, backend)
+
+	var stdout, stderr strings.Builder
+	if err := Run(context.Background(), []string{"up", "-d", root, "-p", "work"}, Environment{}, &stdout, &stderr); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	wantCalls := []string{"Validate", "Ensure", "Status", "Shell"}
+	if got := backend.callNames(); strings.Join(got, ",") != strings.Join(wantCalls, ",") {
+		t.Fatalf("runtime calls = %v, want %v", got, wantCalls)
+	}
+	if backend.calls[len(backend.calls)-1].spec.Profile != "work" {
+		t.Fatalf("profile = %q, want work", backend.calls[len(backend.calls)-1].spec.Profile)
+	}
+}
+
+func TestRunDispatchesRuntimeCommands(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(t.TempDir(), "config"))
+
+	tests := []struct {
+		name      string
+		argv      []string
+		wantCalls []string
+		wantLog   string
+	}{
+		{
+			name:      "down",
+			argv:      []string{"down", "-d", root},
+			wantCalls: []string{"Validate", "Stop"},
+		},
+		{
+			name:      "rebuild",
+			argv:      []string{"rebuild", "-d", root},
+			wantCalls: []string{"Validate", "Rebuild"},
+		},
+		{
+			name:      "logs",
+			argv:      []string{"logs", "-d", root, "setup-persist"},
+			wantCalls: []string{"Validate", "Logs"},
+			wantLog:   "setup-persist",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			backend := &fakeRuntimeBackend{}
+			withRuntimeBackend(t, backend)
+
+			var stdout, stderr strings.Builder
+			if err := Run(context.Background(), tc.argv, Environment{}, &stdout, &stderr); err != nil {
+				t.Fatalf("Run() error = %v", err)
+			}
+
+			if got := backend.callNames(); strings.Join(got, ",") != strings.Join(tc.wantCalls, ",") {
+				t.Fatalf("runtime calls = %v, want %v", got, tc.wantCalls)
+			}
+			if tc.wantLog != "" && backend.calls[len(backend.calls)-1].service != tc.wantLog {
+				t.Fatalf("log service = %q, want %q", backend.calls[len(backend.calls)-1].service, tc.wantLog)
+			}
+		})
+	}
+}
+
+func TestVersionAndProfileCommandsDoNotCreateRuntimeBackend(t *testing.T) {
+	root := t.TempDir()
+	configHome := filepath.Join(t.TempDir(), "config")
+	t.Setenv("XDG_CONFIG_HOME", configHome)
+
+	called := false
+	oldFactory := newRuntimeBackend
+	newRuntimeBackend = func() sbxruntime.Backend {
+		called = true
+		return &fakeRuntimeBackend{}
+	}
+	t.Cleanup(func() {
+		newRuntimeBackend = oldFactory
+	})
+
+	var stdout, stderr strings.Builder
+	if err := Run(context.Background(), []string{"version"}, Environment{}, &stdout, &stderr); err != nil {
+		t.Fatalf("Run(version) error = %v", err)
+	}
+	if err := Run(context.Background(), []string{"profile", "set", "work", "-d", root}, Environment{}, &stdout, &stderr); err != nil {
+		t.Fatalf("Run(profile set) error = %v", err)
+	}
+	if err := Run(context.Background(), []string{"profile", "list", "-d", root}, Environment{}, &stdout, &stderr); err != nil {
+		t.Fatalf("Run(profile list) error = %v", err)
+	}
+	if called {
+		t.Fatal("runtime backend factory was called for version/profile command")
 	}
 }
 
@@ -450,4 +460,80 @@ func TestEffectiveTimezone_Fallback(t *testing.T) {
 	if !strings.Contains(got, "/") && got != "UTC" {
 		t.Fatalf("effectiveTimezone() = %q, expected IANA timezone (with /) or UTC", got)
 	}
+}
+
+type fakeRuntimeBackend struct {
+	calls    []fakeRuntimeCall
+	statuses []sbxruntime.State
+}
+
+type fakeRuntimeCall struct {
+	name    string
+	spec    sbxruntime.Spec
+	service string
+}
+
+func withRuntimeBackend(t *testing.T, backend sbxruntime.Backend) {
+	t.Helper()
+
+	oldFactory := newRuntimeBackend
+	newRuntimeBackend = func() sbxruntime.Backend {
+		return backend
+	}
+	t.Cleanup(func() {
+		newRuntimeBackend = oldFactory
+	})
+}
+
+func (f *fakeRuntimeBackend) Validate(context.Context) error {
+	f.calls = append(f.calls, fakeRuntimeCall{name: "Validate"})
+	return nil
+}
+
+func (f *fakeRuntimeBackend) Ensure(_ context.Context, spec sbxruntime.Spec) error {
+	f.calls = append(f.calls, fakeRuntimeCall{name: "Ensure", spec: spec})
+	return nil
+}
+
+func (f *fakeRuntimeBackend) Start(_ context.Context, spec sbxruntime.Spec) error {
+	f.calls = append(f.calls, fakeRuntimeCall{name: "Start", spec: spec})
+	return nil
+}
+
+func (f *fakeRuntimeBackend) Shell(_ context.Context, spec sbxruntime.Spec, _ sbxruntime.StdIO) error {
+	f.calls = append(f.calls, fakeRuntimeCall{name: "Shell", spec: spec})
+	return nil
+}
+
+func (f *fakeRuntimeBackend) Stop(_ context.Context, spec sbxruntime.Spec) error {
+	f.calls = append(f.calls, fakeRuntimeCall{name: "Stop", spec: spec})
+	return nil
+}
+
+func (f *fakeRuntimeBackend) Rebuild(_ context.Context, spec sbxruntime.Spec) error {
+	f.calls = append(f.calls, fakeRuntimeCall{name: "Rebuild", spec: spec})
+	return nil
+}
+
+func (f *fakeRuntimeBackend) Logs(_ context.Context, spec sbxruntime.Spec, service string, _ sbxruntime.StdIO) error {
+	f.calls = append(f.calls, fakeRuntimeCall{name: "Logs", spec: spec, service: service})
+	return nil
+}
+
+func (f *fakeRuntimeBackend) Status(_ context.Context, spec sbxruntime.Spec) (sbxruntime.State, error) {
+	f.calls = append(f.calls, fakeRuntimeCall{name: "Status", spec: spec})
+	if len(f.statuses) == 0 {
+		return sbxruntime.State{}, nil
+	}
+	state := f.statuses[0]
+	f.statuses = f.statuses[1:]
+	return state, nil
+}
+
+func (f *fakeRuntimeBackend) callNames() []string {
+	names := make([]string, 0, len(f.calls))
+	for _, call := range f.calls {
+		names = append(names, call.name)
+	}
+	return names
 }
