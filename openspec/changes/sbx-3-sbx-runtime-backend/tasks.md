@@ -13,7 +13,7 @@
 
 - [x] 3.1 Define a minimal backend-agnostic `Spec` (instance name, workspace host path, profile, template ref, working dir, shell, timezone); remove `project{}` (D2, D8).
 - [x] 3.2 Add `version.SbxTemplateRef()` (alongside `BaseImageRef`) reading `container/sbx/IMAGE_VERSION` (not top-level `VERSION`; lockstep with `VERSION` is a release convention, per D10).
-- [ ] 3.3 Restructure `app.go` into resolve → build `Spec` → dispatch to the backend, reusing existing workspace resolution, profile store, profile-name validation, and timezone logic.
+- [x] 3.3 Restructure `app.go` into resolve → build `Spec` → dispatch to the backend, reusing existing workspace resolution, profile store, profile-name validation, and timezone logic.
 
 ## 4. Lifecycle operations and command construction
 
@@ -25,25 +25,25 @@
 
 ## 5. Wire commands to the backend
 
-- [ ] 5.1 Map `up` (default) to Validate → ensure template available → Ensure → Start (if stopped) → Shell, reusing a running sandbox without recreation (D7).
-- [ ] 5.2 Map `down` → Stop and `rebuild` → recreate from the template (no `Dockerfile.dune` build), preserving profile-scoped persisted state across the recreate via the durable persist location (D3).
-- [ ] 5.3 Keep `logs` functional against the sbx runtime as an interim mapping; the finalized `dune logs` composition (service logs + `sbx policy log`) is `sbx-5`.
-- [ ] 5.4 Leave `version`, `profile set`, and `profile list` unchanged (no runtime/backend needed).
+- [x] 5.1 Map `up` (default) to Validate → ensure template available → Ensure → Start (if stopped) → Shell, reusing a running sandbox without recreation (D7).
+- [x] 5.2 Map `down` → Stop and `rebuild` → recreate from the template (no `Dockerfile.dune` build), preserving profile-scoped persisted state across the recreate via the durable persist location (D3).
+- [x] 5.3 Keep `logs` functional against the sbx runtime as an interim mapping; the finalized `dune logs` composition (service logs + `sbx policy log`) is `sbx-5`.
+- [x] 5.4 Leave `version`, `profile set`, and `profile list` unchanged (no runtime/backend needed).
 
 ## 6. Remove the Docker Compose path
 
-- [ ] 6.1 Remove `compose.yaml.tmpl`, `renderComposeFile`/`ensureComposeFile`/`validateComposeFile`, `ensureVolume`, `prepareAgentImage`, `composeArgs`/`composeUp`/`localImageExists`, and `isAgentRunning`/`isAgentCreated` (D8).
-- [ ] 6.2 Remove `Dockerfile.dune` detection and the `dune-local-<slug>:latest` build (`UseBuild`).
-- [ ] 6.3 Stop calling `ensurePipelockConfig` and starting the Pipelock sidecar in the runtime path. Leave the `internal/dune/pipelock` package present-but-unused; full removal is `sbx-4` (D9).
+- [x] 6.1 Remove `compose.yaml.tmpl`, `renderComposeFile`/`ensureComposeFile`/`validateComposeFile`, `ensureVolume`, `prepareAgentImage`, `composeArgs`/`composeUp`/`localImageExists`, and `isAgentRunning`/`isAgentCreated` (D8).
+- [x] 6.2 Remove `Dockerfile.dune` detection and the `dune-local-<slug>:latest` build (`UseBuild`).
+- [x] 6.3 Stop calling `ensurePipelockConfig` and starting the Pipelock sidecar in the runtime path. Leave the `internal/dune/pipelock` package present-but-unused; full removal is `sbx-4` (D9).
 
 ## 7. Tests
 
 - [x] 7.1 Add fakeRunner command-construction/sequencing tests for `up` (create/start/attach and reuse), `down`, and `rebuild`, asserting exact `sbx` args, instance name, mount path, and order.
 - [x] 7.2 Add tests for `Validate` failure modes (missing sbx, failed diagnose, below-min version).
-- [ ] 7.3 Retire or replace the Docker Compose golden/validation and shell-shim tests tied to the removed path.
+- [x] 7.3 Retire or replace the Docker Compose golden/validation and shell-shim tests tied to the removed path.
 
 ## 8. Smoke verification and docs
 
-- [ ] 8.1 Add/adjust a smoke test against the installed `sbx` that: (a) creates a sandbox from the Dune sbx template and confirms the attached shell's cwd is the mounted repo path (`git rev-parse --show-toplevel` succeeds); and (b) gates D3 by writing a sentinel under `/persist/agent`, running `sbx rm <name>` then recreating, and confirming the sentinel survives the recreate.
-- [ ] 8.2 Run `go build ./cmd/dune` and `go test ./...`.
-- [ ] 8.3 Update architecture/README docs: `sbx` replaces Docker as the prerequisite; the runtime launches the Dune sbx template; `Dockerfile.dune` and the compose path are gone; note the one-time transition from Docker Compose workspaces (full cleanup in `sbx-6`).
+- [x] 8.1 Add/adjust a smoke test against the installed `sbx` that: (a) creates a sandbox from the Dune sbx template and confirms the attached shell's cwd is the mounted repo path (`git rev-parse --show-toplevel` succeeds); and (b) gates D3 by writing a sentinel under `/persist/agent`, running `sbx rm <name>` then recreating, and confirming the sentinel survives the recreate.
+- [x] 8.2 Run `go build ./cmd/dune` and `go test ./...`.
+- [x] 8.3 Update architecture/README docs: `sbx` replaces Docker as the prerequisite; the runtime launches the Dune sbx template; `Dockerfile.dune` and the compose path are gone; note the one-time transition from Docker Compose workspaces (full cleanup in `sbx-6`).

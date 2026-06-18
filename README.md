@@ -78,7 +78,7 @@ dune profile list
 - `dune` starts the sandbox for the current repo if needed, then opens an interactive `zsh` shell at the repository root inside the sandbox
 - `dune up` does the same thing explicitly
 - `dune down` stops the sandbox for the current workspace/profile (the sandbox is retained; it is not removed)
-- `dune rebuild` recreates the sandbox from the Dune sbx template, preserving the profile's persisted state, then attaches a shell
+- `dune rebuild` recreates and starts the sandbox from the Dune sbx template, preserving the profile's persisted state
 - `dune logs` streams Dune runtime logs for the current sandbox
 - `dune logs <service>` streams a single named log under the sandbox's `/var/log/dune/` path
 - `dune version` prints the dune version, commit, and release build metadata

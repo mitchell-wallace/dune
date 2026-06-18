@@ -116,11 +116,11 @@
       "title": "Final sbx-3 acceptance: verify the cutover and close the change",
       "description": "Context\nFinal full-change verification of the central cutover. Use the openspec-verify-change skill against sbx-3-sbx-runtime-backend across all phases, and inspect the whole diff for the change.\n\nOutcome\nA report confirming the full outcome: Docker is no longer a host prerequisite; app.go dispatches to the sbx Backend via resolve -\u003e build Spec -\u003e execute; the Compose path, Dockerfile.dune build, and Pipelock startup are gone from the active runtime (the pipelock package intentionally remains dormant for sbx-4); the smoke gate (cwd-at-repo + persist-survival) was actually demonstrated, not just asserted; and docs are updated. Trace the real cutover — the constructed sbx arg vectors, the symbols actually removed (grep clean), and the TERM/COLORTERM carry-forward in Shell — not just green tests.\n\nDesign\nIdentify the intended integration target before diffing (this branch is dunex, the sbx integration line, not main — confirm from repo docs / branch config / history). Identify this batch's first lap and treat earlier branch work (through the sbx-2 close) as pre-existing baseline; do not remove pre-batch work unless the user asks. Do not rewrite git history; if scope cleanup is needed, add a focused additive/revert lap or ask the user. Confirm the sbx-4 boundary is respected: the pipelock package is still present-but-unused and the docs note the interim egress window.\n\nAcceptance\nRun go build ./cmd/dune + go test ./... and the smoke verification; review the whole diff against the integration target; then check off all remaining tasks.md boxes verified correct and thorough (3.3, 5.1-5.4, 6.1-6.3, 7.3, 8.1-8.3, plus any phase-1-4 boxes not already ticked). File substantive gaps as new head laps rather than fixing in place beyond tiny one-liners.",
       "assignee": "VERIFY",
-      "isDone": false,
+      "isDone": true,
       "order": 589824,
       "createdAt": "2026-06-18T05:31:37.028950393Z",
-      "updatedAt": "2026-06-18T05:31:37.028950393Z",
-      "completedAt": null
+      "updatedAt": "2026-06-18T10:13:12.389205554Z",
+      "completedAt": "2026-06-18T10:13:12.389205554Z"
     }
   ]
 }
