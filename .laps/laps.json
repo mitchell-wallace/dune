@@ -28,11 +28,11 @@
       "title": "Wrap sbx policy log as the egress observability source",
       "description": "Context: sbx-4 design D4 / tasks 3.1, 3.2. `sbx policy log \u003cinstance\u003e` is the first-class egress observability source replacing `dune logs pipelock`. Spike 4 confirmed a structured form: `sbx policy log [SANDBOX] --json` with `--limit int` and `--type all|network` (sandbox name is positional and optional). The existing interim `Logs` method (internal/dune/runtime/sbx/lifecycle.go:90) tails `/var/log/dune/*.log` and has NO pipelock service — this lap ADDS a new policy-log wrapper, it does not modify that interim Logs. The final `dune logs` composition (policy log + Dune-owned logs) is sbx-5, not this change.\n\nOutcome: a backend method (sbx package) that wraps `sbx policy log \u003cinstance\u003e --json` (supporting `--limit`) through the sbx-3 runner seam, parsing the structured records into a typed shape. Field names are pinned from observed output so a future sbx output change surfaces as a test failure (mirroring the existing convention noted at validate.go:62).\n\nFiles \u0026 scope: internal/dune/runtime/sbx (new method + a small record struct + parse). Construct via the runner seam (Capture for the `--json` form). Do not compose `dune logs` end-to-end (sbx-5).\n\nDesign: follow the existing sbx-package patterns (see Status/parseSandboxList in lifecycle.go for JSON-shape-tolerant parsing). Reconfirm the flag surface via `sbx policy log --help` before pinning. Covers both `forward` (direct shell) and `transparent` (nested Docker) record types per the spikes — the parse must not assume a single type.\n\nAcceptance: fakeRunner test pins the `sbx policy log \u003cinstance\u003e --json --limit \u003cn\u003e` invocation and asserts the parsed field names against a recorded sample (including a transparent/nested-Docker record). This completes the policy-log portion of task 6.1. `go test ./internal/dune/...` green.",
       "assignee": "JUNIOR",
-      "isDone": false,
+      "isDone": true,
       "order": 196608,
       "createdAt": "2026-06-18T11:44:49.714714393Z",
-      "updatedAt": "2026-06-18T11:44:49.714714393Z",
-      "completedAt": null
+      "updatedAt": "2026-06-18T14:59:12.438243526Z",
+      "completedAt": "2026-06-18T14:59:12.438243526Z"
     },
     {
       "id": "dune-5f79",
