@@ -39,3 +39,6 @@ smoke-tools *ARGS:
 
 smoke-local:
   bash test/smoke/dune-local.sh
+
+smoke-sbx-egress *ARGS:
+  bash test/smoke/sbx-egress.sh {{ARGS}}
