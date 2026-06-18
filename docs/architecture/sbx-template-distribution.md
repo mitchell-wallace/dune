@@ -3,8 +3,10 @@
 This doc covers how the Dune sbx template image is referenced, versioned, built,
 published, and consumed: registry and offline template usage, and the secret
 boundaries (design `sbx-2` D6/D7). The CLI runtime that launches the template
-lands in `sbx-3-sbx-runtime-backend`; the broader "what the template contains"
-and migration narrative lives in [Container Runtime](./container-runtime.md).
+lands in `sbx-3-sbx-runtime-backend`; what the template contains, the services
+it removes, the `setup-persist` boot hook, the `/var/log/dune/` log path, and
+the `/workspace` compatibility behavior live in
+[Contents, Persistence, and Workspace](./sbx-template.md).
 
 The legacy Compose base image (`ghcr.io/mitchell-wallace/dune-base`) and its
 publish job remain until `sbx-6` retires them.
