@@ -18,9 +18,9 @@
 
 ## 4. Secrets posture
 
-- [ ] 4.1 Document and prefer service-identifier secrets (`sbx secret set`) for built-in agent / kit-declared identifiers and registry auth (`sbx secret set --registry`) (D5). Where Dune sets/removes a service secret itself, route it through the `sbx-3` D5 runner seam and pin the verified `set`/`ls`/`rm` shapes (D5) in fakeRunner tests; reconfirm via `sbx secret --help`.
-- [ ] 4.2 Document `sbx` custom secrets (`sbx secret set-custom`) as experimental and out of v1 lifecycle ownership (no working removal, not auto-injected, duplicate rows, survive sandbox removal); ensure no core Dune boot path depends on them.
-- [ ] 4.3 Reaffirm no secrets are baked into the template; agent-provider creds use the profile-scoped `/persist/agent` location until a service identifier is available (D5, `sbx-2` D7, `sbx-3` D3).
+- [x] 4.1 Document and prefer service-identifier secrets (`sbx secret set`) for built-in agent / kit-declared identifiers and registry auth (`sbx secret set --registry`) (D5). Where Dune sets/removes a service secret itself, route it through the `sbx-3` D5 runner seam and pin the verified `set`/`ls`/`rm` shapes (D5) in fakeRunner tests; reconfirm via `sbx secret --help`.
+- [x] 4.2 Document `sbx` custom secrets (`sbx secret set-custom`) as experimental and out of v1 lifecycle ownership (no working removal, not auto-injected, duplicate rows, survive sandbox removal); ensure no core Dune boot path depends on them.
+- [x] 4.3 Reaffirm no secrets are baked into the template; agent-provider creds use the profile-scoped `/persist/agent` location until a service identifier is available (D5, `sbx-2` D7, `sbx-3` D3).
 
 ## 5. Complete Pipelock removal (sequenced last)
 
@@ -35,7 +35,7 @@
 - [x] 6.2 Smoke-verify in an ephemeral sandbox: baseline blocks a representative docs site; opening its exact + wildcard domains unblocks it; `sbx policy log` shows the records; nested Docker traffic is also governed.
 - [x] 6.3 Run `go build ./cmd/dune` and `go test ./...`; remove temporary sandboxes.
 
-Verification evidence (2026-06-19): `just smoke-sbx-egress --report tmp/sbx-egress-smoke.20260618T170535Z.log` against `ghcr.io/mitchell-wallace/dune-sbx:0.4.8` passed the docs-site block/unblock/re-block, policy-log `forward`/`transparent`/`forward-bypass`, no-Pipelock, and cleanup assertions. Toolchain/provider policy findings recorded no non-docs blocked hosts; npm, pip, Go/GOPROXY, Go module lookup, OpenAI, Anthropic, and Gemini reached allowed hosts. The 0.4.8 template does not include a `cargo` binary, so cargo produced a template/toolchain parity finding rather than an sbx blocked-host finding.
+Verification evidence (2026-06-19): `just smoke-sbx-egress --report tmp/sbx-egress-smoke.verify.20260618T181512Z.log` against `ghcr.io/mitchell-wallace/dune-sbx:0.4.8` re-confirmed the docs-site block/unblock/re-block, policy-log `forward`/`transparent`/`forward-bypass`, no-Pipelock, and cleanup assertions. Toolchain/provider policy findings again recorded no non-docs blocked hosts; npm, pip, Go/GOPROXY, Go module lookup, OpenAI, Anthropic, and Gemini reached allowed hosts. The 0.4.8 template does not include a `cargo` binary, so cargo remained a template/toolchain parity finding rather than an sbx blocked-host finding.
 
 ## 7. Documentation
 
