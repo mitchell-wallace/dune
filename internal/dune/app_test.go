@@ -2,6 +2,7 @@ package dune
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -87,7 +88,7 @@ func TestRunUpDispatchesToSbxBackendAndIgnoresDockerfile(t *testing.T) {
 		t.Fatalf("Run() error = %v\nstderr:\n%s", err, stderr.String())
 	}
 
-	wantCalls := []string{"Validate", "Ensure", "Status", "Start", "Shell"}
+	wantCalls := []string{"Validate", "Ensure", "VerifyEgressPosture", "Status", "Start", "Shell"}
 	if got := backend.callNames(); strings.Join(got, ",") != strings.Join(wantCalls, ",") {
 		t.Fatalf("runtime calls = %v, want %v", got, wantCalls)
 	}
@@ -127,12 +128,33 @@ func TestRunUpReusesRunningSbxSandbox(t *testing.T) {
 		t.Fatalf("Run() error = %v", err)
 	}
 
-	wantCalls := []string{"Validate", "Ensure", "Status", "Shell"}
+	wantCalls := []string{"Validate", "Ensure", "VerifyEgressPosture", "Status", "Shell"}
 	if got := backend.callNames(); strings.Join(got, ",") != strings.Join(wantCalls, ",") {
 		t.Fatalf("runtime calls = %v, want %v", got, wantCalls)
 	}
 	if backend.calls[len(backend.calls)-1].spec.Profile != "work" {
 		t.Fatalf("profile = %q, want work", backend.calls[len(backend.calls)-1].spec.Profile)
+	}
+}
+
+func TestRunUpPassesStderrToEgressVerification(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(t.TempDir(), "config"))
+	t.Setenv("TZ", "UTC")
+
+	backend := &fakeRuntimeBackend{
+		statuses:      []sbxruntime.State{{Exists: true, Running: true}},
+		egressMessage: "egress warning\n",
+	}
+	withRuntimeBackend(t, backend)
+
+	var stdout, stderr strings.Builder
+	if err := Run(context.Background(), []string{"up", "-d", root}, Environment{}, &stdout, &stderr); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	if got := stderr.String(); got != "egress warning\n" {
+		t.Fatalf("stderr = %q, want egress warning", got)
 	}
 }
 
@@ -234,8 +256,10 @@ func TestEffectiveTimezone_Fallback(t *testing.T) {
 }
 
 type fakeRuntimeBackend struct {
-	calls    []fakeRuntimeCall
-	statuses []sbxruntime.State
+	calls         []fakeRuntimeCall
+	statuses      []sbxruntime.State
+	egressMessage string
+	egressErr     error
 }
 
 type fakeRuntimeCall struct {
@@ -264,6 +288,14 @@ func (f *fakeRuntimeBackend) Validate(context.Context) error {
 func (f *fakeRuntimeBackend) Ensure(_ context.Context, spec sbxruntime.Spec) error {
 	f.calls = append(f.calls, fakeRuntimeCall{name: "Ensure", spec: spec})
 	return nil
+}
+
+func (f *fakeRuntimeBackend) VerifyEgressPosture(_ context.Context, spec sbxruntime.Spec, streams sbxruntime.StdIO) error {
+	f.calls = append(f.calls, fakeRuntimeCall{name: "VerifyEgressPosture", spec: spec})
+	if f.egressMessage != "" && streams.Stderr != nil {
+		_, _ = fmt.Fprint(streams.Stderr, f.egressMessage)
+	}
+	return f.egressErr
 }
 
 func (f *fakeRuntimeBackend) Start(_ context.Context, spec sbxruntime.Spec) error {

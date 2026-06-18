@@ -175,6 +175,9 @@ func runUp(ctx context.Context, backend sbxruntime.Backend, spec sbxruntime.Spec
 	if err := backend.Ensure(ctx, spec); err != nil {
 		return err
 	}
+	if err := backend.VerifyEgressPosture(ctx, spec, streams); err != nil {
+		return err
+	}
 	state, err := backend.Status(ctx, spec)
 	if err != nil {
 		return err

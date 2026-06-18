@@ -10,6 +10,7 @@ import (
 type Backend interface {
 	Validate(ctx context.Context) error
 	Ensure(ctx context.Context, spec Spec) error
+	VerifyEgressPosture(ctx context.Context, spec Spec, streams StdIO) error
 	Start(ctx context.Context, spec Spec) error
 	Shell(ctx context.Context, spec Spec, streams StdIO) error
 	Stop(ctx context.Context, spec Spec) error
