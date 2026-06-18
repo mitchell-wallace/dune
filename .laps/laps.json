@@ -39,10 +39,21 @@
       "title": "Verify the sbx backend foundations (sbx-3 phases 1-4)",
       "description": "Context\nMid-change verification after the backend package, readiness validation, and lifecycle command construction are built but before the app.go cutover. Use the openspec-verify-change skill against sbx-3-sbx-runtime-backend, focused on phases 1-4: tasks 1.1-1.3, 2.1-2.2, 3.1 (Spec), 3.2, 4.1-4.4, 7.1, 7.2.\n\nOutcome\nA report confirming the Backend/Runner/Spec foundations, Validate, and lifecycle command construction are correct and thorough — not merely that tests are green. Trace the actual constructed sbx argument vectors (create/exec/ls/run/stop). Confirm the hook-firing exec carries BOTH DUNE_WORKSPACE and PERSIST_DIR as the design contract requires; that Shell's TERM/COLORTERM forwarding matches the carried-forward attachArgs behavior (present-when-set, omitted-when-unset); that SbxTemplateRef reads container/sbx/IMAGE_VERSION (not top-level VERSION) with the dune-sbx repo; and that the diagnose/ls JSON flag asymmetry is respected (--output json vs --json).\n\nDesign\nIdentify the intended integration target before diffing — this branch is dunex (the sbx integration line), not main; confirm from repo docs / branch config / recent history rather than assuming, then diff this batch's work against the batch baseline (the sbx-2 close commit). Treat everything before this batch's first lap as pre-existing baseline; do not add cleanup laps for pre-batch work unless the user asks. Do not rewrite git history. You may fix only tiny, safe one-liners; anything larger becomes a new head lap.\n\nAcceptance\nCheck off tasks.md boxes for phases 1-4 only where verified correct and thorough (1.1-1.3, 2.1-2.2, 3.1, 3.2, 4.1-4.4, 7.1, 7.2). Leave the app.go restructure, removals, smoke, and docs unticked. File any substantive gaps as new head laps.",
       "assignee": "VERIFY",
-      "isDone": false,
+      "isDone": true,
       "order": 262144,
       "createdAt": "2026-06-18T05:31:37.028935473Z",
-      "updatedAt": "2026-06-18T05:31:37.028935473Z",
+      "updatedAt": "2026-06-18T08:15:24.630647491Z",
+      "completedAt": "2026-06-18T08:15:24.630647491Z"
+    },
+    {
+      "id": "dune-d672",
+      "title": "Close remaining sbx-runtime foundation verification gaps",
+      "description": "Context\nVERIFY found two phase-1-4 gaps in sbx-3 before the app.go cutover. First, internal/dune/runtime/sbx/validate.go accepts structurally-empty or drifted sbx diagnose --output json payloads as healthy because it only unmarshals JSON and does not require the expected checks shape, so D6's exact-shape pinning is weaker than intended. Second, task 7.1 is not actually complete yet: the fakeRunner lifecycle suite covers create/start/attach, running reuse, down/stop, and the -w fallback, but it does not cover a rebuild / sbx rm --force sequence.\n\nOutcome\nHarden the readiness parser/tests so malformed or shape-drifted diagnose JSON fails validation, and complete or explicitly re-scope the missing rebuild sequencing coverage so task 7.1 only gets ticked when that assertion exists.\n\nFiles \u0026 scope\ninternal/dune/runtime/sbx/{validate.go,validate_test.go,lifecycle.go,lifecycle_test.go} and openspec/changes/sbx-3-sbx-runtime-backend/tasks.md if task status changes. Keep the change additive; do not rewrite history.\n\nAcceptance\ngo test ./internal/dune/runtime/sbx/... passes. Validation rejects missing/shape-drifted diagnose check data. The lifecycle fakeRunner suite either asserts the rebuild / sbx rm --force path explicitly or the task/deferred scope is updated coherently so 7.1 is no longer overstated.",
+      "assignee": "SENIOR",
+      "isDone": false,
+      "order": 196608,
+      "createdAt": "2026-06-18T08:14:19.514175047Z",
+      "updatedAt": "2026-06-18T08:14:19.514175047Z",
       "completedAt": null
     },
     {
