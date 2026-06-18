@@ -6,11 +6,11 @@
       "title": "Stand up the sbx runtime package: Backend, Runner seam, Spec, template-ref accessor",
       "description": "Context\nFirst lap of the sbx-3 batch (CLI runtime backend — the central cutover of the sbx migration). Source: openspec/changes/sbx-3-sbx-runtime-backend/{proposal,design,tasks}.md (tasks 1.1-1.3, 3.1 Spec only, 3.2). sbx-2 has landed: the dune-sbx template (ghcr.io/mitchell-wallace/dune-sbx, version in container/sbx/IMAGE_VERSION) and its login-shell hook that refreshes /workspace from DUNE_WORKSPACE and runs setup-persist once per sandbox. Today's runtime lives in internal/dune/app.go with capture (combined output) and runStreaming (PTY) helpers; internal/version/version.go has BaseImageRef() reading container/base/IMAGE_VERSION.\n\nOutcome\nA new internal/dune/runtime/sbx package compiles with: a lifecycle-oriented Backend interface (Validate/Ensure/Start/Shell/Stop/Status) that keeps sbx verbs private to the package (D1); a Runner seam (Capture/Stream) plus a defaultRunner wrapping os/exec that preserves current capture/stream behavior (D5); a fakeRunner test helper recording each invocation (dir, name, args) and returning preset output/errors per call (1.3); and a minimal backend-agnostic Spec carrying only semantic fields — instance name, workspace host path, profile, template ref, working dir, shell, timezone (D2). Plus version.SbxTemplateRef() mirroring BaseImageRef(): an ldflags-injectable repo (ghcr.io/mitchell-wallace/dune-sbx) plus a version that falls back to reading container/sbx/IMAGE_VERSION (NOT top-level VERSION), with a unit test asserting the repo and a non-empty version (D10).\n\nFiles \u0026 scope\nNew internal/dune/runtime/sbx/ (backend, runner, spec, fakeRunner in a _test.go); internal/version/version.go (+ its test). Leave app.go untouched this lap. Do NOT remove project{} yet — the still-present Compose path uses it; its removal is the later removal lap.\n\nDesign\nThis is the architectural seam the rest of sbx-3 builds on, so get the boundary right: the interface speaks Dune lifecycle operations, not sbx primitives. Mirror the existing capture/runStreaming semantics in defaultRunner so the later cutover is behavior-preserving. Spec is deliberately minimal (the reshaped successor to ref-1's never-implemented EnvironmentPlan), not generalised for hypothetical backends.\n\nAcceptance\ngo build ./... and go test ./internal/version/... pass; the new package builds; the SbxTemplateRef() unit test asserts repo + non-empty version. Do not tick any tasks.md boxes (only VERIFY ticks).",
       "assignee": "SENIOR",
-      "isDone": false,
+      "isDone": true,
       "order": 65536,
       "createdAt": "2026-06-18T05:31:37.028920224Z",
-      "updatedAt": "2026-06-18T05:31:37.028920224Z",
-      "completedAt": null
+      "updatedAt": "2026-06-18T07:42:14.718376425Z",
+      "completedAt": "2026-06-18T07:42:14.718376425Z"
     },
     {
       "id": "dune-9037",
