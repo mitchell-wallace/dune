@@ -71,11 +71,11 @@
       "id": "dune-d210",
       "title": "Authenticate sbx on the host, ...",
       "description": "Authenticate sbx on the host, then run just smoke-sbx-egress (optionally --report tmp/sbx-egress-smoke.\u003cdate\u003e.log) against ghcr.io/mitchell-wallace/dune-sbx:0.4.8; capture the report, confirm temp sandbox cleanup, record toolchain blocked-host findings, then check sbx-4 tasks 1.3, 2.3, 6.2, and 6.3 if the evidence passes.",
-      "isDone": false,
+      "isDone": true,
       "order": 393216,
       "createdAt": "2026-06-18T16:28:40.36518066Z",
-      "updatedAt": "2026-06-18T16:28:40.36518066Z",
-      "completedAt": null
+      "updatedAt": "2026-06-18T17:09:19.32564664Z",
+      "completedAt": "2026-06-18T17:09:19.32564664Z"
     },
     {
       "id": "dune-b029",
