@@ -7,6 +7,7 @@ on:
       - Dockerfile
       - cmd/dune/**
       - container/base/**
+      - container/sbx/**
       - go.mod
       - go.sum
       - internal/**
@@ -17,6 +18,7 @@ on:
     branches: [main]
     paths:
       - container/base/IMAGE_VERSION
+      - container/sbx/IMAGE_VERSION
   workflow_dispatch:
 
 permissions:
@@ -92,6 +94,64 @@ jobs:
           tags: |
             ghcr.io/mitchell-wallace/dune-base:${{ steps.version.outputs.value }}
             ghcr.io/mitchell-wallace/dune-base:latest
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+            GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
+
+  # Dune sbx template image (sbx-2 D6). The durable runtime artifact the sbx
+  # backend (sbx-3) launches via `sbx create --template <ref>`. Mirrors the
+  # base-image job structure; the legacy Compose base-image job above is
+  # retired in sbx-6, not here.
+  verify-template:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read sbx image version
+        id: sbx-version
+        run: echo "value=$(tr -d '\n' < container/sbx/IMAGE_VERSION)" >> "$GITHUB_OUTPUT"
+
+      - name: Build template image
+        run: |
+          docker build \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --build-arg GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} \
+            -f container/sbx/Dockerfile.sbx \
+            -t ghcr.io/mitchell-wallace/dune-sbx:${{ steps.sbx-version.outputs.value }} \
+            .
+
+  build-and-push-template:
+    needs: verify-template
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read sbx image version
+        id: sbx-version
+        run: echo "value=$(tr -d '\n' < container/sbx/IMAGE_VERSION)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push template image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./container/sbx/Dockerfile.sbx
+          push: true
+          tags: |
+            ghcr.io/mitchell-wallace/dune-sbx:${{ steps.sbx-version.outputs.value }}
+            ghcr.io/mitchell-wallace/dune-sbx:latest
           build-args: |
             BUILDKIT_INLINE_CACHE=1
             GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
