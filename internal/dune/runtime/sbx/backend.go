@@ -22,12 +22,14 @@ type State struct {
 }
 
 // backend is the concrete sbx-backed implementation of Backend. sbx command
-// shapes live only here so they can be pinned by fakeRunner tests. Lifecycle
-// methods beyond Validate land in later sbx-3 laps; once the Backend interface
-// is fully satisfied, an exported constructor (NewBackend) wraps newBackend.
+// shapes live only here so they can be pinned by fakeRunner tests.
 type backend struct {
 	runner   Runner
 	lookPath func(string) (string, error)
+}
+
+func NewBackend() Backend {
+	return newBackend(nil)
 }
 
 // newBackend builds a backend with the default os/exec runner and PATH lookup.
