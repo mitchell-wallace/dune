@@ -50,11 +50,11 @@
       "title": "Verify the template builds and behaves (sbx-2 phases 1-4)",
       "description": "Context: Phases 1-4 of sbx-2 are the high-risk core (Docker-enabled base, toolchain parity, re-homed setup-persist, /workspace compat). Verify them before the lower-risk versioning/docs work. Use the openspec-verify-change skill against sbx-2-dune-sbx-template, focused on phases 1-4.\n\nOutcome: Confirmation (or focused gap head-laps) that a fresh ephemeral build of container/sbx/ produces a template whose Docker stack, toolchain, setup-persist wiring, and /workspace symlink all behave per design D1/D2a/D3/D4/D5.\n\nWhat to check: build the template ephemerally; in a sandbox confirm — docker engine + docker compose + docker run --rm hello-world + a nested docker compose up -d reachable service; rally/laps/playwright/an agent CLI versions plus a Chromium launch; readlink ~/.claude -\u003e /persist/agent/.claude and /var/log/dune/setup-persist.log present after a bash -lc true exec; a fresh build does NOT bake the sentinel; readlink -f /workspace -\u003e mount and git -C /workspace rev-parse --show-toplevel works. Trace the actual Dockerfile.sbx layers, hook sourcing, and the build-time guard — \"it built\" is not sufficient for this brownfield boot-behavior work.\n\nProcess: Identify the branch merge target before diffing (ask the user / PR metadata / branch config / recent history — do NOT assume main; the current branch is experiment/docker-sbx) and use it in git diff \u003ctarget\u003e...HEAD. Treat the pre-batch plan-review/docs commits and the OpenSpec change docs as baseline, not in-scope cleanup. For substantive gaps, laps add head a focused fix lap — fix nothing beyond tiny safe one-liners here, and never rewrite git history. Then check off the tasks.md boxes for tasks 1.2-4.3 that are verified correct AND thorough (a checked box means verified-done, not attempted). Remove all temporary sandboxes.",
       "assignee": "VERIFY",
-      "isDone": false,
+      "isDone": true,
       "order": 327680,
       "createdAt": "2026-06-17T07:00:27.696003852Z",
-      "updatedAt": "2026-06-17T07:00:27.696003852Z",
-      "completedAt": null
+      "updatedAt": "2026-06-18T00:46:31.614266419Z",
+      "completedAt": "2026-06-18T00:46:31.614266419Z"
     },
     {
       "id": "dune-b0ad",
