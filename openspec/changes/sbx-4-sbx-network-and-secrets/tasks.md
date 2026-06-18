@@ -39,4 +39,4 @@ Verification evidence (2026-06-19): `just smoke-sbx-egress --report tmp/sbx-egre
 
 ## 7. Documentation
 
-- [ ] 7.1 Document the egress posture (baseline, sandbox-scoped rules, opening domains), the `sbx policy log` observability path, and the secrets posture. Note `dune logs pipelock` is gone and the final `dune logs` lands in `sbx-5`.
+- [x] 7.1 Document the egress posture (baseline, sandbox-scoped rules, opening domains), the `sbx policy log` observability path, and the secrets posture. Note `dune logs pipelock` is gone and the final `dune logs` lands in `sbx-5`.
