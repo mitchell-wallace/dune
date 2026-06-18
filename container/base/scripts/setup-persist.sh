@@ -80,7 +80,43 @@ remove_unwanted_skill() {
     "${PERSIST_DIR}/.codex/skills/${skill_name}"
 }
 
+link_persist_root() {
+  if [ "${PERSIST_DIR}" = "/persist/agent" ]; then
+    return 0
+  fi
+
+  case "${PERSIST_DIR}" in
+    /*) ;;
+    *)
+      echo "PERSIST_DIR must be absolute: ${PERSIST_DIR}" >&2
+      return 1
+      ;;
+  esac
+
+  if [ ! -d "${PERSIST_DIR}" ]; then
+    echo "PERSIST_DIR does not exist or is not a directory: ${PERSIST_DIR}" >&2
+    return 1
+  fi
+
+  if [ -L /persist/agent ]; then
+    sudo ln -sfnT "${PERSIST_DIR}" /persist/agent
+    return 0
+  fi
+
+  if [ -e /persist/agent ]; then
+    if [ -d /persist/agent ] && [ -z "$(find /persist/agent -mindepth 1 -print -quit 2>/dev/null)" ]; then
+      sudo rmdir /persist/agent
+    else
+      echo "/persist/agent exists and is not an empty directory or symlink" >&2
+      return 1
+    fi
+  fi
+
+  sudo ln -sT "${PERSIST_DIR}" /persist/agent
+}
+
 ensure_persist_dir "${PERSIST_DIR}"
+link_persist_root
 sudo chown -R "${AGENT_USER}:${AGENT_GROUP}" "${PERSIST_DIR}"
 seed_dir ".claude"
 seed_dir ".codex"

@@ -132,6 +132,7 @@ cat >"${FIRST_COMMANDS}" <<EOF
 pwd > .dune-smoke-pwd \\
   && git rev-parse --show-toplevel > .dune-smoke-toplevel \\
   && readlink /workspace > .dune-smoke-workspace-link \\
+  && readlink /persist/agent > .dune-smoke-persist-link \\
   && readlink ~/.claude > .dune-smoke-claude-link \\
   && printf '%s\n' '${SENTINEL_VALUE}' > /persist/agent/${SENTINEL_FILE} \\
   && test -f /persist/agent/${SENTINEL_FILE}
@@ -143,6 +144,7 @@ run_dune_shell "${FIRST_COMMANDS}"
 assert_file_equals "${FIXTURE_ROOT}/.dune-smoke-pwd" "${FIXTURE_ROOT}"
 assert_file_equals "${FIXTURE_ROOT}/.dune-smoke-toplevel" "${FIXTURE_ROOT}"
 assert_file_equals "${FIXTURE_ROOT}/.dune-smoke-workspace-link" "${FIXTURE_ROOT}"
+assert_file_equals "${FIXTURE_ROOT}/.dune-smoke-persist-link" "${PERSIST_HOST_PATH}"
 
 CLAUDE_LINK="$(tr -d '\r\n' < "${FIXTURE_ROOT}/.dune-smoke-claude-link")"
 if [ "${CLAUDE_LINK}" != "${PERSIST_HOST_PATH}/.claude" ] && [ "${CLAUDE_LINK}" != "/persist/agent/.claude" ]; then
