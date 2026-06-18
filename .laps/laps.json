@@ -39,11 +39,11 @@
       "title": "Make /workspace a runtime symlink to the mount and record the DUNE_WORKSPACE contract",
       "description": "Context: The root Dockerfile ships a static WORKDIR /workspace (around line 211) plus a build-time chown of /workspace that masks the real mount under direct-mount sbx (design D4; tasks 3.1-3.3). The template must instead provide /workspace as a runtime symlink to the real mounted repo path, which only the backend knows.\n\nOutcome: The sbx template does not ship a static /workspace that masks the mount; a first-run/login step creates/refreshes /workspace as a symlink to the resolved mount path supplied via the DUNE_WORKSPACE env var, and the chosen delivery mechanism is written down as the contract sbx-3 D4 will adopt.\n\nFiles \u0026 scope: container/sbx/ (the first-run/login step — natural to co-locate with the setup-persist hook from the prior lap). Ensure the new template does NOT set WORKDIR /workspace or chown /workspace (those live in the root Dockerfile, which this change leaves alone — just don't reproduce them in container/sbx/). Record the delivery decision in the tasks.md 1.1/3.2 note and/or design.md as the handoff to sbx-3.\n\nDesign: Per D4, sbx create has no --env flag. Verified delivery options: exec-time -e DUNE_WORKSPACE=\u003cpath\u003e on the hook-firing sbx exec (recommended); a Dune-generated per-sandbox kit's environment.variables (experimental, create-time); or in-sandbox derivation (must disambiguate the primary rw virtiofs workspace from the profile-persist dir, which is also a workspace). Land ONE as the verified contract — recommended: exec-time -e for the hook invocation, with kit-based env noted as the create-time option. The canonical working dir is the real mount; /workspace is a compatibility bridge only.\n\nAcceptance: Ephemeral build succeeds. In a sandbox created with the chosen mechanism (e.g. sbx create --name \u003cn\u003e --template \u003cref\u003e shell \u003cmount path\u003e, then a hook exec carrying -e DUNE_WORKSPACE=\u003cmount path\u003e): readlink -f /workspace resolves to the mounted repo and git -C /workspace rev-parse --show-toplevel succeeds (task 3.3). The recorded DUNE_WORKSPACE contract for sbx-3 is written down. Do not tick tasks.md boxes. Remove any sandboxes you create.",
       "assignee": "SENIOR",
-      "isDone": false,
+      "isDone": true,
       "order": 262144,
       "createdAt": "2026-06-17T07:00:27.696001926Z",
-      "updatedAt": "2026-06-17T07:00:27.696001926Z",
-      "completedAt": null
+      "updatedAt": "2026-06-18T00:35:33.950954742Z",
+      "completedAt": "2026-06-18T00:35:33.950954742Z"
     },
     {
       "id": "dune-9469",
