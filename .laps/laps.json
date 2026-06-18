@@ -104,11 +104,11 @@
       "title": "Final sbx-4 acceptance: verify network/secrets posture and close the change",
       "description": "Scope: full-change verification of sbx-4-sbx-network-and-secrets. Run the complete openspec-verify-change against the change and inspect the WHOLE diff.\n\nBranch/diff: integration target is `dunex` (NOT main) — confirm from the user/branch config/recent history, then `git diff dunex...HEAD` (or merge-base). The first lap of this batch is the verify-only-baseline lap; treat work through the sbx-3 close as pre-existing baseline (flag, don't remove, unless the user asks). Do not rewrite git history; substantive gaps become new head laps.\n\nVerify against the two spec deltas (specs/sbx-network-policy/spec.md, specs/sbx-secrets/spec.md) and design D1-D6, tracing real evidence: the verify-only baseline + warn-closed boot logic (never Open, never global mutation); sandbox-scoped allow/deny/rm + exact/wildcard domain opening; `sbx policy log` observability wrapper; service-secret helpers + no-custom-secret-dependency; complete Pipelock removal with the D6 sequencing honored (grep confirms internal/dune/pipelock is gone and no proxy-env / `dune logs pipelock` remains); the smoke evidence (baseline blocks/opens/re-blocks a docs site, policy log records forward+transparent, toolchain traffic, no Pipelock started); and the docs. Confirm `go build ./cmd/dune` and `go test ./...` green.\n\nTick all remaining tasks.md boxes that are verified correct and thorough: 1.3, 2.3, 4.1, 4.2, 4.3, 5.1, 5.2, 5.3, 5.4, 6.1, 6.2, 6.3, 7.1 (and any of 1.1/1.2/2.1/2.2/3.1/3.2 not already ticked). A checked box means verified-done, not attempted. Report findings first, then close out.",
       "assignee": "VERIFY",
-      "isDone": false,
+      "isDone": true,
       "order": 589824,
       "createdAt": "2026-06-18T11:44:49.714719739Z",
-      "updatedAt": "2026-06-18T11:44:49.714719739Z",
-      "completedAt": null
+      "updatedAt": "2026-06-18T18:18:08.703164671Z",
+      "completedAt": "2026-06-18T18:18:08.703164671Z"
     }
   ]
 }
