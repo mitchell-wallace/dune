@@ -17,11 +17,11 @@
       "title": "Implement sbx readiness validation",
       "description": "Context\nBuilds on lap 1's Backend/Runner seam. Tasks 2.1-2.2 and the Validate failure-mode tests in 7.2. This replaces validateDockerPrerequisites (internal/dune/app.go, around line 575). Design D6 pins the exact command shapes.\n\nOutcome\nBackend.Validate is implemented against the Runner seam: sbx present on PATH; sbx diagnose --output json reports all checks passing (this also covers daemon health and authentication — the spikes saw 8 checks pass); and the installed sbx version (from sbx version, observed v0.32.0) meets a pinned minimum (candidate v0.32.0). Each unmet requirement returns a clear, actionable error, and no sandbox operation proceeds when validation fails (2.2).\n\nFiles \u0026 scope\ninternal/dune/runtime/sbx/ (validation source + tests). Do not wire Validate into app.go yet — that happens in the restructure lap.\n\nDesign\nThe JSON flag is NOT uniform across sbx subcommands: sbx diagnose uses --output json while sbx ls (used later by Status) uses --json (D6). Use diagnose's verified --output json here. Pin the parse shapes in fakeRunner tests so a future sbx flag change surfaces as a failing test. Implement a small semver-style minimum-version comparison rather than a string compare.\n\nAcceptance\ngo test ./internal/dune/runtime/sbx/... passes, including failure-mode tests (7.2) for: missing sbx (not on PATH), failed diagnose (a check reporting not-passing), and below-minimum version. Tests assert the exact constructed args (sbx diagnose --output json, sbx version). Do not tick any tasks.md boxes.",
       "assignee": "JUNIOR",
-      "isDone": false,
+      "isDone": true,
       "order": 131072,
       "createdAt": "2026-06-18T05:31:37.028929591Z",
-      "updatedAt": "2026-06-18T05:31:37.028929591Z",
-      "completedAt": null
+      "updatedAt": "2026-06-18T07:55:32.69946082Z",
+      "completedAt": "2026-06-18T07:55:32.69946082Z"
     },
     {
       "id": "dune-9f7d",
