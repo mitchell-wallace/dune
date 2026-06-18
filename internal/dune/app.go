@@ -2,37 +2,30 @@ package dune
 
 import (
 	"archive/tar"
-	"bytes"
 	"compress/gzip"
 	"context"
-	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
 	"sort"
 	"strings"
-	"text/template"
 
 	"claudebox/internal/dune/cli"
-	"claudebox/internal/dune/pipelock"
 	sbxruntime "claudebox/internal/dune/runtime/sbx"
 	"claudebox/internal/dune/workspace"
 	"claudebox/internal/version"
 )
 
 const (
-	defaultProfile   = "default"
-	defaultShell     = "zsh"
-	composeShell     = defaultShell
-	logTailLineCount = "60"
-	helpText         = `Usage: dune [command] [options]
+	defaultProfile = "default"
+	defaultShell   = "zsh"
+	helpText       = `Usage: dune [command] [options]
 
 Commands:
   up               Start or attach to the sandbox (default)
@@ -55,11 +48,7 @@ Runtime flags (for up/down/rebuild/logs):
 )
 
 var (
-	//go:embed compose.yaml.tmpl
-	composeTemplateText string
-
-	composeTemplate = template.Must(template.New("compose.yaml.tmpl").Parse(composeTemplateText))
-	profileNameRE   = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+	profileNameRE = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 )
 
 var newRuntimeBackend = func() sbxruntime.Backend {
@@ -71,22 +60,6 @@ type Environment struct {
 }
 
 type profileStore map[string]string
-
-type project struct {
-	WorkspaceRoot      string
-	WorkspaceSlug      string
-	Profile            string
-	ComposeProject     string
-	ComposeDir         string
-	ComposePath        string
-	PersistVolume      string
-	BaseImage          string
-	AgentImage         string
-	UseBuild           bool
-	PipelockImage      string
-	PipelockConfigPath string
-	TZ                 string
-}
 
 func Run(ctx context.Context, argv []string, env Environment, stdout, stderr io.Writer) error {
 	opts, err := cli.Parse(argv)
@@ -385,274 +358,6 @@ func validateProfileName(name string) error {
 	return nil
 }
 
-func ensurePipelockConfig(ctx context.Context, path string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("create pipelock config directory: %w", err)
-	}
-
-	var source []byte
-	existing, err := os.ReadFile(path)
-	switch {
-	case err == nil:
-		source = existing
-	case os.IsNotExist(err):
-		baseline, baselineErr := capturePipelockConfig(ctx)
-		if baselineErr != nil {
-			return fmt.Errorf("generate pipelock baseline config: %w", baselineErr)
-		}
-		source = baseline
-	default:
-		return fmt.Errorf("read pipelock config: %w", err)
-	}
-
-	rendered, err := pipelock.ApplyCustomizations(source)
-	if err != nil {
-		return err
-	}
-	if bytes.Equal(existing, rendered) {
-		return nil
-	}
-	if err := os.WriteFile(path, rendered, 0o644); err != nil {
-		return fmt.Errorf("write pipelock config: %w", err)
-	}
-	return nil
-}
-
-func ensureComposeFile(ctx context.Context, proj project) error {
-	if err := os.MkdirAll(proj.ComposeDir, 0o755); err != nil {
-		return fmt.Errorf("create compose directory: %w", err)
-	}
-	rendered, err := renderComposeFile(proj)
-	if err != nil {
-		return err
-	}
-
-	tmpFile, err := os.CreateTemp(proj.ComposeDir, "compose-*.yaml")
-	if err != nil {
-		return fmt.Errorf("create temporary compose file: %w", err)
-	}
-	tmpPath := tmpFile.Name()
-	defer func() {
-		_ = os.Remove(tmpPath)
-	}()
-
-	if _, err := tmpFile.Write(rendered); err != nil {
-		_ = tmpFile.Close()
-		return fmt.Errorf("write temporary compose file: %w", err)
-	}
-	if err := tmpFile.Close(); err != nil {
-		return fmt.Errorf("close temporary compose file: %w", err)
-	}
-
-	if err := validateComposeFile(ctx, proj, tmpPath); err != nil {
-		return err
-	}
-	if err := os.Rename(tmpPath, proj.ComposePath); err != nil {
-		return fmt.Errorf("write compose file: %w", err)
-	}
-	return nil
-}
-
-func renderComposeFile(proj project) ([]byte, error) {
-	var rendered bytes.Buffer
-	if err := composeTemplate.Execute(&rendered, proj); err != nil {
-		return nil, fmt.Errorf("render compose template: %w", err)
-	}
-	return rendered.Bytes(), nil
-}
-
-func validateComposeFile(ctx context.Context, proj project, path string) error {
-	args := []string{"compose", "-f", path, "-p", proj.ComposeProject, "config"}
-	output, err := capture(ctx, "", "docker", args...)
-	if err != nil {
-		detail := strings.TrimSpace(string(output))
-		if detail != "" {
-			return fmt.Errorf("validate compose file: %s", detail)
-		}
-		return fmt.Errorf("validate compose file: %w", err)
-	}
-	return nil
-}
-
-func ensureVolume(ctx context.Context, name string) error {
-	if _, err := capture(ctx, "", "docker", "volume", "create", name); err != nil {
-		return fmt.Errorf("create persist volume %q: %w", name, err)
-	}
-	return nil
-}
-
-func prepareAgentImage(ctx context.Context, proj project, noCache bool, stdout, stderr io.Writer) error {
-	_, _ = fmt.Fprintf(stderr, "Pulling base image %s...\n", proj.BaseImage)
-	if err := runStreaming(ctx, "", stdout, stderr, "docker", "pull", proj.BaseImage); err != nil {
-		if !localImageExists(ctx, proj.BaseImage) {
-			return fmt.Errorf("pull base image %q: %w", proj.BaseImage, err)
-		}
-		_, _ = fmt.Fprintf(stderr, "Base image pull failed, using existing local image %s.\n", proj.BaseImage)
-	}
-	if !proj.UseBuild {
-		return nil
-	}
-
-	_, _ = fmt.Fprintln(stderr, "Building agent image from Dockerfile.dune...")
-	args := composeArgs(proj, "build")
-	if noCache {
-		args = append(args, "--no-cache")
-	}
-	args = append(args, "agent")
-	if err := runStreaming(ctx, "", stdout, stderr, "docker", args...); err != nil {
-		return fmt.Errorf("build Dockerfile.dune image: %w", err)
-	}
-	return nil
-}
-
-func composeUp(ctx context.Context, proj project, stderr io.Writer) error {
-	if _, err := capture(ctx, "", "docker", composeArgs(proj, "up", "-d")...); err != nil {
-		tail, tailErr := capture(ctx, "", "docker", composeArgs(proj, "logs", "--tail", logTailLineCount)...)
-		if tailErr == nil && len(bytes.TrimSpace(tail)) > 0 {
-			_, _ = fmt.Fprintf(stderr, "Recent compose logs:\n%s\n", tail)
-		}
-		return fmt.Errorf("docker compose up failed: %w", err)
-	}
-	return nil
-}
-
-func isAgentRunning(ctx context.Context, proj project) (bool, error) {
-	output, err := capture(ctx, "", "docker", composeArgs(proj, "ps", "--status", "running", "--services", "agent")...)
-	if err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) && len(exitErr.Stderr) == 0 {
-			return false, nil
-		}
-		return false, fmt.Errorf("inspect compose service state: %w", err)
-	}
-	return strings.TrimSpace(string(output)) == "agent", nil
-}
-
-func isAgentCreated(ctx context.Context, proj project) (bool, error) {
-	output, err := capture(ctx, "", "docker", composeArgs(proj, "ps", "--all", "--services", "agent")...)
-	if err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) && len(exitErr.Stderr) == 0 {
-			return false, nil
-		}
-		return false, fmt.Errorf("inspect compose service state: %w", err)
-	}
-	return strings.TrimSpace(string(output)) == "agent", nil
-}
-
-func validateDockerPrerequisites(ctx context.Context) error {
-	if _, err := exec.LookPath("docker"); err != nil {
-		return errors.New("docker is not installed or not on PATH")
-	}
-	if _, err := capture(ctx, "", "docker", "compose", "version"); err != nil {
-		return fmt.Errorf("docker compose is unavailable: %w", err)
-	}
-	if _, err := capture(ctx, "", "docker", "info"); err != nil {
-		return fmt.Errorf("docker daemon is not reachable; start Docker and try again: %w", err)
-	}
-	return nil
-}
-
-func composeArgs(proj project, args ...string) []string {
-	base := []string{"compose", "-f", proj.ComposePath, "-p", proj.ComposeProject}
-	return append(base, args...)
-}
-
-// attachArgs builds the `docker compose exec` invocation used to attach an
-// interactive shell. `docker compose exec` (Compose v2) does not propagate the
-// caller's TERM into the container the way `docker exec -t` does -- it defaults
-// the container to TERM=xterm (8 colours), which collapses powerlevel10k's
-// 256-colour prompt to monochrome. Forward TERM (and COLORTERM) explicitly so
-// the prompt renders in full colour; the image's .zshrc normalises any TERM the
-// container has no terminfo entry for.
-func attachArgs(proj project) []string {
-	exec := []string{"exec"}
-	for _, key := range []string{"TERM", "COLORTERM"} {
-		if value := os.Getenv(key); value != "" {
-			exec = append(exec, "-e", key+"="+value)
-		}
-	}
-	exec = append(exec, "agent", composeShell)
-	return composeArgs(proj, exec...)
-}
-
-func localImageExists(ctx context.Context, image string) bool {
-	output, err := capture(ctx, "", "docker", "image", "inspect", image)
-	return err == nil && len(output) > 0
-}
-
-func capture(ctx context.Context, dir, name string, args ...string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Dir = dir
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			exitErr.Stderr = output
-		}
-		return output, err
-	}
-	return output, nil
-}
-
-func capturePipelockConfig(ctx context.Context) ([]byte, error) {
-	args := pipelock.GenerateConfigCommand()[1:]
-	stdout, stderr, err := captureSplit(ctx, "", "docker", args...)
-	if err != nil {
-		return stdout, err
-	}
-
-	source := stdout
-	if len(bytes.TrimSpace(source)) == 0 {
-		source = stderr
-	}
-
-	source = trimToPipelockYAML(source)
-	if len(bytes.TrimSpace(source)) == 0 {
-		return nil, fmt.Errorf("pipelock generated empty config")
-	}
-	return source, nil
-}
-
-func captureSplit(ctx context.Context, dir, name string, args ...string) ([]byte, []byte, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Dir = dir
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	output, err := cmd.Output()
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			exitErr.Stderr = stderr.Bytes()
-		}
-		return output, stderr.Bytes(), err
-	}
-	return output, stderr.Bytes(), nil
-}
-
-func trimToPipelockYAML(output []byte) []byte {
-	trimmed := bytes.TrimSpace(output)
-	for _, marker := range [][]byte{
-		[]byte("# Pipelock config"),
-		[]byte("version:"),
-	} {
-		if idx := bytes.Index(trimmed, marker); idx >= 0 {
-			return trimmed[idx:]
-		}
-	}
-	return trimmed
-}
-
-func runStreaming(ctx context.Context, dir string, stdout, stderr io.Writer, name string, args ...string) error {
-	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Dir = dir
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-	if err := cmd.Run(); err != nil {
-		return err
-	}
-	return nil
-}
-
 func loadProfileStore(path string) (profileStore, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -722,30 +427,4 @@ func effectiveTimezone() string {
 		}
 	}
 	return "UTC"
-}
-
-func dataHomeDir() (string, error) {
-	if home := strings.TrimSpace(os.Getenv("XDG_DATA_HOME")); home != "" {
-		return home, nil
-	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("resolve home directory: %w", err)
-	}
-	return filepath.Join(home, ".local", "share"), nil
-}
-
-func fileExists(path string) bool {
-	info, err := os.Stat(path)
-	return err == nil && !info.IsDir()
-}
-
-func compact(items []string) []string {
-	result := make([]string, 0, len(items))
-	for _, item := range items {
-		if strings.TrimSpace(item) != "" {
-			result = append(result, item)
-		}
-	}
-	return result
 }

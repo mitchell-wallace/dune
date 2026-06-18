@@ -38,14 +38,14 @@ func TestParseDown(t *testing.T) {
 func TestParseLogsService(t *testing.T) {
 	t.Parallel()
 
-	opts, err := Parse([]string{"logs", "pipelock"})
+	opts, err := Parse([]string{"logs", "setup-persist"})
 	if err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
 	if opts.Command != CommandLogs {
 		t.Fatalf("Command = %q, want %q", opts.Command, CommandLogs)
 	}
-	if opts.LogService != "pipelock" {
+	if opts.LogService != "setup-persist" {
 		t.Fatalf("LogService = %q", opts.LogService)
 	}
 }

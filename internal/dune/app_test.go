@@ -2,8 +2,6 @@ package dune
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -61,42 +59,6 @@ func TestResolveProfileRejectsInvalidExplicitName(t *testing.T) {
 	}
 }
 
-func TestRenderComposeFileGolden(t *testing.T) {
-	t.Parallel()
-
-	proj := project{
-		WorkspaceRoot:      "/workspace/demo-app",
-		WorkspaceSlug:      "demo-app-96",
-		Profile:            "work",
-		ComposeProject:     "dune-demo-app-96-work",
-		ComposeDir:         "/tmp/dune/projects/demo-app-96",
-		ComposePath:        "/tmp/dune/projects/demo-app-96/compose.yaml",
-		PersistVolume:      "dune-persist-work",
-		BaseImage:          version.BaseImageRef(),
-		AgentImage:         "dune-local-demo-app-96:latest",
-		UseBuild:           true,
-		PipelockImage:      "ghcr.io/luckypipewrench/pipelock:2.0.0",
-		PipelockConfigPath: "/home/agent/.config/dune/pipelock.yaml",
-		TZ:                 "Australia/Melbourne",
-	}
-
-	got, err := renderComposeFile(proj)
-	if err != nil {
-		t.Fatalf("renderComposeFile() error = %v", err)
-	}
-
-	goldenPath := filepath.Join("testdata", "compose.golden.yaml")
-	want, err := os.ReadFile(goldenPath)
-	if err != nil {
-		t.Fatalf("ReadFile(%q) error = %v", goldenPath, err)
-	}
-
-	wantText := strings.ReplaceAll(string(want), "{{BASE_IMAGE_REF}}", version.BaseImageRef())
-	if string(got) != wantText {
-		t.Fatalf("renderComposeFile() mismatch\n--- got ---\n%s\n--- want ---\n%s", got, wantText)
-	}
-}
-
 func TestRunUpDispatchesToSbxBackendAndIgnoresDockerfile(t *testing.T) {
 	fixtureRoot := testutil.CopyProjectFixture(t, "sample-project")
 	testutil.InitGitRepo(t, fixtureRoot)
@@ -107,27 +69,14 @@ func TestRunUpDispatchesToSbxBackendAndIgnoresDockerfile(t *testing.T) {
 		t.Fatalf("workspace.Resolve() error = %v", err)
 	}
 
-	dataHome := filepath.Join(t.TempDir(), "data")
 	configHome := filepath.Join(t.TempDir(), "config")
-	homeDir := filepath.Join(t.TempDir(), "home")
-	if err := os.MkdirAll(dataHome, 0o755); err != nil {
-		t.Fatalf("MkdirAll(dataHome) error = %v", err)
-	}
-	if err := os.MkdirAll(configHome, 0o755); err != nil {
-		t.Fatalf("MkdirAll(configHome) error = %v", err)
-	}
-	if err := os.MkdirAll(homeDir, 0o755); err != nil {
-		t.Fatalf("MkdirAll(homeDir) error = %v", err)
-	}
 
 	backend := &fakeRuntimeBackend{
 		statuses: []sbxruntime.State{{Exists: true, Running: false}},
 	}
 	withRuntimeBackend(t, backend)
 
-	t.Setenv("XDG_DATA_HOME", dataHome)
 	t.Setenv("XDG_CONFIG_HOME", configHome)
-	t.Setenv("HOME", homeDir)
 	t.Setenv("TZ", "Australia/Melbourne")
 
 	var stdout, stderr strings.Builder
@@ -159,71 +108,6 @@ func TestRunUpDispatchesToSbxBackendAndIgnoresDockerfile(t *testing.T) {
 		if call.spec != wantSpec {
 			t.Fatalf("%s spec = %+v, want %+v", call.name, call.spec, wantSpec)
 		}
-	}
-
-	if _, err := os.Stat(filepath.Join(dataHome, "dune", "projects", ws.Slug, "compose.yaml")); !os.IsNotExist(err) {
-		t.Fatalf("compose file was created on sbx path: %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(configHome, "dune", "pipelock.yaml")); !os.IsNotExist(err) {
-		t.Fatalf("pipelock config was created on sbx path: %v", err)
-	}
-}
-
-func TestPrepareAgentImageReportsProgress(t *testing.T) {
-	binDir := filepath.Join(t.TempDir(), "bin")
-	if err := os.MkdirAll(binDir, 0o755); err != nil {
-		t.Fatalf("MkdirAll(binDir) error = %v", err)
-	}
-
-	dockerShimPath := filepath.Join(binDir, "docker")
-	baseImageRef := version.BaseImageRef()
-	dockerShim := fmt.Sprintf(`#!/usr/bin/env bash
-set -euo pipefail
-
-if [ "$#" -ge 2 ] && [ "$1" = "pull" ] && [ "$2" = %q ]; then
-  echo "pull ok"
-  exit 0
-fi
-
-if [ "$#" -ge 1 ] && [ "$1" = "compose" ]; then
-  for arg in "$@"; do
-    case "$arg" in
-      build)
-        echo "build ok"
-        exit 0
-        ;;
-    esac
-  done
-fi
-
-echo "unexpected docker invocation: $*" >&2
-exit 1
-`, baseImageRef)
-	if err := os.WriteFile(dockerShimPath, []byte(dockerShim), 0o755); err != nil {
-		t.Fatalf("WriteFile(docker shim) error = %v", err)
-	}
-
-	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
-
-	proj := project{
-		WorkspaceSlug: "demo-app-96",
-		BaseImage:     baseImageRef,
-		UseBuild:      true,
-		ComposePath:   "/tmp/dune/projects/demo-app-96/compose.yaml",
-	}
-
-	var stdout, stderr strings.Builder
-	err := prepareAgentImage(context.Background(), proj, false, &stdout, &stderr)
-	if err != nil {
-		t.Fatalf("prepareAgentImage() error = %v", err)
-	}
-
-	stderrText := stderr.String()
-	if !strings.Contains(stderrText, "Pulling base image "+baseImageRef+"...") {
-		t.Fatalf("expected base image progress output, got:\n%s", stderrText)
-	}
-	if !strings.Contains(stderrText, "Building agent image from Dockerfile.dune...") {
-		t.Fatalf("expected Dockerfile.dune build progress output, got:\n%s", stderrText)
 	}
 }
 
@@ -327,119 +211,6 @@ func TestVersionAndProfileCommandsDoNotCreateRuntimeBackend(t *testing.T) {
 	}
 	if called {
 		t.Fatal("runtime backend factory was called for version/profile command")
-	}
-}
-
-func TestEnsurePipelockConfigReconcilesExistingConfig(t *testing.T) {
-	configDir := filepath.Join(t.TempDir(), "config")
-	configPath := filepath.Join(configDir, "dune", "pipelock.yaml")
-	if err := os.MkdirAll(filepath.Dir(configPath), 0o755); err != nil {
-		t.Fatalf("MkdirAll(config dir) error = %v", err)
-	}
-
-	staleConfig := `version: 1
-mode: balanced
-enforce: true
-api_allowlist:
-  - github.com
-forward_proxy:
-  enabled: false
-logging:
-  format: json
-  output: stdout
-`
-	if err := os.WriteFile(configPath, []byte(staleConfig), 0o644); err != nil {
-		t.Fatalf("WriteFile(configPath) error = %v", err)
-	}
-
-	binDir := filepath.Join(t.TempDir(), "bin")
-	if err := os.MkdirAll(binDir, 0o755); err != nil {
-		t.Fatalf("MkdirAll(binDir) error = %v", err)
-	}
-
-	commandLog := filepath.Join(t.TempDir(), "docker.log")
-	dockerShimPath := filepath.Join(binDir, "docker")
-	dockerShim := fmt.Sprintf(`#!/usr/bin/env bash
-set -euo pipefail
-printf '%%s\n' "$*" >> %q
-echo "unexpected docker invocation: $*" >&2
-exit 1
-`, commandLog)
-	if err := os.WriteFile(dockerShimPath, []byte(dockerShim), 0o755); err != nil {
-		t.Fatalf("WriteFile(docker shim) error = %v", err)
-	}
-
-	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
-
-	if err := ensurePipelockConfig(context.Background(), configPath); err != nil {
-		t.Fatalf("ensurePipelockConfig() error = %v", err)
-	}
-
-	configData, err := os.ReadFile(configPath)
-	if err != nil {
-		t.Fatalf("ReadFile(configPath) error = %v", err)
-	}
-	configText := string(configData)
-	if !strings.Contains(configText, "forward_proxy:") || !strings.Contains(configText, "enabled: true") {
-		t.Fatalf("expected forward proxy to be enabled in reconciled config:\n%s", configText)
-	}
-	if !strings.Contains(configText, "accounts.google.com") {
-		t.Fatalf("expected reconciled config to include dune allowlist additions:\n%s", configText)
-	}
-
-	logData, err := os.ReadFile(commandLog)
-	if err != nil && !os.IsNotExist(err) {
-		t.Fatalf("ReadFile(commandLog) error = %v", err)
-	}
-	if len(logData) != 0 {
-		t.Fatalf("expected existing config reconciliation to avoid docker calls, got log:\n%s", logData)
-	}
-}
-
-func TestEnsurePipelockConfigIgnoresDockerPullStderr(t *testing.T) {
-	configDir := filepath.Join(t.TempDir(), "config")
-	configPath := filepath.Join(configDir, "dune", "pipelock.yaml")
-
-	baselinePath := filepath.Join("pipelock", "testdata", "balanced-2.0.0.yaml")
-	binDir := filepath.Join(t.TempDir(), "bin")
-	if err := os.MkdirAll(binDir, 0o755); err != nil {
-		t.Fatalf("MkdirAll(binDir) error = %v", err)
-	}
-
-	dockerShimPath := filepath.Join(binDir, "docker")
-	dockerShim := fmt.Sprintf(`#!/usr/bin/env bash
-set -euo pipefail
-
-if [ "$#" -ge 7 ] && [ "$1" = "run" ] && [ "$2" = "--rm" ] && [ "$4" = "generate" ] && [ "$5" = "config" ]; then
-  echo "Unable to find image '$3' locally" >&2
-  echo "$3: Pulling from luckypipewrench/pipelock" >&2
-  cat %q >&2
-  exit 0
-fi
-
-echo "unexpected docker invocation: $*" >&2
-exit 1
-`, baselinePath)
-	if err := os.WriteFile(dockerShimPath, []byte(dockerShim), 0o755); err != nil {
-		t.Fatalf("WriteFile(docker shim) error = %v", err)
-	}
-
-	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
-
-	if err := ensurePipelockConfig(context.Background(), configPath); err != nil {
-		t.Fatalf("ensurePipelockConfig() error = %v", err)
-	}
-
-	configData, err := os.ReadFile(configPath)
-	if err != nil {
-		t.Fatalf("ReadFile(configPath) error = %v", err)
-	}
-	configText := string(configData)
-	if strings.Contains(configText, "Unable to find image") || strings.Contains(configText, "Pulling from") {
-		t.Fatalf("pipelock config contains docker stderr:\n%s", configText)
-	}
-	if !strings.Contains(configText, "response_scanning:") || !strings.Contains(configText, "accounts.google.com") {
-		t.Fatalf("pipelock config missing expected customization:\n%s", configText)
 	}
 }
 
