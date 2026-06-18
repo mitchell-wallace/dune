@@ -79,26 +79,26 @@
       "completedAt": "2026-06-18T08:40:37.680263558Z"
     },
     {
-      "id": "dune-b851",
-      "title": "Fix sbx /persist/agent durable mount wiring",
-      "description": "Context\nThe `dune-a5fa` smoke gate added `test/smoke/sbx-runtime.sh` and ran it against an installed/authenticated `sbx` v0.32.0 plus a locally built/loaded `ghcr.io/mitchell-wallace/dune-sbx:0.4.8` template. The first `dune up` shell proved the attach cwd is the mounted repo path and `/workspace` points at that repo. The D3 persistence half failed: a sentinel written to `/persist/agent/dune-sbx-smoke-sentinel.txt` disappeared after `sbx rm --force` and recreate via `dune up`/`Ensure`.\n\nDiagnosis\n`Ensure` currently passes the profile persist host directory as an extra positional workspace and fires the template hook with `PERSIST_DIR=\u003cabsolute host persist path\u003e`. That makes home symlinks such as `~/.claude` resolve to the mounted host path, but `/persist/agent` itself remains the sandbox-local image directory. Therefore writes made directly under `/persist/agent` do not land in the durable profile persist mount and are lost on sandbox removal.\n\nOutcome\nAdjust the sbx runtime/template wiring so `/persist/agent` itself resolves to the durable profile-scoped mount while preserving the existing `DUNE_WORKSPACE` `/workspace` contract and the setup-persist first-login behavior. Keep the command construction pinned with fakeRunner tests. Re-run `test/smoke/sbx-runtime.sh` against the loaded or rebuilt `dune-sbx` template; it must demonstrate both cwd-at-repo and `/persist/agent` sentinel survival across `sbx rm --force` + `Ensure` recreate.\n\nAcceptance\n`test/smoke/sbx-runtime.sh` passes; `go build ./cmd/dune` and `go test ./...` pass; no temporary sandboxes are leaked (`sbx ls --json` has no smoke sandbox). Do not tick OpenSpec `tasks.md` boxes.",
-      "assignee": "SENIOR",
-      "isDone": false,
-      "order": 393216,
-      "createdAt": "2026-06-18T09:01:23.947440043Z",
-      "updatedAt": "2026-06-18T09:01:23.947440043Z",
-      "completedAt": null
-    },
-    {
       "id": "dune-a5fa",
       "title": "Smoke-verify the sbx runtime against the dune-sbx template",
       "description": "Context\nThe empirical gate for the cutover. Tasks 8.1, 8.2. Requires an installed, authenticated sbx (meeting the pinned minimum) and the dune-sbx template (ghcr.io/mitchell-wallace/dune-sbx — pull it, or load locally via docker save + sbx template load per design Open Questions). Per AGENTS.md you may build an ephemeral template image to test against.\n\nOutcome\nA smoke test against the installed sbx that: (a) creates a sandbox from the dune-sbx template via Ensure and confirms the attached shell's cwd is the mounted repo path (git rev-parse --show-toplevel succeeds); and (b) gates D3 — writes a sentinel under /persist/agent (into the profile-persist mount), runs sbx rm --force, recreates via Ensure, and confirms the sentinel survives the recreate, proving profile state is decoupled from the sandbox lifecycle. Temporary sandboxes are cleaned up (sbx rm --force) afterward. go build ./cmd/dune and go test ./... pass (8.2).\n\nFiles \u0026 scope\nThe smoke test (adjust/add under the existing smoke harness) and internal/dune/runtime/sbx as needed. Remove any temporary sandboxes the test creates.\n\nDesign\nThis is the persistence-survival gate that makes the cutover safe — spike 4 proved the mechanism standalone; this reproduces it through Ensure. The persist mount lands at its absolute host path in the sandbox, so confirm the setup-persist PERSIST_DIR wiring actually resolves the /persist/agent symlinks to the mount. If the smoke reveals a wiring gap, file a focused head lap rather than expanding scope here.\n\nAcceptance\nThe smoke run demonstrates cwd-at-repo AND sentinel-survives-recreate; build + full test suite green; no leaked sandboxes. Do not tick any tasks.md boxes.",
       "assignee": "SENIOR",
-      "isDone": false,
+      "isDone": true,
       "order": 458752,
       "createdAt": "2026-06-18T05:31:37.028946299Z",
-      "updatedAt": "2026-06-18T05:31:37.028946299Z",
-      "completedAt": null
+      "updatedAt": "2026-06-18T09:50:13.262612392Z",
+      "completedAt": "2026-06-18T09:50:13.262612392Z"
+    },
+    {
+      "id": "dune-b851",
+      "title": "Fix sbx /persist/agent durable mount wiring",
+      "description": "Context\nThe `dune-a5fa` smoke gate added `test/smoke/sbx-runtime.sh` and ran it against an installed/authenticated `sbx` v0.32.0 plus a locally built/loaded `ghcr.io/mitchell-wallace/dune-sbx:0.4.8` template. The first `dune up` shell proved the attach cwd is the mounted repo path and `/workspace` points at that repo. The D3 persistence half failed: a sentinel written to `/persist/agent/dune-sbx-smoke-sentinel.txt` disappeared after `sbx rm --force` and recreate via `dune up`/`Ensure`.\n\nDiagnosis\n`Ensure` currently passes the profile persist host directory as an extra positional workspace and fires the template hook with `PERSIST_DIR=\u003cabsolute host persist path\u003e`. That makes home symlinks such as `~/.claude` resolve to the mounted host path, but `/persist/agent` itself remains the sandbox-local image directory. Therefore writes made directly under `/persist/agent` do not land in the durable profile persist mount and are lost on sandbox removal.\n\nOutcome\nAdjust the sbx runtime/template wiring so `/persist/agent` itself resolves to the durable profile-scoped mount while preserving the existing `DUNE_WORKSPACE` `/workspace` contract and the setup-persist first-login behavior. Keep the command construction pinned with fakeRunner tests. Re-run `test/smoke/sbx-runtime.sh` against the loaded or rebuilt `dune-sbx` template; it must demonstrate both cwd-at-repo and `/persist/agent` sentinel survival across `sbx rm --force` + `Ensure` recreate.\n\nAcceptance\n`test/smoke/sbx-runtime.sh` passes; `go build ./cmd/dune` and `go test ./...` pass; no temporary sandboxes are leaked (`sbx ls --json` has no smoke sandbox). Do not tick OpenSpec `tasks.md` boxes.",
+      "assignee": "SENIOR",
+      "isDone": true,
+      "order": 393216,
+      "createdAt": "2026-06-18T09:01:23.947440043Z",
+      "updatedAt": "2026-06-18T09:50:18.587784373Z",
+      "completedAt": "2026-06-18T09:50:18.587784373Z"
     },
     {
       "id": "dune-4c3f",
