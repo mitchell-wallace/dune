@@ -26,17 +26,17 @@
 
 ## 5. Versioning, build, and publish
 
-- [ ] 5.1 Choose the template image reference and version scheme (e.g. `ghcr.io/mitchell-wallace/dune-sbx:<version>`), kept in lockstep with the CLI `VERSION` (D6).
-- [ ] 5.2 Add a build-and-push job for the template image (extend `image.yml` or add a workflow), publishing to GHCR.
-- [ ] 5.3 Document `sbx create --template <ref>` usage, `sbx template load` for offline use, and `sbx secret set --registry` for private registries.
-- [ ] 5.4 Document that the template is built from source only, is never produced via `sbx template save`, and is not a secret boundary (D7).
+- [x] 5.1 Choose the template image reference and version scheme (e.g. `ghcr.io/mitchell-wallace/dune-sbx:<version>`), kept in lockstep with the CLI `VERSION` (D6).
+- [x] 5.2 Add a build-and-push job for the template image (extend `image.yml` or add a workflow), publishing to GHCR.
+- [x] 5.3 Document `sbx create --template <ref>` usage, `sbx template load` for offline use, and `sbx secret set --registry` for private registries.
+- [x] 5.4 Document that the template is built from source only, is never produced via `sbx template save`, and is not a secret boundary (D7).
 
 ## 6. Acceptance verification (spike-2 matrix)
 
-- [ ] 6.1 Run the gating acceptance matrix in an ephemeral sandbox (`sbx create --name <name> --template <ref> shell <mount path>`): sandbox starts and appears in `sbx ls --json`; `/workspace` resolves to the mounted repo; the re-homed `setup-persist` hook has wired the agent-home symlinks into `/persist/agent` and logged to `/var/log/dune/setup-persist.log` (D2a/D3/D5a); `dockerd` responds and the sbx init does not crash-loop; Docker + Compose work and `docker run --rm hello-world` succeeds; nested `docker compose up -d` (service bound to `0.0.0.0`) works; Playwright launches Chromium; `sbx ports <name> --publish <port> --json` exposes the nested service and the host can reach the published port.
-- [ ] 6.2 Verify network mediation is intact: `sbx policy deny network --sandbox <name> example.com` blocks both shell (`forward`) and nested-Docker (`transparent`) traffic, with blocked records in `sbx policy log <name> --limit <n>`.
-- [ ] 6.3 Remove all temporary sandboxes created during verification.
+- [x] 6.1 Run the gating acceptance matrix in an ephemeral sandbox (`sbx create --name <name> --template <ref> shell <mount path>`): sandbox starts and appears in `sbx ls --json`; `/workspace` resolves to the mounted repo; the re-homed `setup-persist` hook has wired the agent-home symlinks into `/persist/agent` and logged to `/var/log/dune/setup-persist.log` (D2a/D3/D5a); `dockerd` responds and the sbx init does not crash-loop; Docker + Compose work and `docker run --rm hello-world` succeeds; nested `docker compose up -d` (service bound to `0.0.0.0`) works; Playwright launches Chromium; `sbx ports <name> --publish <port> --json` exposes the nested service and the host can reach the published port.
+- [x] 6.2 Verify network mediation is intact: `sbx policy deny network --sandbox <name> example.com` blocks both shell (`forward`) and nested-Docker (`transparent`) traffic, with blocked records in `sbx policy log <name> --limit <n>`.
+- [x] 6.3 Remove all temporary sandboxes created during verification.
 
 ## 7. Documentation
 
-- [ ] 7.1 Document the Dune sbx template: what it contains, how it is built/published/versioned, the `/workspace` compatibility behavior, the removal of in-container Postgres/Redis/Mailpit and s6-overlay (app deps now via project-owned Compose, a breaking change), and the re-homed `setup-persist` boot hook + `/var/log/dune/` log path. Note that the CLI runtime that launches it lands in `sbx-3-sbx-runtime-backend`.
+- [x] 7.1 Document the Dune sbx template: what it contains, how it is built/published/versioned, the `/workspace` compatibility behavior, the removal of in-container Postgres/Redis/Mailpit and s6-overlay (app deps now via project-owned Compose, a breaking change), and the re-homed `setup-persist` boot hook + `/var/log/dune/` log path. Note that the CLI runtime that launches it lands in `sbx-3-sbx-runtime-backend`.
