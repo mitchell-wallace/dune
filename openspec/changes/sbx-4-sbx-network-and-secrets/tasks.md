@@ -7,8 +7,8 @@
 
 ## 2. Sandbox-scoped rules and domain opening
 
-- [ ] 2.1 Apply Dune-managed egress rules scoped to the workspace's sandbox (`sbx policy allow/deny network --sandbox <instance> ...`), not the global default policy (D2). Use the `--sandbox <name>` form (positional was rejected in the spike).
-- [ ] 2.2 Provide a domain-opening affordance/guidance that adds the exact domain and, when needed, a specific wildcard (`example.org` + `*.example.org`), prefers exact + specific-wildcard over broad catch-alls, and takes effect immediately (D3).
+- [x] 2.1 Apply Dune-managed egress rules scoped to the workspace's sandbox (`sbx policy allow/deny network --sandbox <instance> ...`), not the global default policy (D2). Use the `--sandbox <name>` form (positional was rejected in the spike).
+- [x] 2.2 Provide a domain-opening affordance/guidance that adds the exact domain and, when needed, a specific wildcard (`example.org` + `*.example.org`), prefers exact + specific-wildcard over broad catch-alls, and takes effect immediately (D3).
 - [ ] 2.3 Verify opening a domain unblocks it immediately on the running sandbox and that removing the rule re-blocks it.
 
 ## 3. Egress observability

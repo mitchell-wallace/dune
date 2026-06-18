@@ -11,6 +11,10 @@ type Backend interface {
 	Validate(ctx context.Context) error
 	Ensure(ctx context.Context, spec Spec) error
 	VerifyEgressPosture(ctx context.Context, spec Spec, streams StdIO) error
+	AllowEgressDomain(ctx context.Context, spec Spec, domain string) error
+	DenyEgressDomain(ctx context.Context, spec Spec, domain string) error
+	RemoveEgressDomainRule(ctx context.Context, spec Spec, domain string) error
+	OpenProjectDomain(ctx context.Context, spec Spec, domain string, options DomainOpenOptions) error
 	Start(ctx context.Context, spec Spec) error
 	Shell(ctx context.Context, spec Spec, streams StdIO) error
 	Stop(ctx context.Context, spec Spec) error

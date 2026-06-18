@@ -18,6 +18,13 @@ const (
 	egressPostureOpen
 )
 
+const egressHTTPSPort = "443"
+
+// DomainOpenOptions controls the project-domain opening affordance.
+type DomainOpenOptions struct {
+	IncludeSubdomains bool
+}
+
 type egressPostureObservation struct {
 	posture egressPosture
 	detail  string
@@ -51,6 +58,115 @@ func (b *backend) VerifyEgressPosture(ctx context.Context, spec Spec, streams St
 		writeUnconfirmedEgressWarning(streams.Stderr, spec.InstanceName, observation.detail)
 		return nil
 	}
+}
+
+func (b *backend) AllowEgressDomain(ctx context.Context, spec Spec, domain string) error {
+	if err := validateInstanceName(spec.InstanceName); err != nil {
+		return err
+	}
+	resource, err := egressHTTPSResource(domain)
+	if err != nil {
+		return err
+	}
+	if _, err := b.runner.Capture(ctx, "", "sbx", "policy", "allow", "network", "--sandbox", spec.InstanceName, resource); err != nil {
+		return fmt.Errorf("allow network egress for sandbox %q to %q: %w", spec.InstanceName, resource, err)
+	}
+	return nil
+}
+
+func (b *backend) DenyEgressDomain(ctx context.Context, spec Spec, domain string) error {
+	if err := validateInstanceName(spec.InstanceName); err != nil {
+		return err
+	}
+	domain, err := normalizeEgressRuleDomain(domain)
+	if err != nil {
+		return err
+	}
+	if _, err := b.runner.Capture(ctx, "", "sbx", "policy", "deny", "network", "--sandbox", spec.InstanceName, domain); err != nil {
+		return fmt.Errorf("deny network egress for sandbox %q to %q: %w", spec.InstanceName, domain, err)
+	}
+	return nil
+}
+
+func (b *backend) RemoveEgressDomainRule(ctx context.Context, spec Spec, domain string) error {
+	if err := validateInstanceName(spec.InstanceName); err != nil {
+		return err
+	}
+	resource, err := egressHTTPSResource(domain)
+	if err != nil {
+		return err
+	}
+	if _, err := b.runner.Capture(ctx, "", "sbx", "policy", "rm", "network", "--sandbox", spec.InstanceName, "--resource", resource); err != nil {
+		return fmt.Errorf("remove network egress rule for sandbox %q resource %q: %w", spec.InstanceName, resource, err)
+	}
+	return nil
+}
+
+func (b *backend) OpenProjectDomain(ctx context.Context, spec Spec, domain string, options DomainOpenOptions) error {
+	domains, err := projectDomainOpenRules(domain, options)
+	if err != nil {
+		return err
+	}
+	for _, domain := range domains {
+		if err := b.AllowEgressDomain(ctx, spec, domain); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func projectDomainOpenRules(domain string, options DomainOpenOptions) ([]string, error) {
+	domain, err := normalizeExactEgressDomain(domain)
+	if err != nil {
+		return nil, err
+	}
+
+	rules := []string{domain}
+	if options.IncludeSubdomains {
+		rules = append(rules, "*."+domain)
+	}
+	return rules, nil
+}
+
+func egressHTTPSResource(domain string) (string, error) {
+	domain, err := normalizeEgressRuleDomain(domain)
+	if err != nil {
+		return "", err
+	}
+	return domain + ":" + egressHTTPSPort, nil
+}
+
+func normalizeExactEgressDomain(domain string) (string, error) {
+	domain, err := normalizeEgressRuleDomain(domain)
+	if err != nil {
+		return "", err
+	}
+	if strings.Contains(domain, "*") {
+		return "", fmt.Errorf("project domain must be exact, got %q", domain)
+	}
+	return domain, nil
+}
+
+func normalizeEgressRuleDomain(domain string) (string, error) {
+	domain = strings.TrimSpace(domain)
+	if domain == "" {
+		return "", errors.New("egress domain is required")
+	}
+	if strings.Contains(domain, "://") {
+		return "", fmt.Errorf("egress domain must not include a scheme: %s", domain)
+	}
+	if strings.ContainsAny(domain, " \t\r\n,/:") {
+		return "", fmt.Errorf("egress domain must be a single host without paths, ports, or separators: %s", domain)
+	}
+	if domain == "*" || domain == "**" || strings.Contains(domain, "**") {
+		return "", fmt.Errorf("egress domain must not be a broad catch-all: %s", domain)
+	}
+	if strings.Contains(domain, "*") {
+		if !strings.HasPrefix(domain, "*.") || strings.Count(domain, "*") != 1 || strings.TrimPrefix(domain, "*.") == "" {
+			return "", fmt.Errorf("egress wildcard must be a specific subdomain wildcard: %s", domain)
+		}
+	}
+	return domain, nil
 }
 
 func (b *backend) inspectEgressPosture(ctx context.Context, instanceName string) egressPostureObservation {

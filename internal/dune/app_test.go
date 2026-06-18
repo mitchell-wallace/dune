@@ -298,6 +298,26 @@ func (f *fakeRuntimeBackend) VerifyEgressPosture(_ context.Context, spec sbxrunt
 	return f.egressErr
 }
 
+func (f *fakeRuntimeBackend) AllowEgressDomain(_ context.Context, spec sbxruntime.Spec, domain string) error {
+	f.calls = append(f.calls, fakeRuntimeCall{name: "AllowEgressDomain", spec: spec, service: domain})
+	return nil
+}
+
+func (f *fakeRuntimeBackend) DenyEgressDomain(_ context.Context, spec sbxruntime.Spec, domain string) error {
+	f.calls = append(f.calls, fakeRuntimeCall{name: "DenyEgressDomain", spec: spec, service: domain})
+	return nil
+}
+
+func (f *fakeRuntimeBackend) RemoveEgressDomainRule(_ context.Context, spec sbxruntime.Spec, domain string) error {
+	f.calls = append(f.calls, fakeRuntimeCall{name: "RemoveEgressDomainRule", spec: spec, service: domain})
+	return nil
+}
+
+func (f *fakeRuntimeBackend) OpenProjectDomain(_ context.Context, spec sbxruntime.Spec, domain string, _ sbxruntime.DomainOpenOptions) error {
+	f.calls = append(f.calls, fakeRuntimeCall{name: "OpenProjectDomain", spec: spec, service: domain})
+	return nil
+}
+
 func (f *fakeRuntimeBackend) Start(_ context.Context, spec sbxruntime.Spec) error {
 	f.calls = append(f.calls, fakeRuntimeCall{name: "Start", spec: spec})
 	return nil

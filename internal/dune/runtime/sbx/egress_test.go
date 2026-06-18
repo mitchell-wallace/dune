@@ -89,6 +89,89 @@ local        all          default-allow-all   network   allow      **
 	assertCaptureCall(t, fr.calls[0], "sbx", "policy", "ls", spec.InstanceName, "--type", "network")
 }
 
+func TestAllowEgressDomain_ConstructsSandboxScopedHTTPSRule(t *testing.T) {
+	spec := testSpec()
+	fr := &fakeRunner{responses: []fakeRunnerResponse{{}}}
+	b := newBackend(fr)
+
+	if err := b.AllowEgressDomain(context.Background(), spec, "example.org"); err != nil {
+		t.Fatalf("AllowEgressDomain() error = %v", err)
+	}
+
+	if len(fr.calls) != 1 {
+		t.Fatalf("got %d calls, want 1: %+v", len(fr.calls), fr.calls)
+	}
+	assertCaptureCall(t, fr.calls[0], "sbx", "policy", "allow", "network", "--sandbox", spec.InstanceName, "example.org:443")
+}
+
+func TestDenyEgressDomain_ConstructsSandboxScopedRule(t *testing.T) {
+	spec := testSpec()
+	fr := &fakeRunner{responses: []fakeRunnerResponse{{}}}
+	b := newBackend(fr)
+
+	if err := b.DenyEgressDomain(context.Background(), spec, "example.org"); err != nil {
+		t.Fatalf("DenyEgressDomain() error = %v", err)
+	}
+
+	if len(fr.calls) != 1 {
+		t.Fatalf("got %d calls, want 1: %+v", len(fr.calls), fr.calls)
+	}
+	assertCaptureCall(t, fr.calls[0], "sbx", "policy", "deny", "network", "--sandbox", spec.InstanceName, "example.org")
+}
+
+func TestRemoveEgressDomainRule_ConstructsSandboxScopedHTTPSResource(t *testing.T) {
+	spec := testSpec()
+	fr := &fakeRunner{responses: []fakeRunnerResponse{{}}}
+	b := newBackend(fr)
+
+	if err := b.RemoveEgressDomainRule(context.Background(), spec, "example.org"); err != nil {
+		t.Fatalf("RemoveEgressDomainRule() error = %v", err)
+	}
+
+	if len(fr.calls) != 1 {
+		t.Fatalf("got %d calls, want 1: %+v", len(fr.calls), fr.calls)
+	}
+	assertCaptureCall(t, fr.calls[0], "sbx", "policy", "rm", "network", "--sandbox", spec.InstanceName, "--resource", "example.org:443")
+}
+
+func TestOpenProjectDomain_AllowsExactAndSpecificWildcard(t *testing.T) {
+	spec := testSpec()
+	fr := &fakeRunner{responses: []fakeRunnerResponse{{}, {}}}
+	b := newBackend(fr)
+
+	if err := b.OpenProjectDomain(context.Background(), spec, "example.org", DomainOpenOptions{IncludeSubdomains: true}); err != nil {
+		t.Fatalf("OpenProjectDomain() error = %v", err)
+	}
+
+	if len(fr.calls) != 2 {
+		t.Fatalf("got %d calls, want 2: %+v", len(fr.calls), fr.calls)
+	}
+	assertCaptureCall(t, fr.calls[0], "sbx", "policy", "allow", "network", "--sandbox", spec.InstanceName, "example.org:443")
+	assertCaptureCall(t, fr.calls[1], "sbx", "policy", "allow", "network", "--sandbox", spec.InstanceName, "*.example.org:443")
+
+	for _, call := range fr.calls {
+		for _, arg := range call.args {
+			if strings.Contains(arg, "**") {
+				t.Fatalf("OpenProjectDomain() emitted broad catch-all argument %q in call %+v", arg, call)
+			}
+		}
+	}
+}
+
+func TestProjectDomainOpenRules(t *testing.T) {
+	rules, err := projectDomainOpenRules("example.org", DomainOpenOptions{IncludeSubdomains: true})
+	if err != nil {
+		t.Fatalf("projectDomainOpenRules() error = %v", err)
+	}
+	if got, want := strings.Join(rules, ","), "example.org,*.example.org"; got != want {
+		t.Fatalf("projectDomainOpenRules() = %q, want %q", got, want)
+	}
+
+	if _, err := projectDomainOpenRules("**.amazonaws.com", DomainOpenOptions{IncludeSubdomains: true}); err == nil {
+		t.Fatal("projectDomainOpenRules() error = nil, want broad catch-all rejection")
+	}
+}
+
 func TestClassifyEgressPosture_DenyRuleRestrictsAllowAll(t *testing.T) {
 	observation := classifyEgressPosture([]policyListRow{
 		{PolicyRule: "default-allow-all", Type: "network", Decision: "allow", Resources: "**"},
