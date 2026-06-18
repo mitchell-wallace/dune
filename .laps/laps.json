@@ -72,11 +72,11 @@
       "title": "Remove the Docker Compose runtime path",
       "description": "Context\nThe destructive cutover. Tasks 6.1-6.3, the deferred project{} removal from 3.1, and test retirement 7.3. Depends on lap 5 (app.go already dispatching to the backend).\n\nOutcome\nRemoved from the active runtime: project{} (D2/D8); the compose template compose.yaml.tmpl; renderComposeFile/ensureComposeFile/validateComposeFile; ensureVolume; prepareAgentImage; composeArgs/composeUp/localImageExists; isAgentRunning/isAgentCreated; validateDockerPrerequisites; the attachArgs/composeShell Compose attach (its TERM/COLORTERM logic now lives in the backend Shell); and Dockerfile.dune detection + the dune-local-\u003cslug\u003e:latest build (UseBuild) (6.1, 6.2). Pipelock startup/wiring removed from the runtime path while leaving the internal/dune/pipelock package present-but-unused — full removal is sbx-4 (6.3). Compose golden/validation/shell-shim tests for the removed path are retired or replaced (7.3). Preserve selfUpdate, the profile store, resolveProfile/validateProfileName, workspace resolution, effectiveTimezone, and the cli option parsing (D8).\n\nFiles \u0026 scope\ninternal/dune/app.go, the compose template file, and the associated _test.go files. Do NOT delete the internal/dune/pipelock package (sbx-4 owns that). Do not touch container/base assets.\n\nDesign\nHigh-risk brownfield removal. Grep for every reference to each removed symbol before deleting so nothing dangles, and keep each commit building. After removal, confirm via grep that compose, docker compose, Dockerfile.dune, dune-local, and the removed function names have no live references (the dormant pipelock package excepted). Do not rewrite git history — additive/revert commits only.\n\nAcceptance\ngo build ./cmd/dune and go test ./... pass with the Compose path gone; grep confirms no live references to the removed symbols/templates remain (pipelock package intentionally dormant). Do not tick any tasks.md boxes.",
       "assignee": "SENIOR",
-      "isDone": false,
+      "isDone": true,
       "order": 393216,
       "createdAt": "2026-06-18T05:31:37.028944137Z",
-      "updatedAt": "2026-06-18T05:31:37.028944137Z",
-      "completedAt": null
+      "updatedAt": "2026-06-18T08:40:37.680263558Z",
+      "completedAt": "2026-06-18T08:40:37.680263558Z"
     },
     {
       "id": "dune-a5fa",

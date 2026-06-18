@@ -17,3 +17,4 @@
 {"run_id":"relay-3-run-5","summary":"Verified sbx runtime foundations, ticked phase 1-4 tasks except 7.1, and queued follow-up for validation-shape hardening plus rebuild coverage.","updated_at":"2026-06-18T08:15:41Z","laps_completed":["dune-d31c"]}
 {"run_id":"relay-3-run-6","summary":"Hardened sbx diagnose validation and added rebuild rm --force sequencing coverage; go test ./... passes.","updated_at":"2026-06-18T08:23:29Z","laps_completed":["dune-d672"]}
 {"run_id":"relay-3-run-7","summary":"Restructured app.go to build an sbx Spec and dispatch up/down/rebuild/logs through the sbx backend; go build ./cmd/dune and go test ./... pass.","updated_at":"2026-06-18T08:32:43Z","laps_completed":["dune-7e09"]}
+{"run_id":"relay-3-run-8","summary":"Removed active Compose runtime helpers/template and retired tied Go tests; go build ./cmd/dune and go test ./... pass.","updated_at":"2026-06-18T08:40:47Z","laps_completed":["dune-7869"]}
