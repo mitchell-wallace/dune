@@ -61,11 +61,11 @@
       "title": "Complete Pipelock removal (sequenced after the egress baseline)",
       "description": "Context: sbx-4 design D6 / tasks 5.1-5.4. PLANNING NOTE (confirm, do not re-discover): sbx-3's Compose removal already excised the Pipelock call sites, the `ensurePipelockConfig` function, the proxy-env (HTTP(S)_PROXY) injection, and the `dune logs pipelock` surface. A current `grep -rn pipelock|Pipelock|HTTP_PROXY|HTTPS_PROXY internal/ --include=*.go` matches ONLY files inside internal/dune/pipelock/ itself (pipelock.go, pipelock_test.go) — the package is present-but-unused, referenced only by itself, and nothing in app.go imports it. The interim Logs (lifecycle.go:90) tails /var/log/dune/*.log with no pipelock service. So the residual removal is: delete the self-contained package and confirm the rest is already gone.\n\nOrdering gate (D6): this lap runs only after the egress policy surface has landed and been verified (the prior VERIFY lap), so sbx policy governs egress for the sbx path before the last Pipelock code is deleted — there is no window where egress is both un-proxied and un-policed. Pipelock is NOT the active egress mediator on the sbx path (sbx-3 already stopped starting it), so deleting the dead package does not change runtime egress behavior; still, honor the sequencing.\n\nOutcome: `internal/dune/pipelock/` (pipelock.go, pipelock.yaml.tmpl, pipelock_test.go, and the testdata directory) is deleted; a fresh repo-wide grep confirms no remaining references to pipelock / the proxy-env model / a `dune logs pipelock` surface anywhere outside archived openspec material; the build and tests stay green.\n\nFiles \u0026 scope: delete internal/dune/pipelock/ in full. Verify (and only if found, remove) any stray reference elsewhere. Do not touch the legacy Compose backend on main — Pipelock remains there; this removal is for the dunex sbx path only. Do not rewrite git history.\n\nDesign: before deleting, run the grep gate and confirm the call sites/proxy-env/`dune logs pipelock` surface are already absent (per the planning note); judge that removing the package leaves no dangling import or build break. This is a removal sequenced after a security-relevant baseline, hence SENIOR.\n\nAcceptance: `grep -rn pipelock internal/ --include=*.go` returns nothing; `go build ./cmd/dune` and `go test ./...` green; a `dune logs` invocation path still builds (interim Logs unaffected). Report exactly what was deleted vs already-absent.",
       "assignee": "SENIOR",
-      "isDone": false,
+      "isDone": true,
       "order": 393216,
       "createdAt": "2026-06-18T11:44:49.714717176Z",
-      "updatedAt": "2026-06-18T11:44:49.714717176Z",
-      "completedAt": null
+      "updatedAt": "2026-06-18T15:19:14.93564802Z",
+      "completedAt": "2026-06-18T15:19:14.93564802Z"
     },
     {
       "id": "dune-b029",
