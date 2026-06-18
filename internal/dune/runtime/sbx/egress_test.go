@@ -32,6 +32,40 @@ local        all          default-package-managers  network   allow      registr
 	assertCaptureCall(t, fr.calls[0], "sbx", "policy", "ls", spec.InstanceName, "--type", "network")
 }
 
+func TestVerifyEgressPosture_ConfirmedNonOpenMultiLineResources(t *testing.T) {
+	// Mirrors the real `sbx policy set-default balanced` output, where a rule's
+	// extra resources are printed on their own continuation lines under the
+	// RESOURCES column (all other columns blank).
+	spec := testSpec()
+	fr := &fakeRunner{
+		responses: []fakeRunnerResponse{
+			{output: []byte(`PROVENANCE   APPLIES_TO   POLICY/RULE                TYPE      DECISION   RESOURCES
+local        all          default-ai-services        network   allow      **.chatgpt.com:443
+                                                                          **.cursor.sh:443
+                                                                          api.anthropic.com:443
+                                                                          claude.com:443
+
+local        all          default-package-managers   network   allow      pypi.org:443
+                                                                          files.pythonhosted.org:443
+                                                                          registry.npmjs.org:443
+`)},
+		},
+	}
+	b := newBackend(fr)
+
+	var stderr strings.Builder
+	if err := b.VerifyEgressPosture(context.Background(), spec, StdIO{Stderr: &stderr}); err != nil {
+		t.Fatalf("VerifyEgressPosture() error = %v", err)
+	}
+	if stderr.String() != "" {
+		t.Fatalf("stderr = %q, want empty", stderr.String())
+	}
+	if len(fr.calls) != 1 {
+		t.Fatalf("got %d calls, want 1: %+v", len(fr.calls), fr.calls)
+	}
+	assertCaptureCall(t, fr.calls[0], "sbx", "policy", "ls", spec.InstanceName, "--type", "network")
+}
+
 func TestVerifyEgressPosture_UnconfirmableWarnsAndProceeds(t *testing.T) {
 	spec := testSpec()
 	fr := &fakeRunner{

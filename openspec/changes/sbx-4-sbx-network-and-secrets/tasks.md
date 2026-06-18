@@ -3,13 +3,13 @@
 - [x] 1.1 Define Dune's non-`Open` egress baseline starting from `sbx`'s `Balanced` preset, and document it (D1).
 - [x] 1.2 Surface the *active* posture for an instance via `sbx policy ls` / `sbx policy log`; ensure Dune never weakens egress to `Open`, never mutates global host policy, and fails/warns closed if a non-`Open` instance posture cannot be confirmed.
 - [x] 1.4 ~~Gating: confirm whether a Balanced-equivalent preset can be applied with `--sandbox <instance>` scope~~ Resolved by spike 4: **no sandbox-scoped preset exists** — `sbx policy set-default` is global-only and `sbx policy profile` only lists remote-governance profiles. Dune takes the verify-only path (D1); sandbox-scoped control stays per-domain `allow/deny network --sandbox`.
-- [ ] 1.3 Verify Dune's actual toolchain traffic (package managers: npm/pip/go/cargo; AI providers) works under the baseline; record any domains that must be added.
+- [x] 1.3 Verify Dune's actual toolchain traffic (package managers: npm/pip/go/cargo; AI providers) works under the baseline; record any domains that must be added.
 
 ## 2. Sandbox-scoped rules and domain opening
 
 - [x] 2.1 Apply Dune-managed egress rules scoped to the workspace's sandbox (`sbx policy allow/deny network --sandbox <instance> ...`), not the global default policy (D2). Use the `--sandbox <name>` form (positional was rejected in the spike).
 - [x] 2.2 Provide a domain-opening affordance/guidance that adds the exact domain and, when needed, a specific wildcard (`example.org` + `*.example.org`), prefers exact + specific-wildcard over broad catch-alls, and takes effect immediately (D3).
-- [ ] 2.3 Verify opening a domain unblocks it immediately on the running sandbox and that removing the rule re-blocks it.
+- [x] 2.3 Verify opening a domain unblocks it immediately on the running sandbox and that removing the rule re-blocks it.
 
 ## 3. Egress observability
 
@@ -32,8 +32,10 @@
 ## 6. Tests and verification
 
 - [x] 6.1 Add fakeRunner tests (via the `sbx-3` D5 seam) asserting the constructed argument shapes for: sandbox-scoped allow/deny/rm rules and the domain-opening rule shape (exact + wildcard, `<domain>:443`, removal via `--resource`); the `sbx policy log <instance> --limit <n>` invocation; and the service-secret `set`/`ls`/`rm` shapes (D2, D4, D5). These pin against silent `sbx` flag drift.
-- [ ] 6.2 Smoke-verify in an ephemeral sandbox: baseline blocks a representative docs site; opening its exact + wildcard domains unblocks it; `sbx policy log` shows the records; nested Docker traffic is also governed.
-- [ ] 6.3 Run `go build ./cmd/dune` and `go test ./...`; remove temporary sandboxes.
+- [x] 6.2 Smoke-verify in an ephemeral sandbox: baseline blocks a representative docs site; opening its exact + wildcard domains unblocks it; `sbx policy log` shows the records; nested Docker traffic is also governed.
+- [x] 6.3 Run `go build ./cmd/dune` and `go test ./...`; remove temporary sandboxes.
+
+Verification evidence (2026-06-19): `just smoke-sbx-egress --report tmp/sbx-egress-smoke.20260618T170535Z.log` against `ghcr.io/mitchell-wallace/dune-sbx:0.4.8` passed the docs-site block/unblock/re-block, policy-log `forward`/`transparent`/`forward-bypass`, no-Pipelock, and cleanup assertions. Toolchain/provider policy findings recorded no non-docs blocked hosts; npm, pip, Go/GOPROXY, Go module lookup, OpenAI, Anthropic, and Gemini reached allowed hosts. The 0.4.8 template does not include a `cargo` binary, so cargo produced a template/toolchain parity finding rather than an sbx blocked-host finding.
 
 ## 7. Documentation
 

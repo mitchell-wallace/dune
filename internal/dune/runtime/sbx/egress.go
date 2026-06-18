@@ -222,6 +222,22 @@ func parsePolicyList(output []byte) ([]policyListRow, error) {
 		}
 		cols := splitPolicyColumns(line)
 		if len(cols) <= indexes.maxRequired() {
+			// A rule with multiple resources prints each additional resource on
+			// its own continuation line under the (rightmost) RESOURCES column,
+			// leaving the other columns blank. Such lines collapse to just the
+			// resource token(s); fold them into the preceding row's resources
+			// rather than rejecting them as malformed.
+			if len(rows) > 0 && indexes.resources == indexes.maxRequired() {
+				if extra := strings.Join(cols, " "); extra != "" {
+					last := &rows[len(rows)-1]
+					if last.Resources == "" {
+						last.Resources = extra
+					} else {
+						last.Resources += " " + extra
+					}
+				}
+				continue
+			}
 			return nil, fmt.Errorf("malformed policy row %q", line)
 		}
 

@@ -215,7 +215,16 @@ done
 docker info >/dev/null
 code="$(docker run --rm "${NESTED_CURL_IMAGE}" -sSL -o /dev/null -w "%{http_code}" --max-time 30 "${DOCS_URL}" || printf "curl_exit_%s" "$?")"
 printf '%s\n' "${code}"
-test "${code}" = "403"
+# Nested Docker traffic is intercepted transparently, so a blocked host fails at
+# the TLS layer (curl error, http_code 000) rather than receiving a forward-proxy
+# 403. Treat any non-2xx/3xx result as blocked; the policy-log assertion that
+# follows confirms sbx recorded the block via the transparent proxy.
+case "${code}" in
+  2*|3*)
+    echo "expected nested request to ${DOCS_URL} to be blocked, got ${code}" >&2
+    exit 1
+    ;;
+esac
 EOF
 }
 
@@ -223,8 +232,7 @@ toolchain_script() {
   cat <<'EOF'
 set -uo pipefail
 root=/tmp/dune-egress-toolchain
-mkdir -p "${root}/home" "${root}/npm" "${root}/pip" "${root}/gomod" "${root}/gocache" "${root}/cargo"
-export HOME="${root}/home"
+mkdir -p "${root}/npm" "${root}/pip" "${root}/gomod" "${root}/gocache" "${root}/cargo"
 export npm_config_cache="${root}/npm"
 export PIP_CACHE_DIR="${root}/pip"
 export GOMODCACHE="${root}/gomod"
@@ -246,7 +254,7 @@ run_check() {
 
 run_check npm npm view is-number version --json
 run_check pip python -m pip index versions pip --disable-pip-version-check
-run_check go env GOPROXY
+run_check go go env GOPROXY
 run_check go-mod go list -m -versions golang.org/x/text
 run_check cargo cargo search serde --limit 1
 run_check openai curl -sS -o /dev/null -w "openai http_code=%{http_code}\n" --max-time 30 https://api.openai.com/v1/models
@@ -260,12 +268,22 @@ EOF
 no_pipelock_script() {
   cat <<'EOF'
 set -euo pipefail
+# sbx runs its own policy-enforcing egress proxy and advertises it to the sandbox
+# via the standard proxy env vars (http://gateway.docker.internal:3128). That
+# sbx-managed gateway is expected; what must be gone is Dune's old Pipelock proxy.
+# Fail only if a proxy references Pipelock or points anywhere other than the sbx
+# gateway.
 printenv HTTP_PROXY HTTPS_PROXY http_proxy https_proxy > /tmp/dune-egress-proxy-env 2>/dev/null || true
-if [ -s /tmp/dune-egress-proxy-env ]; then
-  cat /tmp/dune-egress-proxy-env
+cat /tmp/dune-egress-proxy-env
+if grep -iq pipelock /tmp/dune-egress-proxy-env; then
+  echo "proxy env references pipelock" >&2
   exit 1
 fi
-if pgrep -af '[p]ipelock'; then
+if grep -vqE '^[[:space:]]*$|gateway\.docker\.internal' /tmp/dune-egress-proxy-env; then
+  echo "proxy env points at a non-sbx endpoint (expected only gateway.docker.internal)" >&2
+  exit 1
+fi
+if pgrep -af '[p]ipelock' | awk -v self="$$" '$1 != self { print; found = 1 } END { exit found ? 0 : 1 }'; then
   exit 1
 fi
 docker ps -a --format '{{.Names}}' > /tmp/dune-egress-docker-containers
@@ -401,7 +419,10 @@ log "## Open exact and wildcard docs domains without recreation"
 run_report sbx policy allow network --sandbox "${SANDBOX_NAME}" "${DOCS_DOMAIN}:443"
 run_report sbx policy allow network --sandbox "${SANDBOX_NAME}" "*.${DOCS_DOMAIN}:443"
 sandbox_exec "$(docs_request_script)" -e "DOCS_URL=${DOCS_URL}" -e "EXPECT=allowed"
-wait_for_policy_log_record allowed_hosts "${DOCS_DOMAIN}:443" forward
+# An explicitly allowed HTTPS domain skips the MITM forward proxy, so sbx records
+# it as "forward-bypass" rather than "forward" (which is reserved for blocked or
+# proxied traffic).
+wait_for_policy_log_record allowed_hosts "${DOCS_DOMAIN}:443" forward-bypass
 
 log ""
 log "## Remove docs rules and confirm re-block"
