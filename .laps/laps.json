@@ -61,11 +61,11 @@
       "title": "Restructure app.go to resolve-plan-execute and wire commands to the sbx backend",
       "description": "Context\nThe central app.go surgery. Tasks 3.3, 5.1-5.4. Depends on the verified backend (laps 1-4). app.go's Run (around line 85) today resolves workspace/profile, builds project{} (around line 69), and drives docker compose for up/down/rebuild/logs.\n\nOutcome\napp.go restructured into resolve -\u003e build Spec -\u003e dispatch to the sbx Backend, reusing the existing workspace resolution (git rev-parse --show-toplevel with cwd fallback), the profile store (~/.config/dune/profiles.json), profile-name validation, and timezone logic (3.3). Commands wired (5.1-5.4): up (default) -\u003e Validate -\u003e ensure template available -\u003e Ensure -\u003e Start (if stopped) -\u003e Shell, reusing a running sandbox without recreation (D7); down -\u003e Stop; rebuild -\u003e recreate from the template (sbx rm + Ensure/Start, no Dockerfile.dune build) preserving profile-scoped persisted state via the durable persist location; logs kept functional against the sbx runtime as an interim mapping (finalised in sbx-5); version, profile set, profile list unchanged.\n\nFiles \u0026 scope\ninternal/dune/app.go (and the cli option parsing if needed). The Compose helper functions may remain physically present this lap (the next lap removes them) but must no longer be on the active up/down/rebuild/logs path. Build must stay green.\n\nDesign\nBrownfield architecture work on the production entry point: keep the user-facing command surface and profile semantics intact — only the realisation backend changes. Spec.TemplateRef comes from version.SbxTemplateRef(). Leave the internal/dune/pipelock package present-but-unused — just stop calling ensurePipelockConfig and starting the sidecar on the active path (full package removal is sbx-4, D9). Preserve selfUpdate.\n\nAcceptance\ngo build ./cmd/dune and go test ./... pass (Compose unit tests may still pass against the now-dormant code until the removal lap). dune up/down/rebuild/logs dispatch through the sbx backend. Do not tick any tasks.md boxes.",
       "assignee": "SENIOR",
-      "isDone": false,
+      "isDone": true,
       "order": 327680,
       "createdAt": "2026-06-18T05:31:37.028937544Z",
-      "updatedAt": "2026-06-18T05:31:37.028937544Z",
-      "completedAt": null
+      "updatedAt": "2026-06-18T08:32:30.269698828Z",
+      "completedAt": "2026-06-18T08:32:30.269698828Z"
     },
     {
       "id": "dune-7869",
