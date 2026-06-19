@@ -17,11 +17,11 @@
       "title": "Add dune ports over the verified sbx ports surface",
       "description": "Context: sbx-5 design D1, task 1.4. A new first-class `dune ports` verb wrapping the `sbx ports` surface. Spike 4 confirmed the shapes: list `sbx ports \u003csandbox\u003e` (+ `--json`); publish `sbx ports \u003csandbox\u003e --publish [[HOST_IP:]HOST_PORT:]SANDBOX_PORT[/PROTOCOL]` (ephemeral host port when HOST_PORT omitted, loopback bind when HOST_IP omitted); unpublish `sbx ports \u003csandbox\u003e --unpublish [HOST_IP:]HOST_PORT:SANDBOX_PORT[/PROTOCOL]` (repeatable). Goes through the sbx-3 D5 runner seam so argument construction is fakeRunner-assertable (design D1). Builds on the lifecycle lap; reuses the same seam.\n\nOutcome: backend Ports methods (sbx package) for list/publish/unpublish built on the verified shapes, plus `dune ports` CLI wiring that SURFACES the loopback-vs-all-interfaces caveat: a nested service bound only to sandbox loopback may not be reachable via a published host port, so dev servers should bind to all sandbox interfaces when host exposure is wanted (spike 2).\n\nFiles \u0026 scope: add CommandPorts + a ports arg/flag parse to internal/dune/cli/options.go (list is the default; --publish/--unpublish take a port spec); add list/publish/unpublish methods in the sbx package via the runner seam; wire into dispatchRuntimeCommand (internal/dune/app.go); update helpText. Do not add diagnostics/doctor or the dune logs recomposition.\n\nDesign: reconfirm `sbx ports --help` before pinning (especially the `--unpublish` spelling). Use the per-command JSON flag (`sbx ports \u003csandbox\u003e --json`) if parsing the list; do NOT assume a uniform `--json` across sbx verbs (design D1 / sbx-3 D6). Validate any user-supplied port spec so it cannot reshape the constructed invocation (mirror validateSecretService in secrets.go).\n\nAcceptance: fakeRunner tests pin the list (`sbx ports \u003cinstance\u003e` [+ `--json`]), publish (`--publish \u003cspec\u003e`), and unpublish (`--unpublish \u003cspec\u003e`) vectors; a test exercises the loopback-vs-all-interfaces guidance on a publish attempt (spec scenario). `go build ./cmd/dune` and `go test ./internal/dune/...` green.",
       "assignee": "JUNIOR",
-      "isDone": false,
+      "isDone": true,
       "order": 131072,
       "createdAt": "2026-06-19T05:10:00Z",
-      "updatedAt": "2026-06-19T05:10:00Z",
-      "completedAt": null
+      "updatedAt": "2026-06-19T03:05:41.638076181Z",
+      "completedAt": "2026-06-19T03:05:41.638076181Z"
     },
     {
       "id": "dune-c9e8",
