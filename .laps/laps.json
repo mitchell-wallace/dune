@@ -28,11 +28,11 @@
       "title": "Recompose dune logs from Dune-owned logs and sbx policy log",
       "description": "Context: sbx-5 design D3, tasks 2.1-2.2. The interim Logs (lifecycle.go:90) currently runs `sbx exec \u003cinstance\u003e bash -lc \u003cscript\u003e` to tail /var/log/dune/*.log with an optional service arg (logsScript, lifecycle.go:321). PolicyLog (policy_log.go:47) already wraps `sbx policy log \u003cinstance\u003e --json --limit \u003cn\u003e` into PolicyLogReport{BlockedHosts,AllowedHosts}. sbx-4 removed Pipelock entirely — there is no `dune logs pipelock`. This lap COMPOSES the final `dune logs`.\n\nOutcome: `dune logs` composes (a) Dune-owned setup/runtime logs from TWO pinned sources — the host-side lifecycle log the runner writes for sandbox create/start/attach diagnostics, PLUS the in-sandbox /var/log/dune/ output (the sbx-2 D5a contract, e.g. the re-homed setup-persist.log) read via `sbx exec` — and (b) `sbx policy log \u003cinstance\u003e` egress records (reusing the existing PolicyLog). This RESOLVES design D3 / the open question on the Dune-owned source by picking it and ASSERTING both Dune-owned sources appear in the composed output. No `dune logs pipelock` surface (already gone). App-dependency service logs are NOT aggregated here (project-owned Compose -\u003e `docker compose logs` inside the sandbox).\n\nFiles \u0026 scope: the sbx package (compose the host-side log + the existing /var/log/dune tail + PolicyLog into the logs path) and the app.go logs dispatch. If no host-side lifecycle log exists yet, add a minimal durable one written through/alongside the runner seam (D3 says \"the host-side log the lifecycle commands already write\" — establish it if absent). Keep `dune logs` arg parsing back-compatible (the interim service arg). Do not add diagnostics/doctor.\n\nDesign: D3 leaves the exact host-side source to implementation — choose the smallest durable source and pin its presence in tests rather than leaving it an open question. Reuse the existing PolicyLog rather than re-shelling `sbx policy log`; its JSON field names are already pinned in policy_log.go — keep that. Keep concrete sbx shapes in the sbx package.\n\nAcceptance: a test asserts the composed `dune logs` output includes BOTH a Dune-owned log line (host-side and/or /var/log/dune) AND `sbx policy log` records, and that no `pipelock` subcommand exists (spec scenario). `go build ./cmd/dune` and `go test ./internal/dune/...` green.",
       "assignee": "SENIOR",
-      "isDone": false,
+      "isDone": true,
       "order": 196608,
       "createdAt": "2026-06-19T05:10:00Z",
-      "updatedAt": "2026-06-19T05:10:00Z",
-      "completedAt": null
+      "updatedAt": "2026-06-19T03:11:41.982948465Z",
+      "completedAt": "2026-06-19T03:11:41.982948465Z"
     },
     {
       "id": "dune-5d16",
