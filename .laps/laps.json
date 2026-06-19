@@ -72,11 +72,11 @@
       "title": "Smoke-verify the finalised commands against the dune-sbx template",
       "description": "Context: sbx-5 task 6.2 + design Migration plan, \"Smoke verification against the sbx binary\" — the empirical acceptance gates against a real installed `sbx` and the Dune sbx template (ghcr.io/mitchell-wallace/dune-sbx, version from container/sbx/IMAGE_VERSION), mirroring the sbx-3 and sbx-4 smoke laps. Requires `sbx` authenticated on the host.\n\nOutcome: in an ephemeral instance, capture and record: (a) `dune destroy --force` removes the sandbox (absent from `sbx ls --json`), and a subsequent `dune up` RECREATES it with profile-scoped persisted state intact (ties to the sbx-3 D3 persist sentinel); (b) `dune doctor` is NON-mutating — running it against an absent and a stopped sandbox does not change what `sbx ls --json` reports (no create/start), and on a healthy host the host/sbx and sandbox checks report pass; (c) `dune logs` surfaces both a Dune-owned line and `sbx policy log` records for a running instance, and exposes no `pipelock` subcommand; (d) `dune ports` lists via `sbx ports \u003csandbox\u003e` and the loopback-vs-all-interfaces guidance is exercised on a publish attempt.\n\nFiles \u0026 scope: a smoke harness/justfile recipe consistent with the existing smoke approach; may shell out to the real `sbx`; build an ephemeral container to test in if needed (permitted by AGENTS.md). Remove ALL temporary sandboxes (`sbx rm`) at the end (task 6.2).\n\nDesign: keep the gate honest — if `sbx`/the template are unavailable in this environment, report that explicitly rather than faking a pass; never weaken egress to Open to make a check pass.\n\nAcceptance: the four observations above captured with the actual commands/output; `go build ./cmd/dune` and `go test ./...` green; temp sandboxes removed. Report the recorded evidence for the docs lap.",
       "assignee": "SENIOR",
-      "isDone": false,
+      "isDone": true,
       "order": 458752,
       "createdAt": "2026-06-19T05:10:00Z",
-      "updatedAt": "2026-06-19T05:10:00Z",
-      "completedAt": null
+      "updatedAt": "2026-06-19T04:32:18.089701245Z",
+      "completedAt": "2026-06-19T04:32:18.089701245Z"
     },
     {
       "id": "dune-4a91",
