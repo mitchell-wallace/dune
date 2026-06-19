@@ -64,8 +64,11 @@ Then run:
 dune
 dune up
 dune down
+dune destroy
 dune rebuild
 dune logs
+dune ports
+dune doctor
 dune version
 dune profile set work
 dune profile list
@@ -76,17 +79,22 @@ dune profile list
 ## Commands
 
 - `dune` starts the sandbox for the current repo if needed, then opens an interactive `zsh` shell at the repository root inside the sandbox
-- `dune up` does the same thing explicitly
+- `dune up` does the same thing explicitly; an already-running sandbox is attached without recreation
 - `dune down` stops the sandbox for the current workspace/profile (the sandbox is retained; it is not removed)
-- `dune rebuild` recreates and starts the sandbox from the Dune sbx template, preserving the profile's persisted state
-- `dune logs` shows the host lifecycle log, Dune-owned logs under the sandbox's `/var/log/dune/` path, and `sbx policy log` egress records
-- `dune logs <service>` narrows the in-sandbox Dune-owned log read to `/var/log/dune/<service>.log`; app-dependency service logs come from `docker compose logs` inside the sandbox
+- `dune destroy` removes the sandbox for the current workspace/profile (`sbx rm --force <instance>`); the sandbox is gone, but **profile-scoped persisted state survives** (credentials, config, tooling state under `~/.local/share/dune/persist/<profile>`). Asks for confirmation by default; pass `-f` / `--force` to skip it (required in non-interactive scripts, because `sbx rm` needs `--force` when stdin is not a TTY)
+- `dune rebuild` recreates and starts the sandbox from the Dune sbx template, preserving the profile's persisted state (it destroys and re-creates the sandbox; there is no `Dockerfile.dune` build)
+- `dune logs` shows Dune-owned setup/runtime logs and `sbx policy log` egress records (see [Lifecycle, logs, diagnostics, and `dune doctor`](./docs/architecture/host-cli.md))
+- `dune logs <service>` narrows the in-sandbox Dune-owned log read to `/var/log/dune/<service>.log`; `dune logs pipelock` is gone (Pipelock is fully removed for the sbx backend). App-dependency service logs are **not** in `dune logs` — read those via `docker compose logs` inside the sandbox against your project-owned Compose stack
+- `dune ports` lists published host ports for the sandbox (default); `--publish <spec>` and `--unpublish <spec>` (repeatable) map host→sandbox ports through `sbx ports`. Note: a published host port forwards to the **sandbox interface** only — a dev server bound solely to sandbox loopback (`127.0.0.1`) may not be reachable via the published host port, so bind to all sandbox interfaces (e.g. `--host 0.0.0.0`) when you want host exposure
+- `dune doctor` reports host, sbx, template, sandbox, profile, and egress readiness **without starting or entering the environment** (read-only: it never runs `sbx create`/`run`/`exec`/`rm`). Add `--json` for structured output and `--verbose` for detail/recovery hints
 - `dune version` prints the dune version, commit, and release build metadata
 - `dune -v` / `dune --version` is a shorthand for `dune version`
 - `dune -h` / `dune --help` shows usage information
 - `dune -u` / `dune --update` updates the dune CLI to the latest release
 - `dune profile set <name>` stores a profile mapping for the current workspace root
 - `dune profile list` shows the effective profile for the current workspace and any stored mappings
+
+Runtime flags `-d` / `--directory` (workspace directory) and `-p` / `--profile` (profile name) apply to `up`/`down`/`destroy`/`rebuild`/`logs`/`ports`/`doctor`; `--verbose` shows diagnostic command and stderr details on failure.
 
 ## What Dune Sets Up
 
@@ -194,6 +202,20 @@ Egress observability comes from `sbx policy log <instance>` (`--json` / `--limit
 
 The full egress baseline, domain-opening guidance, observability field reference, and the secrets posture (prefer service-identifier secrets; custom secrets are experimental/out-of-lifecycle; no secrets baked into the template; agent creds under `/persist/agent`) are documented in [sbx Network and Secrets Posture](./docs/architecture/sbx-network-and-secrets.md).
 
+## Diagnostics and `dune doctor`
+
+Dune maps sbx backend failures to a small set of **stable diagnostic codes** (e.g. `sbx.not_installed`, `sbx.diagnose_failed`, `sbx.version_below_min`, `sbx.create_failed`, `sbx.start_failed`, `sbx.stop_failed`, `sbx.exec_failed`, `sbx.rm_failed`, `template.unavailable`, `policy.apply_failed`, `workspace.invalid`, `profile.config_corrupt`). The underlying command's stderr is **preserved, not replaced** by a friendly summary, and common host/setup failures carry a short recovery hint. Default output is concise (`<code>: <summary>` plus recovery); pass `--verbose` to see the detail, the exact `sbx` command, and the captured stderr.
+
+`dune doctor` is a **read-only readiness check** — it inspects the host, the sandbox, and the profile/egress posture **without starting or entering the environment** (it never runs `sbx create`/`run`/`exec`/`rm`). It groups checks into:
+
+- **host/sbx** — `sbx` on PATH, `sbx diagnose --output json` passing, installed version ≥ `v0.32.0`
+- **template** — the Dune sbx template ref is configured (lightweight; no forced image pull by default)
+- **sandbox** — instance status via `sbx ls --json` (absent / running / stopped)
+- **workspace/profile/config** — workspace root resolves, `profiles.json` parses (missing is ok), effective profile is valid, config/data/persist dirs are usable
+- **egress** — active posture is non-`Open` and inspectable via `sbx policy ls` (`warn` when unconfirmable, `fail` only on an observed `Open` posture, `skip` when the sandbox is absent)
+
+Each check reports `pass` / `warn` / `fail` / `skip`; add `--json` for a structured `{status, checks}` report, and `--verbose` for per-check detail and recovery hints. `dune doctor` reports readiness — it does not guarantee the environment works (the smoke tests remain the end-to-end gate). See [Lifecycle, logs, diagnostics, and `dune doctor`](./docs/architecture/host-cli.md) for the full command mapping, the `dune logs` sources, and the complete code set.
+
 ## Migrating from Docker Compose workspaces
 
 The sbx runtime is a deliberate breaking hard-cut from the previous multi-container Docker Compose topology. Existing Compose workspaces are **not** migrated automatically:
@@ -212,4 +234,4 @@ go build ./cmd/dune
 ./.bin/dune profile list
 ```
 
-`test/smoke/sbx-runtime.sh` exercises the real `sbx` runtime end to end against the Dune sbx template: it confirms the attached shell's working directory is the mounted repository root and that the profile persist directory survives a sandbox recreate.
+`test/smoke/sbx-runtime.sh` exercises the real `sbx` runtime end to end against the Dune sbx template: it confirms the attached shell's working directory is the mounted repository root and that the profile persist directory survives a sandbox recreate. `test/smoke/sbx-commands.sh` smoke-verifies the finalised command surface — `dune destroy --force` removes the instance and a subsequent `dune up` recreates it with persisted state intact, `dune doctor` is non-mutating against absent/stopped sandboxes, `dune logs` surfaces Dune-owned logs plus `sbx policy log` records (and `dune logs pipelock` is unavailable), and `dune ports` lists via `sbx ports`.
