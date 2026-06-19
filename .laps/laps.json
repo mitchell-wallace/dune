@@ -83,11 +83,11 @@
       "title": "Document the finalised command surface, logs, diagnostics, and doctor",
       "description": "Context: sbx-5 task 6.3. Update the same docs surface sbx-3/sbx-4 touched (README + docs/architecture), matching the existing tone/structure.\n\nOutcome: docs describe (1) the finalised dune verbs on sbx — up/down/destroy/rebuild/logs/ports — including that `dune destroy` removes the sandbox (`sbx rm`) while profile-scoped persisted state survives, and the `dune ports` loopback-vs-all-interfaces caveat; (2) the `dune logs` composition (Dune-owned setup/runtime logs + `sbx policy log`), that `dune logs pipelock` is gone, and that app-dependency service logs come from `docker compose logs` inside the sandbox (project-owned Compose); (3) the structured diagnostics (stable codes, preserved stderr, recovery hints, concise vs verbose); (4) `dune doctor` — read-only readiness, the check groups, and `--json`. Fold in any guidance the smoke lap recorded.\n\nFiles \u0026 scope: README and docs/architecture (e.g. the host-cli / lifecycle doc); do not edit openspec change files as docs. No code changes.\n\nAcceptance: docs render cleanly and a reader can find how to destroy/rebuild safely, where `dune logs` reads from, and what `dune doctor` checks; the pipelock-is-gone and docker-compose-logs notes are present.",
       "assignee": "JUNIOR",
-      "isDone": false,
+      "isDone": true,
       "order": 524288,
       "createdAt": "2026-06-19T05:10:00Z",
-      "updatedAt": "2026-06-19T05:10:00Z",
-      "completedAt": null
+      "updatedAt": "2026-06-19T05:43:31.639882737Z",
+      "completedAt": "2026-06-19T05:43:31.639882737Z"
     },
     {
       "id": "dune-f3e5",
