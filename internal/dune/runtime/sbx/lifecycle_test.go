@@ -518,6 +518,85 @@ func TestShell_FallsBackWhenWorkingDirFlagUnsupported(t *testing.T) {
 	)
 }
 
+func TestLifecycleDiagnosticsPreserveStderr(t *testing.T) {
+	dataHome := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", dataHome)
+	spec := testSpec()
+
+	tests := []struct {
+		name string
+		code string
+		run  func(*backend) error
+	}{
+		{
+			name: "create",
+			code: CodeSbxCreateFailed,
+			run: func(b *backend) error {
+				return b.Ensure(context.Background(), spec)
+			},
+		},
+		{
+			name: "start",
+			code: CodeSbxStartFailed,
+			run: func(b *backend) error {
+				return b.Start(context.Background(), spec)
+			},
+		},
+		{
+			name: "exec",
+			code: CodeSbxExecFailed,
+			run: func(b *backend) error {
+				return b.Logs(context.Background(), spec, "", StdIO{})
+			},
+		},
+		{
+			name: "rm",
+			code: CodeSbxRmFailed,
+			run: func(b *backend) error {
+				return b.Destroy(context.Background(), spec)
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			responses := []fakeRunnerResponse{
+				{output: []byte("sbx failed loudly\n"), err: errors.New("exit status 1")},
+			}
+			if tc.name == "create" {
+				responses = []fakeRunnerResponse{
+					{output: []byte(`{"sandboxes":[]}`)},
+					{output: []byte("create failed loudly\n"), err: errors.New("exit status 1")},
+				}
+			}
+			fr := &fakeRunner{responses: responses}
+			b := newBackend(fr)
+
+			err := tc.run(b)
+			wantStderr := "sbx failed loudly"
+			if tc.name == "create" {
+				wantStderr = "create failed loudly"
+			}
+			assertDiagnosticHasStderr(t, err, tc.code, wantStderr)
+		})
+	}
+}
+
+func TestEnsure_TemplateUnavailableDiagnostic(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	spec := testSpec()
+	fr := &fakeRunner{
+		responses: []fakeRunnerResponse{
+			{output: []byte(`{"sandboxes":[]}`)},
+			{output: []byte("failed to pull template image\n"), err: errors.New("exit status 1")},
+		},
+	}
+	b := newBackend(fr)
+
+	err := b.Ensure(context.Background(), spec)
+	assertDiagnosticHasStderr(t, err, CodeTemplateUnavailable, "failed to pull template")
+}
+
 func TestInstanceName(t *testing.T) {
 	got := InstanceName("demo-app-96", "work")
 	if got != "dune-demo-app-96-work" {

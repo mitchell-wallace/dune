@@ -68,8 +68,10 @@ func (b *backend) AllowEgressDomain(ctx context.Context, spec Spec, domain strin
 	if err != nil {
 		return err
 	}
-	if _, err := b.runner.Capture(ctx, "", "sbx", "policy", "allow", "network", "--sandbox", spec.InstanceName, resource); err != nil {
-		return fmt.Errorf("allow network egress for sandbox %q to %q: %w", spec.InstanceName, resource, err)
+	args := []string{"policy", "allow", "network", "--sandbox", spec.InstanceName, resource}
+	output, err := b.runner.Capture(ctx, "", "sbx", args...)
+	if err != nil {
+		return WrapCommandError(CodePolicyApplyFailed, "allow network egress for sandbox "+spec.InstanceName+" failed", commandResult("sbx", args, output, err), err)
 	}
 	return nil
 }
@@ -82,8 +84,10 @@ func (b *backend) DenyEgressDomain(ctx context.Context, spec Spec, domain string
 	if err != nil {
 		return err
 	}
-	if _, err := b.runner.Capture(ctx, "", "sbx", "policy", "deny", "network", "--sandbox", spec.InstanceName, domain); err != nil {
-		return fmt.Errorf("deny network egress for sandbox %q to %q: %w", spec.InstanceName, domain, err)
+	args := []string{"policy", "deny", "network", "--sandbox", spec.InstanceName, domain}
+	output, err := b.runner.Capture(ctx, "", "sbx", args...)
+	if err != nil {
+		return WrapCommandError(CodePolicyApplyFailed, "deny network egress for sandbox "+spec.InstanceName+" failed", commandResult("sbx", args, output, err), err)
 	}
 	return nil
 }
@@ -96,8 +100,10 @@ func (b *backend) RemoveEgressDomainRule(ctx context.Context, spec Spec, domain 
 	if err != nil {
 		return err
 	}
-	if _, err := b.runner.Capture(ctx, "", "sbx", "policy", "rm", "network", "--sandbox", spec.InstanceName, "--resource", resource); err != nil {
-		return fmt.Errorf("remove network egress rule for sandbox %q resource %q: %w", spec.InstanceName, resource, err)
+	args := []string{"policy", "rm", "network", "--sandbox", spec.InstanceName, "--resource", resource}
+	output, err := b.runner.Capture(ctx, "", "sbx", args...)
+	if err != nil {
+		return WrapCommandError(CodePolicyApplyFailed, "remove network egress rule for sandbox "+spec.InstanceName+" failed", commandResult("sbx", args, output, err), err)
 	}
 	return nil
 }

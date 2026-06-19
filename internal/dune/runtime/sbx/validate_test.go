@@ -2,6 +2,7 @@ package sbx
 
 import (
 	"context"
+	"errors"
 	"os/exec"
 	"reflect"
 	"strings"
@@ -77,12 +78,29 @@ func TestValidate_MissingSbxNotOnPATH(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Validate() want error for missing sbx, got nil")
 	}
+	diag := requireDiagnostic(t, err, CodeSbxNotInstalled)
+	if len(diag.Recovery) == 0 {
+		t.Fatalf("missing sbx diagnostic recovery = nil")
+	}
 	if !strings.Contains(err.Error(), "sbx is not installed or not on PATH") {
 		t.Fatalf("Validate() error = %q, want it to mention sbx not on PATH", err.Error())
 	}
 	if len(fr.calls) != 0 {
 		t.Fatalf("missing sbx must run no sandbox operations; got %d runner calls: %+v", len(fr.calls), fr.calls)
 	}
+}
+
+func TestValidate_DiagnoseCommandFailurePreservesStderr(t *testing.T) {
+	fr := &fakeRunner{
+		responses: []fakeRunnerResponse{
+			{output: []byte("daemon unavailable\n"), err: errors.New("exit status 1")},
+		},
+	}
+	b := newBackend(fr)
+	b.lookPath = lookPathFound
+
+	err := b.Validate(context.Background())
+	assertDiagnosticHasStderr(t, err, CodeSbxDiagnoseFailed, "daemon unavailable")
 }
 
 func TestValidate_DiagnoseFailure(t *testing.T) {
@@ -98,9 +116,13 @@ func TestValidate_DiagnoseFailure(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Validate() want error for failing diagnose check, got nil")
 	}
+	diag := requireDiagnostic(t, err, CodeSbxDiagnoseFailed)
+	if len(diag.Recovery) == 0 {
+		t.Fatalf("diagnose diagnostic recovery = nil")
+	}
 	for _, want := range []string{"sbx is not ready", "Authentication", "not signed in", "sbx login"} {
-		if !strings.Contains(err.Error(), want) {
-			t.Fatalf("Validate() error = %q, want it to contain %q", err.Error(), want)
+		if !strings.Contains(diag.Detail, want) && !strings.Contains(err.Error(), want) {
+			t.Fatalf("Validate() diagnostic = summary %q detail %q, want %q", diag.Summary, diag.Detail, want)
 		}
 	}
 
@@ -198,9 +220,12 @@ func TestValidate_BelowMinimumVersion(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Validate() want error for below-minimum version, got nil")
 	}
+	requireDiagnostic(t, err, CodeSbxVersionBelowMin)
 	for _, want := range []string{"v0.31.0", "v0.32.0", "upgrade"} {
-		if !strings.Contains(err.Error(), want) {
-			t.Fatalf("Validate() error = %q, want it to contain %q", err.Error(), want)
+		diag, _ := AsDiagnostic(err)
+		text := diag.Summary + " " + strings.Join(diag.Recovery, " ")
+		if !strings.Contains(text, want) {
+			t.Fatalf("Validate() diagnostic text = %q, want it to contain %q", text, want)
 		}
 	}
 

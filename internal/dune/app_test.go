@@ -3,6 +3,7 @@ package dune
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -407,6 +408,85 @@ func TestVersionAndProfileCommandsDoNotCreateRuntimeBackend(t *testing.T) {
 	}
 	if called {
 		t.Fatal("runtime backend factory was called for version/profile command")
+	}
+}
+
+func TestRunCorruptProfileConfigReturnsDiagnostic(t *testing.T) {
+	root := t.TempDir()
+	configHome := filepath.Join(t.TempDir(), "config")
+	t.Setenv("XDG_CONFIG_HOME", configHome)
+	path := filepath.Join(configHome, "dune", "profiles.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	if err := os.WriteFile(path, []byte("{broken"), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	backend := &fakeRuntimeBackend{}
+	withRuntimeBackend(t, backend)
+
+	var stdout, stderr strings.Builder
+	err := Run(context.Background(), []string{"up", "-d", root}, Environment{}, nil, &stdout, &stderr)
+	diag, ok := sbxruntime.AsDiagnostic(err)
+	if !ok {
+		t.Fatalf("Run() error = %v, want diagnostic", err)
+	}
+	if diag.Code != sbxruntime.CodeProfileConfigCorrupt {
+		t.Fatalf("diagnostic code = %q, want %q", diag.Code, sbxruntime.CodeProfileConfigCorrupt)
+	}
+	if got := backend.callNames(); len(got) != 0 {
+		t.Fatalf("runtime calls = %v, want none", got)
+	}
+}
+
+func TestRunInvalidWorkspaceReturnsDiagnostic(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(t.TempDir(), "config"))
+
+	backend := &fakeRuntimeBackend{}
+	withRuntimeBackend(t, backend)
+
+	var stdout, stderr strings.Builder
+	err := Run(context.Background(), []string{"up", "-d", filepath.Join(t.TempDir(), "missing")}, Environment{}, nil, &stdout, &stderr)
+	diag, ok := sbxruntime.AsDiagnostic(err)
+	if !ok {
+		t.Fatalf("Run() error = %v, want diagnostic", err)
+	}
+	if diag.Code != sbxruntime.CodeWorkspaceInvalid {
+		t.Fatalf("diagnostic code = %q, want %q", diag.Code, sbxruntime.CodeWorkspaceInvalid)
+	}
+	if got := backend.callNames(); len(got) != 0 {
+		t.Fatalf("runtime calls = %v, want none", got)
+	}
+}
+
+func TestRenderErrorConciseAndVerboseDiagnostics(t *testing.T) {
+	err := &sbxruntime.DiagnosticError{
+		Code:     sbxruntime.CodeSbxCreateFailed,
+		Summary:  "create failed",
+		Detail:   "full detail",
+		Command:  []string{"sbx", "create", "--name", "demo"},
+		Stderr:   "raw stderr\n",
+		Recovery: []string{"retry after fixing sbx"},
+	}
+
+	var concise strings.Builder
+	RenderError(&concise, err, false)
+	if got := concise.String(); !strings.Contains(got, "sbx.create_failed: create failed") || !strings.Contains(got, "Recovery: retry") {
+		t.Fatalf("concise render = %q, want code/summary/recovery", got)
+	}
+	for _, notWant := range []string{"Command:", "raw stderr", "full detail"} {
+		if strings.Contains(concise.String(), notWant) {
+			t.Fatalf("concise render = %q, must not contain %q", concise.String(), notWant)
+		}
+	}
+
+	var verbose strings.Builder
+	RenderError(&verbose, err, true)
+	for _, want := range []string{"Command: sbx create --name demo", "Stderr:\nraw stderr", "Detail: full detail"} {
+		if !strings.Contains(verbose.String(), want) {
+			t.Fatalf("verbose render = %q, want %q", verbose.String(), want)
+		}
 	}
 }
 

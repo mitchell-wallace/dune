@@ -32,6 +32,7 @@ type Options struct {
 	LogService      string
 	SetProfileName  string
 	Force           bool
+	Verbose         bool
 	PortsPublish    []string
 	PortsUnpublish  []string
 }
@@ -85,6 +86,7 @@ func parseDestroy(argv []string) (Options, error) {
 	fs.StringVar(&opts.Profile, "p", "", "")
 	fs.BoolVar(&opts.Force, "force", false, "")
 	fs.BoolVar(&opts.Force, "f", false, "")
+	fs.BoolVar(&opts.Verbose, "verbose", false, "")
 	if err := fs.Parse(argv); err != nil {
 		return Options{}, err
 	}
@@ -112,6 +114,7 @@ func parseContainerCommand(command Command, name string, argv []string) (Options
 	fs.StringVar(&opts.WorkspaceInput, "d", "", "")
 	fs.StringVar(&opts.Profile, "profile", "", "")
 	fs.StringVar(&opts.Profile, "p", "", "")
+	fs.BoolVar(&opts.Verbose, "verbose", false, "")
 	if err := fs.Parse(argv); err != nil {
 		return Options{}, err
 	}
@@ -139,6 +142,7 @@ func parseLogs(argv []string) (Options, error) {
 	fs.StringVar(&opts.WorkspaceInput, "d", "", "")
 	fs.StringVar(&opts.Profile, "profile", "", "")
 	fs.StringVar(&opts.Profile, "p", "", "")
+	fs.BoolVar(&opts.Verbose, "verbose", false, "")
 	if err := fs.Parse(argv); err != nil {
 		return Options{}, err
 	}
@@ -163,6 +167,7 @@ func parsePorts(argv []string) (Options, error) {
 	fs.StringVar(&opts.WorkspaceInput, "d", "", "")
 	fs.StringVar(&opts.Profile, "profile", "", "")
 	fs.StringVar(&opts.Profile, "p", "", "")
+	fs.BoolVar(&opts.Verbose, "verbose", false, "")
 	fs.Var(&stringSliceFlag{slice: &opts.PortsPublish}, "publish", "")
 	fs.Var(&stringSliceFlag{slice: &opts.PortsUnpublish}, "unpublish", "")
 	if err := fs.Parse(argv); err != nil {

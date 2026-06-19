@@ -33,26 +33,32 @@ func (b *backend) Ensure(ctx context.Context, spec Spec) error {
 		return err
 	}
 
-	if _, err := b.runner.Capture(ctx, "", "sbx", "create",
+	createArgs := []string{
+		"create",
 		"--name", spec.InstanceName,
 		"--template", spec.TemplateRef,
 		"shell",
 		spec.WorkspaceHostPath,
 		persistHostPath,
-	); err != nil {
+	}
+	createOutput, err := b.runner.Capture(ctx, "", "sbx", createArgs...)
+	if err != nil {
 		b.writeLifecycleLog(spec, "create failed: "+err.Error())
-		return fmt.Errorf("create sbx sandbox %q: %w", spec.InstanceName, err)
+		return WrapCommandError(createFailureCode(createOutput), "create sbx sandbox "+spec.InstanceName+" failed", commandResult("sbx", createArgs, createOutput, err), err)
 	}
 	b.writeLifecycleLog(spec, "created sandbox from template "+spec.TemplateRef)
 
-	if _, err := b.runner.Capture(ctx, "", "sbx", "exec",
-		"-e", "DUNE_WORKSPACE="+spec.WorkspaceHostPath,
-		"-e", "PERSIST_DIR="+persistHostPath,
+	setupArgs := []string{
+		"exec",
+		"-e", "DUNE_WORKSPACE=" + spec.WorkspaceHostPath,
+		"-e", "PERSIST_DIR=" + persistHostPath,
 		spec.InstanceName,
 		"bash", "-lc", "true",
-	); err != nil {
+	}
+	setupOutput, err := b.runner.Capture(ctx, "", "sbx", setupArgs...)
+	if err != nil {
 		b.writeLifecycleLog(spec, "setup hook failed: "+err.Error())
-		return fmt.Errorf("initialise sbx sandbox %q: %w", spec.InstanceName, err)
+		return WrapCommandError(CodeSbxExecFailed, "initialise sbx sandbox "+spec.InstanceName+" failed", commandResult("sbx", setupArgs, setupOutput, err), err)
 	}
 	b.writeLifecycleLog(spec, "ran setup hook for workspace "+spec.WorkspaceHostPath)
 
@@ -63,9 +69,11 @@ func (b *backend) Start(ctx context.Context, spec Spec) error {
 	if err := validateInstanceName(spec.InstanceName); err != nil {
 		return err
 	}
-	if _, err := b.runner.Capture(ctx, "", "sbx", "run", spec.InstanceName); err != nil {
+	args := []string{"run", spec.InstanceName}
+	output, err := b.runner.Capture(ctx, "", "sbx", args...)
+	if err != nil {
 		b.writeLifecycleLog(spec, "start failed: "+err.Error())
-		return fmt.Errorf("start sbx sandbox %q: %w", spec.InstanceName, err)
+		return WrapCommandError(CodeSbxStartFailed, "start sbx sandbox "+spec.InstanceName+" failed", commandResult("sbx", args, output, err), err)
 	}
 	b.writeLifecycleLog(spec, "started sandbox")
 	return nil
@@ -82,20 +90,28 @@ func (b *backend) Shell(ctx context.Context, spec Spec, streams StdIO) error {
 	if !isUnsupportedWorkingDirFlag(err) {
 		if err != nil {
 			b.writeLifecycleLog(spec, "attach failed: "+err.Error())
+			return WrapCommandError(CodeSbxExecFailed, "attach to sbx sandbox "+spec.InstanceName+" failed", commandResult("sbx", args, nil, err), err)
 		}
-		return err
+		return nil
 	}
 
 	b.writeLifecycleLog(spec, "retrying shell attach without sbx -w support")
-	return b.runner.Stream(ctx, "", streams, "sbx", shellExecArgs(spec, false)...)
+	args = shellExecArgs(spec, false)
+	if err := b.runner.Stream(ctx, "", streams, "sbx", args...); err != nil {
+		b.writeLifecycleLog(spec, "attach retry failed: "+err.Error())
+		return WrapCommandError(CodeSbxExecFailed, "attach to sbx sandbox "+spec.InstanceName+" failed", commandResult("sbx", args, nil, err), err)
+	}
+	return nil
 }
 
 func (b *backend) Stop(ctx context.Context, spec Spec) error {
 	if err := validateInstanceName(spec.InstanceName); err != nil {
 		return err
 	}
-	if _, err := b.runner.Capture(ctx, "", "sbx", "stop", spec.InstanceName); err != nil {
-		return fmt.Errorf("stop sbx sandbox %q: %w", spec.InstanceName, err)
+	args := []string{"stop", spec.InstanceName}
+	output, err := b.runner.Capture(ctx, "", "sbx", args...)
+	if err != nil {
+		return WrapCommandError(CodeSbxStopFailed, "stop sbx sandbox "+spec.InstanceName+" failed", commandResult("sbx", args, output, err), err)
 	}
 	return nil
 }
@@ -104,8 +120,10 @@ func (b *backend) Destroy(ctx context.Context, spec Spec) error {
 	if err := validateInstanceName(spec.InstanceName); err != nil {
 		return err
 	}
-	if _, err := b.runner.Capture(ctx, "", "sbx", "rm", "--force", spec.InstanceName); err != nil {
-		return fmt.Errorf("remove sbx sandbox %q: %w", spec.InstanceName, err)
+	args := []string{"rm", "--force", spec.InstanceName}
+	output, err := b.runner.Capture(ctx, "", "sbx", args...)
+	if err != nil {
+		return WrapCommandError(CodeSbxRmFailed, "remove sbx sandbox "+spec.InstanceName+" failed", commandResult("sbx", args, output, err), err)
 	}
 	return nil
 }
@@ -128,9 +146,10 @@ func (b *backend) Logs(ctx context.Context, spec Spec, service string, streams S
 		return err
 	}
 
-	output, err := b.runner.Capture(ctx, "", "sbx", "exec", spec.InstanceName, "bash", "-lc", script)
+	args := []string{"exec", spec.InstanceName, "bash", "-lc", script}
+	output, err := b.runner.Capture(ctx, "", "sbx", args...)
 	if err != nil {
-		return fmt.Errorf("read in-sandbox Dune logs for sandbox %q: %w", spec.InstanceName, err)
+		return WrapCommandError(CodeSbxExecFailed, "read in-sandbox Dune logs for sandbox "+spec.InstanceName+" failed", commandResult("sbx", args, output, err), err)
 	}
 	if _, err := fmt.Fprint(stdout, "\n== dune sandbox logs (/var/log/dune) ==\n"); err != nil {
 		return fmt.Errorf("write sandbox log heading: %w", err)
@@ -171,9 +190,10 @@ func (b *backend) Status(ctx context.Context, spec Spec) (State, error) {
 		return State{}, err
 	}
 
-	output, err := b.runner.Capture(ctx, "", "sbx", "ls", "--json")
+	args := []string{"ls", "--json"}
+	output, err := b.runner.Capture(ctx, "", "sbx", args...)
 	if err != nil {
-		return State{}, fmt.Errorf("list sbx sandboxes: %w", err)
+		return State{}, WrapCommandError(CodeSbxDiagnoseFailed, "list sbx sandboxes failed", commandResult("sbx", args, output, err), err)
 	}
 
 	sandboxes, err := parseSandboxList(output)
@@ -271,10 +291,10 @@ func validateEnsureSpec(spec Spec) error {
 		return err
 	}
 	if strings.TrimSpace(spec.TemplateRef) == "" {
-		return errors.New("sbx template ref is required")
+		return NewDiagnosticError(CodeTemplateUnavailable, "sbx template ref is required", "", errors.New("sbx template ref is required"))
 	}
 	if err := validateAbsolutePath("workspace host path", spec.WorkspaceHostPath); err != nil {
-		return err
+		return NewDiagnosticError(CodeWorkspaceInvalid, "workspace host path is invalid", err.Error(), err)
 	}
 	if strings.TrimSpace(spec.Profile) == "" {
 		return errors.New("profile is required")
@@ -286,7 +306,10 @@ func validateShellSpec(spec Spec) error {
 	if err := validateInstanceName(spec.InstanceName); err != nil {
 		return err
 	}
-	return validateAbsolutePath("working directory", workingDir(spec))
+	if err := validateAbsolutePath("working directory", workingDir(spec)); err != nil {
+		return NewDiagnosticError(CodeWorkspaceInvalid, "working directory is invalid", err.Error(), err)
+	}
+	return nil
 }
 
 func validateInstanceName(name string) error {
@@ -384,6 +407,14 @@ func validLogServiceName(service string) bool {
 
 func shellQuote(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'"
+}
+
+func createFailureCode(output []byte) string {
+	text := strings.ToLower(string(output))
+	if strings.Contains(text, "template") || strings.Contains(text, "pull") || strings.Contains(text, "image") {
+		return CodeTemplateUnavailable
+	}
+	return CodeSbxCreateFailed
 }
 
 func (b *backend) writeLifecycleLog(spec Spec, message string) {

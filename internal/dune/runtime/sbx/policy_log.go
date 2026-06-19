@@ -52,9 +52,10 @@ func (b *backend) PolicyLog(ctx context.Context, spec Spec, limit int) (PolicyLo
 		return PolicyLogReport{}, err
 	}
 
-	output, err := b.runner.Capture(ctx, "", "sbx", "policy", "log", spec.InstanceName, "--json", "--limit", strconv.Itoa(limit))
+	args := []string{"policy", "log", spec.InstanceName, "--json", "--limit", strconv.Itoa(limit)}
+	output, err := b.runner.Capture(ctx, "", "sbx", args...)
 	if err != nil {
-		return PolicyLogReport{}, fmt.Errorf("read sbx policy log for sandbox %q: %w", spec.InstanceName, err)
+		return PolicyLogReport{}, WrapCommandError(CodeSbxExecFailed, "read sbx policy log for sandbox "+spec.InstanceName+" failed", commandResult("sbx", args, output, err), err)
 	}
 
 	report, err := parsePolicyLog(output)

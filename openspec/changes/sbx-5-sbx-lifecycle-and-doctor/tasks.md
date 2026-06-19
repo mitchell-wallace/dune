@@ -12,9 +12,9 @@
 
 ## 3. Structured diagnostics
 
-- [ ] 3.1 Add a small `DiagnosticError` type (code/summary/detail/cause/command/stderr/recovery) with `IsDiagnostic`/`AsDiagnostic`/`WrapCommandError` (D4).
-- [ ] 3.2 Map sbx backend failures to the initial code set (`sbx.not_installed`, `sbx.diagnose_failed`, `sbx.version_below_min`, `sbx.create_failed`, `sbx.start_failed`, `sbx.stop_failed`, `sbx.exec_failed`, `sbx.rm_failed`, `template.unavailable`, `policy.apply_failed`, `workspace.invalid`, `profile.config_corrupt`), preserving stderr and attaching recovery hints (D4).
-- [ ] 3.3 Keep default CLI output concise; show command/stderr under verbose mode.
+- [x] 3.1 Add a small `DiagnosticError` type (code/summary/detail/cause/command/stderr/recovery) with `IsDiagnostic`/`AsDiagnostic`/`WrapCommandError` (D4).
+- [x] 3.2 Map sbx backend failures to the initial code set (`sbx.not_installed`, `sbx.diagnose_failed`, `sbx.version_below_min`, `sbx.create_failed`, `sbx.start_failed`, `sbx.stop_failed`, `sbx.exec_failed`, `sbx.rm_failed`, `template.unavailable`, `policy.apply_failed`, `workspace.invalid`, `profile.config_corrupt`), preserving stderr and attaching recovery hints (D4).
+- [x] 3.3 Keep default CLI output concise; show command/stderr under verbose mode.
 
 ## 4. dune doctor
 
@@ -25,7 +25,7 @@
 ## 5. Tests
 
 - [x] 5.1 Fake-runner tests for `up`/`down`/`destroy`/`rebuild` command construction and sequencing (extending the `sbx-3` seam), including `dune destroy` → `sbx rm` and rebuild preserving persisted state.
-- [ ] 5.2 Diagnostics tests asserting codes and preserved stderr for representative failures (missing sbx, failed diagnose, below-min version, create/start/exec/rm failures, template unavailable, corrupt profiles).
+- [x] 5.2 Diagnostics tests asserting codes and preserved stderr for representative failures (missing sbx, failed diagnose, below-min version, create/start/exec/rm failures, template unavailable, corrupt profiles).
 - [ ] 5.3 `dune doctor` tests for pass/warn/fail/skip cases and `--json` shape; assert it constructs only read-only `sbx` calls (`diagnose`/`version`/`ls`/`policy ls`) and never a sandbox-mutating command (`create`/`run`/`exec`/`rm`).
 
 ## 6. Build, smoke, docs

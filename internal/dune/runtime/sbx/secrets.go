@@ -26,8 +26,10 @@ func (b *backend) SetServiceSecret(ctx context.Context, spec Spec, service, toke
 	if strings.TrimSpace(token) == "" {
 		return errors.New("secret token is required")
 	}
-	if _, err := b.runner.Capture(ctx, "", "sbx", "secret", "set", spec.InstanceName, service, "-t", token); err != nil {
-		return fmt.Errorf("set sbx service secret for sandbox %q service %q: %w", spec.InstanceName, service, err)
+	args := []string{"secret", "set", spec.InstanceName, service, "-t", token}
+	output, err := b.runner.Capture(ctx, "", "sbx", args...)
+	if err != nil {
+		return WrapCommandError(CodeSbxExecFailed, "set sbx service secret for sandbox "+spec.InstanceName+" service "+service+" failed", commandResult("sbx", args, output, err), err)
 	}
 	return nil
 }
@@ -43,7 +45,7 @@ func (b *backend) ListServiceSecrets(ctx context.Context, spec Spec) ([]byte, er
 	}
 	output, err := b.runner.Capture(ctx, "", "sbx", "secret", "ls", spec.InstanceName)
 	if err != nil {
-		return output, fmt.Errorf("list sbx secrets for sandbox %q: %w", spec.InstanceName, err)
+		return output, WrapCommandError(CodeSbxExecFailed, "list sbx secrets for sandbox "+spec.InstanceName+" failed", commandResult("sbx", []string{"secret", "ls", spec.InstanceName}, output, err), err)
 	}
 	return output, nil
 }
@@ -60,8 +62,10 @@ func (b *backend) RemoveServiceSecret(ctx context.Context, spec Spec, service st
 	if err := validateSecretService(service); err != nil {
 		return err
 	}
-	if _, err := b.runner.Capture(ctx, "", "sbx", "secret", "rm", spec.InstanceName, service, "-f"); err != nil {
-		return fmt.Errorf("remove sbx service secret for sandbox %q service %q: %w", spec.InstanceName, service, err)
+	args := []string{"secret", "rm", spec.InstanceName, service, "-f"}
+	output, err := b.runner.Capture(ctx, "", "sbx", args...)
+	if err != nil {
+		return WrapCommandError(CodeSbxExecFailed, "remove sbx service secret for sandbox "+spec.InstanceName+" service "+service+" failed", commandResult("sbx", args, output, err), err)
 	}
 	return nil
 }

@@ -20,7 +20,7 @@ func (b *backend) ListPorts(ctx context.Context, spec Spec) ([]byte, error) {
 	}
 	output, err := b.runner.Capture(ctx, "", "sbx", "ports", spec.InstanceName)
 	if err != nil {
-		return output, fmt.Errorf("list sbx ports for sandbox %q: %w", spec.InstanceName, err)
+		return output, WrapCommandError(CodeSbxDiagnoseFailed, "list sbx ports for sandbox "+spec.InstanceName+" failed", commandResult("sbx", []string{"ports", spec.InstanceName}, output, err), err)
 	}
 	return output, nil
 }
@@ -38,8 +38,9 @@ func (b *backend) PublishPorts(ctx context.Context, spec Spec, specs []string) e
 	if err != nil {
 		return err
 	}
-	if _, err := b.runner.Capture(ctx, "", "sbx", args...); err != nil {
-		return fmt.Errorf("publish sbx ports for sandbox %q: %w", spec.InstanceName, err)
+	output, err := b.runner.Capture(ctx, "", "sbx", args...)
+	if err != nil {
+		return WrapCommandError(CodeSbxExecFailed, "publish sbx ports for sandbox "+spec.InstanceName+" failed", commandResult("sbx", args, output, err), err)
 	}
 	return nil
 }
@@ -56,8 +57,9 @@ func (b *backend) UnpublishPorts(ctx context.Context, spec Spec, specs []string)
 	if err != nil {
 		return err
 	}
-	if _, err := b.runner.Capture(ctx, "", "sbx", args...); err != nil {
-		return fmt.Errorf("unpublish sbx ports for sandbox %q: %w", spec.InstanceName, err)
+	output, err := b.runner.Capture(ctx, "", "sbx", args...)
+	if err != nil {
+		return WrapCommandError(CodeSbxExecFailed, "unpublish sbx ports for sandbox "+spec.InstanceName+" failed", commandResult("sbx", args, output, err), err)
 	}
 	return nil
 }

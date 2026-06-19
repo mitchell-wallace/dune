@@ -23,7 +23,7 @@ const minimumSbxVersion = "v0.32.0"
 // and no further sandbox operation is attempted.
 func (b *backend) Validate(ctx context.Context) error {
 	if _, err := b.lookPath("sbx"); err != nil {
-		return errors.New("sbx is not installed or not on PATH; install sbx and try again")
+		return NewDiagnosticError(CodeSbxNotInstalled, "sbx is not installed or not on PATH", "", err)
 	}
 
 	diagOutput, diagErr := b.runner.Capture(ctx, "", "sbx", "diagnose", "--output", "json")
@@ -32,9 +32,9 @@ func (b *backend) Validate(ctx context.Context) error {
 		// diagnose is the source of truth; when its JSON cannot be parsed the
 		// underlying run error (if any) is the most useful thing to surface.
 		if diagErr != nil {
-			return fmt.Errorf("run sbx diagnose: %w", diagErr)
+			return WrapCommandError(CodeSbxDiagnoseFailed, "sbx diagnose failed", commandResult("sbx", []string{"diagnose", "--output", "json"}, diagOutput, diagErr), diagErr)
 		}
-		return fmt.Errorf("parse sbx diagnose output: %w", parseErr)
+		return NewDiagnosticError(CodeSbxDiagnoseFailed, "sbx diagnose returned unreadable output", parseErr.Error(), parseErr)
 	}
 	if failed := nonPassingChecks(report); len(failed) > 0 {
 		return diagnoseError(failed)
@@ -42,18 +42,18 @@ func (b *backend) Validate(ctx context.Context) error {
 
 	versionOutput, err := b.runner.Capture(ctx, "", "sbx", "version")
 	if err != nil {
-		return fmt.Errorf("run sbx version: %w", err)
+		return WrapCommandError(CodeSbxDiagnoseFailed, "sbx version failed", commandResult("sbx", []string{"version"}, versionOutput, err), err)
 	}
 	installed, err := parseSbxVersion(versionOutput)
 	if err != nil {
-		return fmt.Errorf("read sbx version: %w", err)
+		return NewDiagnosticError(CodeSbxDiagnoseFailed, "sbx version returned unreadable output", err.Error(), err)
 	}
 	ok, err := versionAtLeast(installed, minimumSbxVersion)
 	if err != nil {
-		return fmt.Errorf("compare sbx version: %w", err)
+		return NewDiagnosticError(CodeSbxDiagnoseFailed, "sbx version could not be compared", err.Error(), err)
 	}
 	if !ok {
-		return fmt.Errorf("sbx %s is older than the required %s; upgrade sbx and try again", installed, minimumSbxVersion)
+		return NewDiagnosticError(CodeSbxVersionBelowMin, fmt.Sprintf("sbx %s is older than the required %s", installed, minimumSbxVersion), "", nil)
 	}
 	return nil
 }
@@ -144,6 +144,7 @@ func nonPassingChecks(report diagnoseReport) []diagnoseCheck {
 func diagnoseError(failed []diagnoseCheck) error {
 	var b strings.Builder
 	fmt.Fprintf(&b, "sbx is not ready: diagnose reported %d check(s) not passing", len(failed))
+	recovery := recoveryHints(CodeSbxDiagnoseFailed)
 	for _, check := range failed {
 		b.WriteString("; ")
 		b.WriteString(check.Name)
@@ -157,9 +158,15 @@ func diagnoseError(failed []diagnoseCheck) error {
 		if check.Hint != "" {
 			b.WriteString(" -- ")
 			b.WriteString(check.Hint)
+			recovery = append(recovery, check.Hint)
 		}
 	}
-	return errors.New(b.String())
+	return &DiagnosticError{
+		Code:     CodeSbxDiagnoseFailed,
+		Summary:  "sbx is not ready",
+		Detail:   b.String(),
+		Recovery: recovery,
+	}
 }
 
 // parseSbxVersion extracts the version token from `sbx version` output.

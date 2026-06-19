@@ -49,6 +49,7 @@ Runtime flags (for up/down/destroy/rebuild/logs/ports):
   -d, --directory  Workspace directory (default: current directory)
   -p, --profile    Profile name (default: default)
   -f, --force      Skip destroy confirmation
+  --verbose         Show diagnostic command and stderr details on failure
   --publish <spec> Publish a host->sandbox port (dune ports, repeatable)
   --unpublish <spec>
                    Unpublish a host->sandbox port (dune ports, repeatable)
@@ -99,7 +100,7 @@ func Run(ctx context.Context, argv []string, env Environment, stdin io.Reader, s
 	workspaceInput := defaultWorkspaceInput(opts.WorkspaceInput, env.CallerPWD)
 	ws, err := workspace.Resolve(workspaceInput)
 	if err != nil {
-		return err
+		return sbxruntime.NewDiagnosticError(sbxruntime.CodeWorkspaceInvalid, "workspace is invalid", err.Error(), err)
 	}
 
 	configDir, err := os.UserConfigDir()
@@ -110,7 +111,7 @@ func Run(ctx context.Context, argv []string, env Environment, stdin io.Reader, s
 	storePath := filepath.Join(configDir, "dune", "profiles.json")
 	store, err := loadProfileStore(storePath)
 	if err != nil {
-		return err
+		return sbxruntime.NewDiagnosticError(sbxruntime.CodeProfileConfigCorrupt, "profile configuration is corrupt", err.Error(), err)
 	}
 
 	switch opts.Command {
@@ -135,6 +136,55 @@ func Run(ctx context.Context, argv []string, env Environment, stdin io.Reader, s
 
 	spec := buildRuntimeSpec(ws, profile)
 	return dispatchRuntimeCommand(ctx, opts, spec, newRuntimeBackend(), stdin, stdout, stderr)
+}
+
+func RenderError(w io.Writer, err error, verbose bool) {
+	if err == nil {
+		return
+	}
+	if w == nil {
+		w = io.Discard
+	}
+	diag, ok := sbxruntime.AsDiagnostic(err)
+	if !ok {
+		_, _ = fmt.Fprintln(w, err)
+		return
+	}
+
+	if diag.Code != "" {
+		_, _ = fmt.Fprintf(w, "%s: %s\n", diag.Code, diag.Summary)
+	} else {
+		_, _ = fmt.Fprintln(w, diag.Summary)
+	}
+	for _, hint := range diag.Recovery {
+		if strings.TrimSpace(hint) != "" {
+			_, _ = fmt.Fprintf(w, "Recovery: %s\n", hint)
+		}
+	}
+	if !verbose {
+		return
+	}
+	if diag.Detail != "" {
+		_, _ = fmt.Fprintf(w, "Detail: %s\n", diag.Detail)
+	}
+	if len(diag.Command) > 0 {
+		_, _ = fmt.Fprintf(w, "Command: %s\n", strings.Join(diag.Command, " "))
+	}
+	if strings.TrimSpace(diag.Stderr) != "" {
+		_, _ = fmt.Fprintf(w, "Stderr:\n%s\n", strings.TrimRight(diag.Stderr, "\n"))
+	}
+	if diag.Cause != nil {
+		_, _ = fmt.Fprintf(w, "Cause: %v\n", diag.Cause)
+	}
+}
+
+func VerboseRequested(argv []string) bool {
+	for _, arg := range argv {
+		if arg == "--verbose" {
+			return true
+		}
+	}
+	return false
 }
 
 func buildRuntimeSpec(ws workspace.Ref, profile string) sbxruntime.Spec {
