@@ -39,11 +39,11 @@
       "title": "Add structured sbx diagnostics with stable codes",
       "description": "Context: sbx-5 design D4, tasks 3.1-3.3 and 5.2. Today every sbx backend method returns a plain fmt.Errorf wrap (lifecycle.go create/start/stop/rm, validate.go diagnose/version, egress.go allow/deny/rm, secrets.go). D4 introduces a small, sbx-scoped DiagnosticError {Code, Summary, Detail, Cause, Command, Stderr, Recovery} with IsDiagnostic/AsDiagnostic and WrapCommandError(code, summary, result, err) — reusing the superseded ref-3 shape, retargeted to sbx.\n\nOutcome: the DiagnosticError type + helpers, and backend failures MAPPED to the initial small code set: sbx.not_installed, sbx.diagnose_failed, sbx.version_below_min, sbx.create_failed, sbx.start_failed, sbx.stop_failed, sbx.exec_failed, sbx.rm_failed, template.unavailable, policy.apply_failed, workspace.invalid, profile.config_corrupt. The failing command's stderr is PRESERVED (the default runner already attaches output to ExitError.Stderr, runner.go:30) rather than replaced with friendly prose; recovery hints attach for common host/setup failures; the original cause stays errors.Is/As-unwrap-compatible. Default CLI output is concise (summary + recovery); full command/stderr shows only under a verbose mode.\n\nFiles \u0026 scope: a diagnostics file in the sbx package (or a small sub-package) for the type/helpers; convert the EXISTING and the newly-added (destroy/ports/logs) backend methods to emit coded diagnostics at the boundary where context is known; thread a verbose toggle into CLI rendering (app.go). If WrapCommandError needs the command vector + stderr + exit, extend the runner seam minimally to surface a CommandResult. Do not add doctor (next lap) — but design the codes/hints so doctor can reuse them.\n\nDesign: keep the taxonomy SMALL — add a code only when Dune can actually distinguish the case (design risk: taxonomy sprawl). Map at the boundary; do not double-wrap. Tests assert codes and key fields, NOT rendered prose.\n\nAcceptance: tests assert codes + preserved stderr for representative failures (missing sbx, failed diagnose, below-min version, create/start/exec/rm failures, template unavailable, corrupt profiles) — task 5.2; plus a concise-vs-verbose rendering test. `go build ./cmd/dune` and `go test ./internal/dune/...` green.",
       "assignee": "SENIOR",
-      "isDone": false,
+      "isDone": true,
       "order": 262144,
       "createdAt": "2026-06-19T05:10:00Z",
-      "updatedAt": "2026-06-19T05:10:00Z",
-      "completedAt": null
+      "updatedAt": "2026-06-19T03:19:30.794229503Z",
+      "completedAt": "2026-06-19T03:19:30.794229503Z"
     },
     {
       "id": "dune-e07f",
