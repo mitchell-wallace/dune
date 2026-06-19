@@ -121,6 +121,27 @@ func TestParsePortsRejectsExtraPositionalArgs(t *testing.T) {
 	}
 }
 
+func TestParseDoctorJSON(t *testing.T) {
+	t.Parallel()
+
+	opts, err := Parse([]string{"doctor", "--json", "--verbose", "-p", "work", "./repo"})
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if opts.Command != CommandDoctor {
+		t.Fatalf("Command = %q, want %q", opts.Command, CommandDoctor)
+	}
+	if !opts.JSON || !opts.Verbose {
+		t.Fatalf("JSON/Verbose = %v/%v, want true/true", opts.JSON, opts.Verbose)
+	}
+	if opts.Profile != "work" || !opts.ProfileExplicit {
+		t.Fatalf("unexpected profile parsing: %#v", opts)
+	}
+	if opts.WorkspaceInput != "./repo" {
+		t.Fatalf("WorkspaceInput = %q", opts.WorkspaceInput)
+	}
+}
+
 func TestParseProfileSet(t *testing.T) {
 	t.Parallel()
 

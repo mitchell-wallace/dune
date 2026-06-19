@@ -17,6 +17,7 @@ const (
 	CommandRebuild     Command = "rebuild"
 	CommandLogs        Command = "logs"
 	CommandPorts       Command = "ports"
+	CommandDoctor      Command = "doctor"
 	CommandVersion     Command = "version"
 	CommandHelp        Command = "help"
 	CommandUpdate      Command = "update"
@@ -33,6 +34,7 @@ type Options struct {
 	SetProfileName  string
 	Force           bool
 	Verbose         bool
+	JSON            bool
 	PortsPublish    []string
 	PortsUnpublish  []string
 }
@@ -66,6 +68,8 @@ func Parse(argv []string) (Options, error) {
 		return parseLogs(argv[1:])
 	case "ports":
 		return parsePorts(argv[1:])
+	case "doctor":
+		return parseDoctor(argv[1:])
 	case "version":
 		return parseVersion(argv[1:])
 	case "profile":
@@ -73,6 +77,35 @@ func Parse(argv []string) (Options, error) {
 	default:
 		return parseContainerCommand(CommandUp, "dune", argv)
 	}
+}
+
+func parseDoctor(argv []string) (Options, error) {
+	fs := flag.NewFlagSet("dune doctor", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	opts := Options{Command: CommandDoctor}
+	fs.StringVar(&opts.WorkspaceInput, "directory", "", "")
+	fs.StringVar(&opts.WorkspaceInput, "d", "", "")
+	fs.StringVar(&opts.Profile, "profile", "", "")
+	fs.StringVar(&opts.Profile, "p", "", "")
+	fs.BoolVar(&opts.Verbose, "verbose", false, "")
+	fs.BoolVar(&opts.JSON, "json", false, "")
+	if err := fs.Parse(argv); err != nil {
+		return Options{}, err
+	}
+
+	args := fs.Args()
+	if len(args) > 1 {
+		return Options{}, errors.New("usage: dune doctor [--json] [--verbose] [-d directory] [-p profile]")
+	}
+	if len(args) == 1 {
+		if opts.WorkspaceInput != "" {
+			return Options{}, errors.New("usage: dune doctor [--json] [--verbose] [-d directory] [-p profile]")
+		}
+		opts.WorkspaceInput = args[0]
+	}
+	opts.ProfileExplicit = opts.Profile != ""
+	return opts, nil
 }
 
 func parseDestroy(argv []string) (Options, error) {

@@ -365,6 +365,10 @@ func profilePersistHostPath(profile string) (string, error) {
 	return path, nil
 }
 
+func ProfilePersistHostPath(profile string) (string, error) {
+	return profilePersistHostPath(profile)
+}
+
 func workingDir(spec Spec) string {
 	if strings.TrimSpace(spec.WorkingDir) != "" {
 		return spec.WorkingDir

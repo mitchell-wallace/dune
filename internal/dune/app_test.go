@@ -2,6 +2,7 @@ package dune
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -337,6 +338,89 @@ func TestRunLogsPipelockIsOnlyAServiceNameNotSubcommand(t *testing.T) {
 	}
 }
 
+func TestRunDoctorJSONEmitsStructuredChecks(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(t.TempDir(), "config"))
+	t.Setenv("XDG_DATA_HOME", filepath.Join(t.TempDir(), "data"))
+
+	backend := &fakeRuntimeBackend{
+		doctorChecks: []sbxruntime.Check{{
+			ID:       "sbx.diagnose",
+			Group:    "host/sbx",
+			Severity: "critical",
+			Status:   sbxruntime.CheckStatusPass,
+			Summary:  "sbx diagnose passed",
+		}},
+	}
+	withRuntimeBackend(t, backend)
+
+	var stdout, stderr strings.Builder
+	if err := Run(context.Background(), []string{"doctor", "--json", "-d", root}, Environment{}, nil, &stdout, &stderr); err != nil {
+		t.Fatalf("Run(doctor --json) error = %v", err)
+	}
+
+	if got := backend.callNames(); strings.Join(got, ",") != "Doctor" {
+		t.Fatalf("runtime calls = %v, want Doctor only", got)
+	}
+	var report struct {
+		Status string             `json:"status"`
+		Checks []sbxruntime.Check `json:"checks"`
+	}
+	if err := json.Unmarshal([]byte(stdout.String()), &report); err != nil {
+		t.Fatalf("doctor JSON did not parse: %v\n%s", err, stdout.String())
+	}
+	if report.Status != sbxruntime.CheckStatusPass {
+		t.Fatalf("status = %q, want pass; report=%+v", report.Status, report)
+	}
+	for _, id := range []string{"workspace.resolve", "profile.store", "persist.dir", "sbx.diagnose"} {
+		if !hasDoctorCheck(report.Checks, id) {
+			t.Fatalf("doctor checks missing %q: %+v", id, report.Checks)
+		}
+	}
+}
+
+func TestRunDoctorReportsCorruptProfilesWithoutBackend(t *testing.T) {
+	root := t.TempDir()
+	configHome := filepath.Join(t.TempDir(), "config")
+	t.Setenv("XDG_CONFIG_HOME", configHome)
+	t.Setenv("XDG_DATA_HOME", filepath.Join(t.TempDir(), "data"))
+	path := filepath.Join(configHome, "dune", "profiles.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	if err := os.WriteFile(path, []byte("{broken"), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	backend := &fakeRuntimeBackend{}
+	withRuntimeBackend(t, backend)
+
+	var stdout, stderr strings.Builder
+	if err := Run(context.Background(), []string{"doctor", "--json", "-d", root}, Environment{}, nil, &stdout, &stderr); err != nil {
+		t.Fatalf("Run(doctor --json) error = %v", err)
+	}
+	if got := backend.callNames(); len(got) != 0 {
+		t.Fatalf("runtime calls = %v, want none when local doctor checks are not runnable", got)
+	}
+	var report struct {
+		Status string             `json:"status"`
+		Checks []sbxruntime.Check `json:"checks"`
+	}
+	if err := json.Unmarshal([]byte(stdout.String()), &report); err != nil {
+		t.Fatalf("doctor JSON did not parse: %v\n%s", err, stdout.String())
+	}
+	if report.Status != sbxruntime.CheckStatusFail {
+		t.Fatalf("status = %q, want fail", report.Status)
+	}
+	check := doctorCheckByID(report.Checks, "profile.store")
+	if check.Status != sbxruntime.CheckStatusFail || !strings.Contains(check.Summary, sbxruntime.CodeProfileConfigCorrupt) {
+		t.Fatalf("profile.store check = %+v, want profile config failure", check)
+	}
+	if check := doctorCheckByID(report.Checks, "sbx.readiness"); check.Status != sbxruntime.CheckStatusSkip {
+		t.Fatalf("sbx.readiness check = %+v, want skip", check)
+	}
+}
+
 func TestRunDestroyWithConfirmation(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(t.TempDir(), "config"))
@@ -362,6 +446,24 @@ func TestRunDestroyWithConfirmation(t *testing.T) {
 	if !strings.Contains(stderr.String(), "Profile-scoped persisted state is kept") {
 		t.Fatalf("stderr = %q, want persist-state confirmation text", stderr.String())
 	}
+}
+
+func hasDoctorCheck(checks []sbxruntime.Check, id string) bool {
+	for _, check := range checks {
+		if check.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+func doctorCheckByID(checks []sbxruntime.Check, id string) sbxruntime.Check {
+	for _, check := range checks {
+		if check.ID == id {
+			return check
+		}
+	}
+	return sbxruntime.Check{}
 }
 
 func TestRunDestroyWithoutConfirmationDoesNotRemove(t *testing.T) {
@@ -516,6 +618,7 @@ type fakeRuntimeBackend struct {
 	egressErr     error
 	logsOutput    string
 	policyReport  sbxruntime.PolicyLogReport
+	doctorChecks  []sbxruntime.Check
 }
 
 type fakeRuntimeCall struct {
@@ -625,6 +728,11 @@ func (f *fakeRuntimeBackend) UnpublishPorts(_ context.Context, spec sbxruntime.S
 func (f *fakeRuntimeBackend) PolicyLog(_ context.Context, spec sbxruntime.Spec, _ int) (sbxruntime.PolicyLogReport, error) {
 	f.calls = append(f.calls, fakeRuntimeCall{name: "PolicyLog", spec: spec})
 	return f.policyReport, nil
+}
+
+func (f *fakeRuntimeBackend) Doctor(_ context.Context, spec sbxruntime.Spec, _ sbxruntime.DoctorOptions) []sbxruntime.Check {
+	f.calls = append(f.calls, fakeRuntimeCall{name: "Doctor", spec: spec})
+	return append([]sbxruntime.Check(nil), f.doctorChecks...)
 }
 
 func (f *fakeRuntimeBackend) SetServiceSecret(_ context.Context, spec sbxruntime.Spec, service, _ string) error {

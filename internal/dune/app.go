@@ -36,6 +36,7 @@ Commands:
   rebuild          Recreate the sandbox from the Dune sbx template
   logs [service]   Show Dune runtime logs and sbx policy records (default: all)
   ports            List published host ports (default); --publish/--unpublish map them
+  doctor           Report host, sandbox, profile, and egress readiness
   version          Print dune version
   profile set      Set the active profile for the current workspace
   profile list     List stored profile mappings
@@ -53,6 +54,9 @@ Runtime flags (for up/down/destroy/rebuild/logs/ports):
   --publish <spec> Publish a host->sandbox port (dune ports, repeatable)
   --unpublish <spec>
                    Unpublish a host->sandbox port (dune ports, repeatable)
+
+Doctor flags:
+  --json           Emit structured doctor checks
 `
 )
 
@@ -95,6 +99,9 @@ func Run(ctx context.Context, argv []string, env Environment, stdin io.Reader, s
 		return err
 	case cli.CommandUpdate:
 		return selfUpdate(ctx, stdout, stderr)
+	}
+	if opts.Command == cli.CommandDoctor {
+		return runDoctor(ctx, opts, env, stdout)
 	}
 
 	workspaceInput := defaultWorkspaceInput(opts.WorkspaceInput, env.CallerPWD)
@@ -365,6 +372,244 @@ func runUp(ctx context.Context, backend sbxruntime.Backend, spec sbxruntime.Spec
 		}
 	}
 	return backend.Shell(ctx, spec, streams)
+}
+
+type doctorReport struct {
+	Status string             `json:"status"`
+	Checks []sbxruntime.Check `json:"checks"`
+}
+
+func runDoctor(ctx context.Context, opts cli.Options, env Environment, stdout io.Writer) error {
+	if stdout == nil {
+		stdout = io.Discard
+	}
+
+	checks, ws, profile, runnable := localDoctorChecks(opts, env)
+	if runnable {
+		spec := buildRuntimeSpec(ws, profile)
+		checks = append(checks, newRuntimeBackend().Doctor(ctx, spec, sbxruntime.DoctorOptions{})...)
+	} else {
+		checks = append(checks,
+			doctorCheck("sbx.readiness", "host/sbx", "critical", sbxruntime.CheckStatusSkip, "sbx readiness skipped", "workspace/profile readiness did not resolve", nil),
+			doctorCheck("sandbox.status", "sandbox", "info", sbxruntime.CheckStatusSkip, "Sandbox status skipped", "workspace/profile readiness did not resolve", nil),
+			doctorCheck("egress.posture", "egress", "critical", sbxruntime.CheckStatusSkip, "Egress posture skipped", "workspace/profile readiness did not resolve", nil),
+		)
+	}
+
+	report := doctorReport{Status: aggregateDoctorStatus(checks), Checks: checks}
+	if opts.JSON {
+		enc := json.NewEncoder(stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(report)
+	}
+	return writeDoctorHuman(stdout, report, opts.Verbose)
+}
+
+func localDoctorChecks(opts cli.Options, env Environment) ([]sbxruntime.Check, workspace.Ref, string, bool) {
+	var checks []sbxruntime.Check
+	runnable := true
+
+	workspaceInput := defaultWorkspaceInput(opts.WorkspaceInput, env.CallerPWD)
+	ws, err := workspace.Resolve(workspaceInput)
+	if err != nil {
+		checks = append(checks, doctorDiagnosticCheck("workspace.resolve", "workspace/profile/config", "critical", sbxruntime.CheckStatusFail, sbxruntime.CodeWorkspaceInvalid, "Workspace could not be resolved", err.Error()))
+		runnable = false
+	} else {
+		checks = append(checks, doctorCheck("workspace.resolve", "workspace/profile/config", "critical", sbxruntime.CheckStatusPass, "Workspace resolved", ws.Root, nil))
+		if ws.Slug == "" {
+			checks = append(checks, doctorDiagnosticCheck("workspace.slug", "workspace/profile/config", "critical", sbxruntime.CheckStatusFail, sbxruntime.CodeWorkspaceInvalid, "Workspace slug is empty", ""))
+			runnable = false
+		} else {
+			checks = append(checks, doctorCheck("workspace.slug", "workspace/profile/config", "info", sbxruntime.CheckStatusPass, "Workspace slug computed", ws.Slug, nil))
+		}
+	}
+
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		checks = append(checks, doctorCheck("config.dir", "workspace/profile/config", "critical", sbxruntime.CheckStatusFail, "Config directory could not be resolved", err.Error(), nil))
+		runnable = false
+	} else {
+		checks = append(checks, dirDoctorCheck("config.dir", "Config directory is usable", filepath.Join(configDir, "dune")))
+	}
+
+	dataDir, err := userDataDir()
+	if err != nil {
+		checks = append(checks, doctorCheck("data.dir", "workspace/profile/config", "critical", sbxruntime.CheckStatusFail, "Data directory could not be resolved", err.Error(), nil))
+		runnable = false
+	} else {
+		checks = append(checks, dirDoctorCheck("data.dir", "Data directory is usable", filepath.Join(dataDir, "dune")))
+	}
+
+	store := profileStore{}
+	if configDir != "" {
+		storePath := filepath.Join(configDir, "dune", "profiles.json")
+		loaded, err := loadProfileStore(storePath)
+		if err != nil {
+			checks = append(checks, doctorDiagnosticCheck("profile.store", "workspace/profile/config", "critical", sbxruntime.CheckStatusFail, sbxruntime.CodeProfileConfigCorrupt, "Profile mappings could not be parsed", err.Error()))
+			runnable = false
+		} else {
+			store = loaded
+			checks = append(checks, doctorCheck("profile.store", "workspace/profile/config", "critical", sbxruntime.CheckStatusPass, "Profile mappings are readable", storePath+" (missing is ok)", nil))
+		}
+	}
+
+	profile := defaultProfile
+	if runnable || ws.Root != "" {
+		var err error
+		profile, err = resolveProfile(opts, ws.Root, store)
+		if err != nil {
+			checks = append(checks, doctorCheck("profile.effective", "workspace/profile/config", "critical", sbxruntime.CheckStatusFail, "Effective profile is invalid", err.Error(), nil))
+			runnable = false
+		} else {
+			checks = append(checks, doctorCheck("profile.effective", "workspace/profile/config", "critical", sbxruntime.CheckStatusPass, "Effective profile resolved", profile, nil))
+		}
+	} else {
+		checks = append(checks, doctorCheck("profile.effective", "workspace/profile/config", "critical", sbxruntime.CheckStatusSkip, "Effective profile skipped", "workspace did not resolve", nil))
+	}
+
+	if profile != "" {
+		persistPath, err := sbxruntime.ProfilePersistHostPath(profile)
+		if err != nil {
+			checks = append(checks, doctorCheck("persist.dir", "workspace/profile/config", "critical", sbxruntime.CheckStatusFail, "Profile persist directory could not be resolved", err.Error(), nil))
+			runnable = false
+		} else {
+			checks = append(checks, dirDoctorCheck("persist.dir", "Profile persist directory is usable", persistPath))
+		}
+	}
+
+	return checks, ws, profile, runnable
+}
+
+func writeDoctorHuman(w io.Writer, report doctorReport, verbose bool) error {
+	if _, err := fmt.Fprintln(w, "Dune doctor"); err != nil {
+		return err
+	}
+	for _, check := range report.Checks {
+		if _, err := fmt.Fprintf(w, "%-4s %-24s %s\n", strings.ToUpper(check.Status), check.Group, check.Summary); err != nil {
+			return err
+		}
+		if verbose {
+			if check.Detail != "" {
+				if _, err := fmt.Fprintf(w, "     detail: %s\n", check.Detail); err != nil {
+					return err
+				}
+			}
+			for _, hint := range check.Recovery {
+				if _, err := fmt.Fprintf(w, "     recovery: %s\n", hint); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	counts := map[string]int{}
+	for _, check := range report.Checks {
+		counts[check.Status]++
+	}
+	_, err := fmt.Fprintf(w, "\n%d failed, %d warning, %d passed, %d skipped\n", counts[sbxruntime.CheckStatusFail], counts[sbxruntime.CheckStatusWarn], counts[sbxruntime.CheckStatusPass], counts[sbxruntime.CheckStatusSkip])
+	return err
+}
+
+func aggregateDoctorStatus(checks []sbxruntime.Check) string {
+	for _, check := range checks {
+		if check.Status == sbxruntime.CheckStatusFail {
+			return sbxruntime.CheckStatusFail
+		}
+	}
+	for _, check := range checks {
+		if check.Status == sbxruntime.CheckStatusWarn {
+			return sbxruntime.CheckStatusWarn
+		}
+	}
+	return sbxruntime.CheckStatusPass
+}
+
+func dirDoctorCheck(id, summary, path string) sbxruntime.Check {
+	if err := pathReadWriteOrCreatable(path); err != nil {
+		return doctorCheck(id, "workspace/profile/config", "critical", sbxruntime.CheckStatusFail, summary+" check failed", err.Error(), nil)
+	}
+	return doctorCheck(id, "workspace/profile/config", "critical", sbxruntime.CheckStatusPass, summary, path, nil)
+}
+
+func pathReadWriteOrCreatable(path string) error {
+	if strings.TrimSpace(path) == "" {
+		return errors.New("path is empty")
+	}
+	if info, err := os.Stat(path); err == nil {
+		if !info.IsDir() {
+			return fmt.Errorf("%s exists but is not a directory", path)
+		}
+		if err := readableWritableDir(path, info); err != nil {
+			return err
+		}
+		return nil
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("stat %s: %w", path, err)
+	}
+
+	for parent := filepath.Dir(path); parent != "." && parent != string(filepath.Separator); parent = filepath.Dir(parent) {
+		info, err := os.Stat(parent)
+		if err != nil {
+			continue
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("nearest existing parent %s is not a directory", parent)
+		}
+		if info.Mode().Perm()&0o222 == 0 {
+			return fmt.Errorf("%s does not exist and parent %s is not writable", path, parent)
+		}
+		return nil
+	}
+	return fmt.Errorf("%s does not exist and no writable parent was found", path)
+}
+
+func readableWritableDir(path string, info os.FileInfo) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("%s is not readable: %w", path, err)
+	}
+	_ = file.Close()
+	if info.Mode().Perm()&0o222 == 0 {
+		return fmt.Errorf("%s is not writable", path)
+	}
+	return nil
+}
+
+func userDataDir() (string, error) {
+	if dataHome := strings.TrimSpace(os.Getenv("XDG_DATA_HOME")); dataHome != "" {
+		return dataHome, nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, ".local", "share"), nil
+}
+
+func doctorDiagnosticCheck(id, group, severity, status, code, summary, detail string) sbxruntime.Check {
+	return doctorCheck(id, group, severity, status, code+": "+summary, detail, doctorRecoveryHints(code))
+}
+
+func doctorRecoveryHints(code string) []string {
+	switch code {
+	case sbxruntime.CodeWorkspaceInvalid:
+		return []string{"Run dune from a valid workspace path or pass `--directory` with an existing project directory."}
+	case sbxruntime.CodeProfileConfigCorrupt:
+		return []string{"Fix or remove the Dune profiles.json file, then retry."}
+	default:
+		return nil
+	}
+}
+
+func doctorCheck(id, group, severity, status, summary, detail string, recovery []string) sbxruntime.Check {
+	return sbxruntime.Check{
+		ID:       id,
+		Group:    group,
+		Severity: severity,
+		Status:   status,
+		Summary:  summary,
+		Detail:   detail,
+		Recovery: append([]string(nil), recovery...),
+	}
 }
 
 func selfUpdate(ctx context.Context, stdout, stderr io.Writer) error {
