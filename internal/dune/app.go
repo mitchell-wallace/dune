@@ -34,6 +34,7 @@ Commands:
   destroy          Remove the sandbox; persisted profile state is kept
   rebuild          Recreate the sandbox from the Dune sbx template
   logs [service]   Stream Dune runtime logs (default: all)
+  ports            List published host ports (default); --publish/--unpublish map them
   version          Print dune version
   profile set      Set the active profile for the current workspace
   profile list     List stored profile mappings
@@ -43,10 +44,13 @@ Global flags:
   -h, --help       Show this help message and exit
   -u, --update     Update the dune CLI to the latest release
 
-Runtime flags (for up/down/destroy/rebuild/logs):
+Runtime flags (for up/down/destroy/rebuild/logs/ports):
   -d, --directory  Workspace directory (default: current directory)
   -p, --profile    Profile name (default: default)
   -f, --force      Skip destroy confirmation
+  --publish <spec> Publish a host->sandbox port (dune ports, repeatable)
+  --unpublish <spec>
+                   Unpublish a host->sandbox port (dune ports, repeatable)
 `
 )
 
@@ -179,9 +183,53 @@ func dispatchRuntimeCommand(ctx context.Context, opts cli.Options, spec sbxrunti
 			return err
 		}
 		return backend.Logs(ctx, spec, opts.LogService, streams)
+	case cli.CommandPorts:
+		if err := backend.Validate(ctx); err != nil {
+			return err
+		}
+		return runPorts(ctx, opts, spec, backend, streams)
 	default:
 		return fmt.Errorf("unsupported command %q", opts.Command)
 	}
+}
+
+// runPorts dispatches the dune ports surface: list is the default; --publish
+// and --unpublish map host->sandbox ports through the verified sbx shapes. On a
+// publish attempt it surfaces the loopback-vs-all-interfaces caveat (spike 2):
+// a nested service bound only to the sandbox loopback may not be reachable via a
+// published host port, so dev servers should bind to all sandbox interfaces
+// (e.g. --host 0.0.0.0) when host exposure is wanted.
+func runPorts(ctx context.Context, opts cli.Options, spec sbxruntime.Spec, backend sbxruntime.Backend, streams sbxruntime.StdIO) error {
+	if len(opts.PortsPublish) == 0 && len(opts.PortsUnpublish) == 0 {
+		output, err := backend.ListPorts(ctx, spec)
+		if err != nil {
+			return err
+		}
+		if _, err := streams.Stdout.Write(output); err != nil {
+			return fmt.Errorf("write ports list: %w", err)
+		}
+		return nil
+	}
+
+	if len(opts.PortsPublish) > 0 {
+		writeLoopbackBindGuidance(streams.Stderr, spec.InstanceName)
+		if err := backend.PublishPorts(ctx, spec, opts.PortsPublish); err != nil {
+			return err
+		}
+	}
+	if len(opts.PortsUnpublish) > 0 {
+		if err := backend.UnpublishPorts(ctx, spec, opts.PortsUnpublish); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func writeLoopbackBindGuidance(w io.Writer, instanceName string) {
+	if w == nil {
+		return
+	}
+	_, _ = fmt.Fprintf(w, "NOTE: a published host port forwards to the sandbox interface only. If the service inside %q binds solely to sandbox loopback (127.0.0.1), it may not be reachable via the published host port; bind dev servers to all sandbox interfaces (e.g. --host 0.0.0.0) when you want host exposure.\n", instanceName)
 }
 
 func confirmDestroy(stdin io.Reader, stderr io.Writer, instanceName string) error {

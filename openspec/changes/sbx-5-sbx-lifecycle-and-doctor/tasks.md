@@ -3,7 +3,7 @@
 - [x] 1.1 Finalise `dune` / `dune up`: Validate → ensure template available → Ensure → Start (if stopped) → Shell at the mounted repo path; reuse a running sandbox without recreation (D1).
 - [x] 1.2 Finalise `dune down` → Stop (state retained) and `dune rebuild` → recreate from the template preserving profile-scoped persisted state (D1).
 - [x] 1.3 Add `dune destroy` → `sbx rm <instance>` with confirmation (or `--force`); profile-scoped persisted state survives (D2).
-- [ ] 1.4 Add `dune ports` over the verified `sbx ports` surface (list via `sbx ports <sandbox>` [+ `--json`], publish via `--publish [[HOST_IP:]HOST_PORT:]SANDBOX_PORT[/PROTOCOL]`, unpublish via `--unpublish [HOST_IP:]HOST_PORT:SANDBOX_PORT[/PROTOCOL]` — spelling confirmed by spike 4), surfacing the loopback-vs-all-interfaces caveat (D1).
+- [x] 1.4 Add `dune ports` over the verified `sbx ports` surface (list via `sbx ports <sandbox>` [+ `--json`], publish via `--publish [[HOST_IP:]HOST_PORT:]SANDBOX_PORT[/PROTOCOL]`, unpublish via `--unpublish [HOST_IP:]HOST_PORT:SANDBOX_PORT[/PROTOCOL]` — spelling confirmed by spike 4), surfacing the loopback-vs-all-interfaces caveat (D1).
 
 ## 2. dune logs composition
 

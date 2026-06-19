@@ -21,6 +21,9 @@ type Backend interface {
 	Destroy(ctx context.Context, spec Spec) error
 	Rebuild(ctx context.Context, spec Spec, streams StdIO) error
 	Logs(ctx context.Context, spec Spec, service string, streams StdIO) error
+	ListPorts(ctx context.Context, spec Spec) ([]byte, error)
+	PublishPorts(ctx context.Context, spec Spec, specs []string) error
+	UnpublishPorts(ctx context.Context, spec Spec, specs []string) error
 	PolicyLog(ctx context.Context, spec Spec, limit int) (PolicyLogReport, error)
 	SetServiceSecret(ctx context.Context, spec Spec, service, token string) error
 	ListServiceSecrets(ctx context.Context, spec Spec) ([]byte, error)

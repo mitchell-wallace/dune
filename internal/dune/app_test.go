@@ -158,6 +158,61 @@ func TestRunUpPassesStderrToEgressVerification(t *testing.T) {
 	}
 }
 
+func TestRunPortsPublishSurfacesLoopbackBindGuidance(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(t.TempDir(), "config"))
+
+	ws, err := workspace.Resolve(root)
+	if err != nil {
+		t.Fatalf("workspace.Resolve() error = %v", err)
+	}
+	instanceName := sbxruntime.InstanceName(ws.Slug, defaultProfile)
+
+	backend := &fakeRuntimeBackend{}
+	withRuntimeBackend(t, backend)
+
+	var stdout, stderr strings.Builder
+	if err := Run(context.Background(), []string{"ports", "-d", root, "--publish", "8080", "--publish", "3000:8080"}, Environment{}, nil, &stdout, &stderr); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	wantCalls := []string{"Validate", "PublishPorts"}
+	if got := backend.callNames(); strings.Join(got, ",") != strings.Join(wantCalls, ",") {
+		t.Fatalf("runtime calls = %v, want %v", got, wantCalls)
+	}
+	if got := backend.calls[len(backend.calls)-1].service; got != "8080,3000:8080" {
+		t.Fatalf("publish specs = %q, want %q", got, "8080,3000:8080")
+	}
+	if got := stderr.String(); !strings.Contains(got, "bind dev servers to all sandbox interfaces") || !strings.Contains(got, instanceName) {
+		t.Fatalf("stderr = %q, want loopback-vs-all-interfaces guidance naming %q", got, instanceName)
+	}
+}
+
+func TestRunPortsUnpublishDispatchesWithoutList(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(t.TempDir(), "config"))
+
+	backend := &fakeRuntimeBackend{}
+	withRuntimeBackend(t, backend)
+
+	var stdout, stderr strings.Builder
+	if err := Run(context.Background(), []string{"ports", "-d", root, "--unpublish", "3000:8080"}, Environment{}, nil, &stdout, &stderr); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	wantCalls := []string{"Validate", "UnpublishPorts"}
+	if got := backend.callNames(); strings.Join(got, ",") != strings.Join(wantCalls, ",") {
+		t.Fatalf("runtime calls = %v, want %v", got, wantCalls)
+	}
+	if got := backend.calls[len(backend.calls)-1].service; got != "3000:8080" {
+		t.Fatalf("unpublish specs = %q, want %q", got, "3000:8080")
+	}
+	// Unpublish alone must not emit the publish-time loopback guidance.
+	if got := stderr.String(); strings.Contains(got, "bind dev servers") {
+		t.Fatalf("stderr = %q, want no loopback guidance on unpublish", got)
+	}
+}
+
 func TestRunDispatchesRuntimeCommands(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(t.TempDir(), "config"))
@@ -188,6 +243,11 @@ func TestRunDispatchesRuntimeCommands(t *testing.T) {
 			argv:      []string{"logs", "-d", root, "setup-persist"},
 			wantCalls: []string{"Validate", "Logs"},
 			wantLog:   "setup-persist",
+		},
+		{
+			name:      "ports list",
+			argv:      []string{"ports", "-d", root},
+			wantCalls: []string{"Validate", "ListPorts"},
 		},
 	}
 
@@ -394,6 +454,21 @@ func (f *fakeRuntimeBackend) Rebuild(_ context.Context, spec sbxruntime.Spec, _ 
 
 func (f *fakeRuntimeBackend) Logs(_ context.Context, spec sbxruntime.Spec, service string, _ sbxruntime.StdIO) error {
 	f.calls = append(f.calls, fakeRuntimeCall{name: "Logs", spec: spec, service: service})
+	return nil
+}
+
+func (f *fakeRuntimeBackend) ListPorts(_ context.Context, spec sbxruntime.Spec) ([]byte, error) {
+	f.calls = append(f.calls, fakeRuntimeCall{name: "ListPorts", spec: spec})
+	return nil, nil
+}
+
+func (f *fakeRuntimeBackend) PublishPorts(_ context.Context, spec sbxruntime.Spec, specs []string) error {
+	f.calls = append(f.calls, fakeRuntimeCall{name: "PublishPorts", spec: spec, service: strings.Join(specs, ",")})
+	return nil
+}
+
+func (f *fakeRuntimeBackend) UnpublishPorts(_ context.Context, spec sbxruntime.Spec, specs []string) error {
+	f.calls = append(f.calls, fakeRuntimeCall{name: "UnpublishPorts", spec: spec, service: strings.Join(specs, ",")})
 	return nil
 }
 

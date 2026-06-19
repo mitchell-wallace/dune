@@ -16,6 +16,7 @@ const (
 	CommandDestroy     Command = "destroy"
 	CommandRebuild     Command = "rebuild"
 	CommandLogs        Command = "logs"
+	CommandPorts       Command = "ports"
 	CommandVersion     Command = "version"
 	CommandHelp        Command = "help"
 	CommandUpdate      Command = "update"
@@ -31,6 +32,8 @@ type Options struct {
 	LogService      string
 	SetProfileName  string
 	Force           bool
+	PortsPublish    []string
+	PortsUnpublish  []string
 }
 
 func Parse(argv []string) (Options, error) {
@@ -60,6 +63,8 @@ func Parse(argv []string) (Options, error) {
 		return parseContainerCommand(CommandRebuild, "dune rebuild", argv[1:])
 	case "logs":
 		return parseLogs(argv[1:])
+	case "ports":
+		return parsePorts(argv[1:])
 	case "version":
 		return parseVersion(argv[1:])
 	case "profile":
@@ -144,6 +149,35 @@ func parseLogs(argv []string) (Options, error) {
 	}
 	if len(args) == 1 {
 		opts.LogService = args[0]
+	}
+	opts.ProfileExplicit = opts.Profile != ""
+	return opts, nil
+}
+
+func parsePorts(argv []string) (Options, error) {
+	fs := flag.NewFlagSet("dune ports", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	opts := Options{Command: CommandPorts}
+	fs.StringVar(&opts.WorkspaceInput, "directory", "", "")
+	fs.StringVar(&opts.WorkspaceInput, "d", "", "")
+	fs.StringVar(&opts.Profile, "profile", "", "")
+	fs.StringVar(&opts.Profile, "p", "", "")
+	fs.Var(&stringSliceFlag{slice: &opts.PortsPublish}, "publish", "")
+	fs.Var(&stringSliceFlag{slice: &opts.PortsUnpublish}, "unpublish", "")
+	if err := fs.Parse(argv); err != nil {
+		return Options{}, err
+	}
+
+	args := fs.Args()
+	if len(args) > 1 {
+		return Options{}, errors.New("usage: dune ports [--publish <spec>] [--unpublish <spec>] [-d directory] [-p profile]")
+	}
+	if len(args) == 1 {
+		if opts.WorkspaceInput != "" {
+			return Options{}, errors.New("usage: dune ports [--publish <spec>] [--unpublish <spec>] [-d directory] [-p profile]")
+		}
+		opts.WorkspaceInput = args[0]
 	}
 	opts.ProfileExplicit = opts.Profile != ""
 	return opts, nil
@@ -235,4 +269,23 @@ func parseUpdate(argv []string) (Options, error) {
 		return Options{}, errors.New("usage: dune --update")
 	}
 	return Options{Command: CommandUpdate}, nil
+}
+
+// stringSliceFlag accumulates repeatable string flags (e.g. --publish a
+// --publish b) into the backing slice. It supports the per-spec repeatable
+// surface that sbx ports exposes via --publish/--unpublish.
+type stringSliceFlag struct {
+	slice *[]string
+}
+
+func (f stringSliceFlag) String() string {
+	if f.slice == nil {
+		return ""
+	}
+	return strings.Join(*f.slice, ",")
+}
+
+func (f stringSliceFlag) Set(value string) error {
+	*f.slice = append(*f.slice, value)
+	return nil
 }
