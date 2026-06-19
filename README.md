@@ -79,8 +79,8 @@ dune profile list
 - `dune up` does the same thing explicitly
 - `dune down` stops the sandbox for the current workspace/profile (the sandbox is retained; it is not removed)
 - `dune rebuild` recreates and starts the sandbox from the Dune sbx template, preserving the profile's persisted state
-- `dune logs` streams Dune runtime logs for the current sandbox
-- `dune logs <service>` streams a single named log under the sandbox's `/var/log/dune/` path
+- `dune logs` shows the host lifecycle log, Dune-owned logs under the sandbox's `/var/log/dune/` path, and `sbx policy log` egress records
+- `dune logs <service>` narrows the in-sandbox Dune-owned log read to `/var/log/dune/<service>.log`; app-dependency service logs come from `docker compose logs` inside the sandbox
 - `dune version` prints the dune version, commit, and release build metadata
 - `dune -v` / `dune --version` is a shorthand for `dune version`
 - `dune -h` / `dune --help` shows usage information
@@ -190,7 +190,7 @@ sbx policy allow network --sandbox "$INSTANCE" docs.python.org:443
 sbx policy allow network --sandbox "$INSTANCE" *.docs.python.org:443
 ```
 
-Egress observability comes from `sbx policy log <instance>` (`--json` / `--limit`), which records blocked and allowed hosts for the sandbox. This **replaces the old `dune logs pipelock`**, which is gone — Pipelock, its generated `pipelock.yaml`, and the proxy-env model are fully removed for the sbx backend. The final composed `dune logs` (Dune runtime logs from `/var/log/dune/` plus the policy-log source) lands in `sbx-5`.
+Egress observability comes from `sbx policy log <instance>` (`--json` / `--limit`), which records blocked and allowed hosts for the sandbox. `dune logs` includes those records after Dune-owned host lifecycle and `/var/log/dune/` logs. This **replaces the old `dune logs pipelock`**, which is gone — Pipelock, its generated `pipelock.yaml`, and the proxy-env model are fully removed for the sbx backend.
 
 The full egress baseline, domain-opening guidance, observability field reference, and the secrets posture (prefer service-identifier secrets; custom secrets are experimental/out-of-lifecycle; no secrets baked into the template; agent creds under `/persist/agent`) are documented in [sbx Network and Secrets Posture](./docs/architecture/sbx-network-and-secrets.md).
 

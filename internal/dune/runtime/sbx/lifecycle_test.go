@@ -301,31 +301,48 @@ func TestDestroy_RemovesSandboxWithForceAndPreservesPersistDir(t *testing.T) {
 	}
 }
 
-func TestLogs_StreamsDuneLogFiles(t *testing.T) {
+func TestLogs_ComposesHostLifecycleAndSandboxDuneLogFiles(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	spec := testSpec()
+	hostLogPath, err := lifecycleLogPath(spec)
+	if err != nil {
+		t.Fatalf("lifecycleLogPath() error = %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(hostLogPath), 0o755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	if err := os.WriteFile(hostLogPath, []byte("host lifecycle line\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
 	fr := &fakeRunner{
-		responses: []fakeRunnerResponse{{}},
+		responses: []fakeRunnerResponse{{output: []byte("--- /var/log/dune/setup-persist.log\nsandbox setup line\n")}},
 	}
 	b := newBackend(fr)
 
-	if err := b.Logs(context.Background(), spec, "", StdIO{}); err != nil {
+	var stdout strings.Builder
+	if err := b.Logs(context.Background(), spec, "", StdIO{Stdout: &stdout}); err != nil {
 		t.Fatalf("Logs() error = %v", err)
 	}
 
 	if len(fr.calls) != 1 {
 		t.Fatalf("got %d calls, want 1: %+v", len(fr.calls), fr.calls)
 	}
-	assertStreamCall(t, fr.calls[0], "sbx",
+	assertCaptureCall(t, fr.calls[0], "sbx",
 		"exec",
 		spec.InstanceName,
-		"bash", "-lc", "if compgen -G '/var/log/dune/*.log' >/dev/null; then tail -n +1 -f /var/log/dune/*.log; else echo 'No Dune logs found under /var/log/dune'; fi",
+		"bash", "-lc", "if compgen -G '/var/log/dune/*.log' >/dev/null; then for f in /var/log/dune/*.log; do echo '---' \"$f\"; cat \"$f\"; done; else echo 'No Dune logs found under /var/log/dune'; fi",
 	)
+	if got := stdout.String(); !strings.Contains(got, "host lifecycle line") || !strings.Contains(got, "sandbox setup line") {
+		t.Fatalf("Logs() stdout = %q, want host and sandbox log lines", got)
+	}
 }
 
 func TestLogs_StreamsNamedDuneLogFile(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	spec := testSpec()
 	fr := &fakeRunner{
-		responses: []fakeRunnerResponse{{}},
+		responses: []fakeRunnerResponse{{output: []byte("named sandbox line\n")}},
 	}
 	b := newBackend(fr)
 
@@ -336,10 +353,10 @@ func TestLogs_StreamsNamedDuneLogFile(t *testing.T) {
 	if len(fr.calls) != 1 {
 		t.Fatalf("got %d calls, want 1: %+v", len(fr.calls), fr.calls)
 	}
-	assertStreamCall(t, fr.calls[0], "sbx",
+	assertCaptureCall(t, fr.calls[0], "sbx",
 		"exec",
 		spec.InstanceName,
-		"bash", "-lc", "if [ -f '/var/log/dune/setup-persist.log' ]; then tail -n +1 -f '/var/log/dune/setup-persist.log'; else echo 'No Dune log found for setup-persist at /var/log/dune/setup-persist.log'; fi",
+		"bash", "-lc", "if [ -f '/var/log/dune/setup-persist.log' ]; then cat '/var/log/dune/setup-persist.log'; else echo 'No Dune log found for setup-persist at /var/log/dune/setup-persist.log'; fi",
 	)
 }
 

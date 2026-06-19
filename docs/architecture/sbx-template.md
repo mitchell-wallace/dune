@@ -154,9 +154,10 @@ The re-homed `setup-persist` boot hook writes timestamped `start`/`done`/
 ```
 
 The explicit log lines matter because `setup-persist.sh` is silent on
-success. This path is the **verified contract** `sbx-2` hands to `sbx-5`:
-`dune logs` (`sbx-5`) reads `/var/log/dune/` via `sbx exec`. The directory is
-created (owned by `agent`) during the image build.
+success. This path is part of the **verified contract** consumed by
+`dune logs`: the CLI reads `/var/log/dune/` via `sbx exec`, alongside its host
+lifecycle log and `sbx policy log` egress records. The directory is created
+(owned by `agent`) during the image build.
 
 ## Workspace compatibility symlink (D4)
 

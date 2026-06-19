@@ -24,16 +24,17 @@ import (
 )
 
 const (
-	defaultProfile = "default"
-	defaultShell   = "zsh"
-	helpText       = `Usage: dune [command] [options]
+	defaultProfile        = "default"
+	defaultShell          = "zsh"
+	defaultPolicyLogLimit = 50
+	helpText              = `Usage: dune [command] [options]
 
 Commands:
   up               Start or attach to the sandbox (default)
   down             Stop the sandbox
   destroy          Remove the sandbox; persisted profile state is kept
   rebuild          Recreate the sandbox from the Dune sbx template
-  logs [service]   Stream Dune runtime logs (default: all)
+  logs [service]   Show Dune runtime logs and sbx policy records (default: all)
   ports            List published host ports (default); --publish/--unpublish map them
   version          Print dune version
   profile set      Set the active profile for the current workspace
@@ -182,7 +183,7 @@ func dispatchRuntimeCommand(ctx context.Context, opts cli.Options, spec sbxrunti
 		if err := backend.Validate(ctx); err != nil {
 			return err
 		}
-		return backend.Logs(ctx, spec, opts.LogService, streams)
+		return runLogs(ctx, opts, spec, backend, streams)
 	case cli.CommandPorts:
 		if err := backend.Validate(ctx); err != nil {
 			return err
@@ -191,6 +192,43 @@ func dispatchRuntimeCommand(ctx context.Context, opts cli.Options, spec sbxrunti
 	default:
 		return fmt.Errorf("unsupported command %q", opts.Command)
 	}
+}
+
+func runLogs(ctx context.Context, opts cli.Options, spec sbxruntime.Spec, backend sbxruntime.Backend, streams sbxruntime.StdIO) error {
+	if err := backend.Logs(ctx, spec, opts.LogService, streams); err != nil {
+		return err
+	}
+	report, err := backend.PolicyLog(ctx, spec, defaultPolicyLogLimit)
+	if err != nil {
+		return err
+	}
+	return writePolicyLogReport(streams.Stdout, report)
+}
+
+func writePolicyLogReport(w io.Writer, report sbxruntime.PolicyLogReport) error {
+	if w == nil {
+		w = io.Discard
+	}
+	if _, err := fmt.Fprint(w, "\n== sbx policy log ==\n"); err != nil {
+		return fmt.Errorf("write policy log heading: %w", err)
+	}
+	if len(report.BlockedHosts) == 0 && len(report.AllowedHosts) == 0 {
+		_, err := fmt.Fprintln(w, "No sbx policy records found.")
+		return err
+	}
+	if err := writePolicyLogRecords(w, "blocked", report.BlockedHosts); err != nil {
+		return err
+	}
+	return writePolicyLogRecords(w, "allowed", report.AllowedHosts)
+}
+
+func writePolicyLogRecords(w io.Writer, decision string, records []sbxruntime.PolicyLogRecord) error {
+	for _, record := range records {
+		if _, err := fmt.Fprintf(w, "%s host=%s rule=%s reason=%s proxy=%s count=%d last_seen=%s\n", decision, record.Host, record.Rule, record.Reason, record.ProxyType, record.CountSince, record.LastSeen); err != nil {
+			return fmt.Errorf("write %s policy log record: %w", decision, err)
+		}
+	}
+	return nil
 }
 
 // runPorts dispatches the dune ports surface: list is the default; --publish

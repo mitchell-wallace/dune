@@ -169,9 +169,10 @@ Pipelock was removed.
 > gateway**, not Pipelock. That is expected; what is gone is Dune's separate
 > Pipelock proxy.
 
-The final composed `dune logs` (Dune-owned setup/runtime logs from
-`/var/log/dune/` *plus* the `sbx policy log` source) lands in `sbx-5`. Until
-then, `sbx policy log <instance>` is how you see egress decisions.
+`dune logs` composes Dune-owned setup/runtime logs from the host lifecycle log
+and the sandbox's `/var/log/dune/` directory, then appends records from
+`sbx policy log <instance>`. App-dependency service logs are project-owned and
+come from `docker compose logs` inside the sandbox.
 
 ## Secrets posture (D5)
 

@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const defaultShell = "zsh"
@@ -38,8 +40,10 @@ func (b *backend) Ensure(ctx context.Context, spec Spec) error {
 		spec.WorkspaceHostPath,
 		persistHostPath,
 	); err != nil {
+		b.writeLifecycleLog(spec, "create failed: "+err.Error())
 		return fmt.Errorf("create sbx sandbox %q: %w", spec.InstanceName, err)
 	}
+	b.writeLifecycleLog(spec, "created sandbox from template "+spec.TemplateRef)
 
 	if _, err := b.runner.Capture(ctx, "", "sbx", "exec",
 		"-e", "DUNE_WORKSPACE="+spec.WorkspaceHostPath,
@@ -47,8 +51,10 @@ func (b *backend) Ensure(ctx context.Context, spec Spec) error {
 		spec.InstanceName,
 		"bash", "-lc", "true",
 	); err != nil {
+		b.writeLifecycleLog(spec, "setup hook failed: "+err.Error())
 		return fmt.Errorf("initialise sbx sandbox %q: %w", spec.InstanceName, err)
 	}
+	b.writeLifecycleLog(spec, "ran setup hook for workspace "+spec.WorkspaceHostPath)
 
 	return nil
 }
@@ -58,8 +64,10 @@ func (b *backend) Start(ctx context.Context, spec Spec) error {
 		return err
 	}
 	if _, err := b.runner.Capture(ctx, "", "sbx", "run", spec.InstanceName); err != nil {
+		b.writeLifecycleLog(spec, "start failed: "+err.Error())
 		return fmt.Errorf("start sbx sandbox %q: %w", spec.InstanceName, err)
 	}
+	b.writeLifecycleLog(spec, "started sandbox")
 	return nil
 }
 
@@ -69,11 +77,16 @@ func (b *backend) Shell(ctx context.Context, spec Spec, streams StdIO) error {
 	}
 
 	args := shellExecArgs(spec, true)
+	b.writeLifecycleLog(spec, "attaching shell at "+workingDir(spec))
 	err := b.runner.Stream(ctx, "", streams, "sbx", args...)
 	if !isUnsupportedWorkingDirFlag(err) {
+		if err != nil {
+			b.writeLifecycleLog(spec, "attach failed: "+err.Error())
+		}
 		return err
 	}
 
+	b.writeLifecycleLog(spec, "retrying shell attach without sbx -w support")
 	return b.runner.Stream(ctx, "", streams, "sbx", shellExecArgs(spec, false)...)
 }
 
@@ -107,8 +120,23 @@ func (b *backend) Logs(ctx context.Context, spec Spec, service string, streams S
 		return err
 	}
 
-	if err := b.runner.Stream(ctx, "", streams, "sbx", "exec", spec.InstanceName, "bash", "-lc", script); err != nil {
-		return fmt.Errorf("stream sbx logs for sandbox %q: %w", spec.InstanceName, err)
+	stdout := streams.Stdout
+	if stdout == nil {
+		stdout = io.Discard
+	}
+	if err := writeHostLifecycleLog(stdout, spec); err != nil {
+		return err
+	}
+
+	output, err := b.runner.Capture(ctx, "", "sbx", "exec", spec.InstanceName, "bash", "-lc", script)
+	if err != nil {
+		return fmt.Errorf("read in-sandbox Dune logs for sandbox %q: %w", spec.InstanceName, err)
+	}
+	if _, err := fmt.Fprint(stdout, "\n== dune sandbox logs (/var/log/dune) ==\n"); err != nil {
+		return fmt.Errorf("write sandbox log heading: %w", err)
+	}
+	if _, err := stdout.Write(output); err != nil {
+		return fmt.Errorf("write sandbox logs: %w", err)
 	}
 	return nil
 }
@@ -331,14 +359,14 @@ func shellName(spec Spec) string {
 func logsScript(service string) (string, error) {
 	service = strings.TrimSpace(service)
 	if service == "" || service == "all" {
-		return "if compgen -G '/var/log/dune/*.log' >/dev/null; then tail -n +1 -f /var/log/dune/*.log; else echo 'No Dune logs found under /var/log/dune'; fi", nil
+		return "if compgen -G '/var/log/dune/*.log' >/dev/null; then for f in /var/log/dune/*.log; do echo '---' \"$f\"; cat \"$f\"; done; else echo 'No Dune logs found under /var/log/dune'; fi", nil
 	}
 	if !validLogServiceName(service) {
 		return "", fmt.Errorf("invalid log service %q: use letters, numbers, dots, underscores, or hyphens", service)
 	}
 
 	path := "/var/log/dune/" + service + ".log"
-	return "if [ -f " + shellQuote(path) + " ]; then tail -n +1 -f " + shellQuote(path) + "; else echo " + shellQuote("No Dune log found for "+service+" at "+path) + "; fi", nil
+	return "if [ -f " + shellQuote(path) + " ]; then cat " + shellQuote(path) + "; else echo " + shellQuote("No Dune log found for "+service+" at "+path) + "; fi", nil
 }
 
 func validLogServiceName(service string) bool {
@@ -356,4 +384,65 @@ func validLogServiceName(service string) bool {
 
 func shellQuote(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'"
+}
+
+func (b *backend) writeLifecycleLog(spec Spec, message string) {
+	path, err := lifecycleLogPath(spec)
+	if err != nil {
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return
+	}
+	line := fmt.Sprintf("%s %s\n", time.Now().UTC().Format(time.RFC3339), message)
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	if err != nil {
+		return
+	}
+	defer func() { _ = file.Close() }()
+	_, _ = file.WriteString(line)
+}
+
+func writeHostLifecycleLog(w io.Writer, spec Spec) error {
+	if _, err := fmt.Fprint(w, "== dune host lifecycle log ==\n"); err != nil {
+		return fmt.Errorf("write host lifecycle log heading: %w", err)
+	}
+	path, err := lifecycleLogPath(spec)
+	if err != nil {
+		return err
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			_, err = fmt.Fprintf(w, "No Dune host lifecycle log found at %s\n", path)
+			return err
+		}
+		return fmt.Errorf("read host lifecycle log %q: %w", path, err)
+	}
+	if _, err := w.Write(data); err != nil {
+		return fmt.Errorf("write host lifecycle log: %w", err)
+	}
+	return nil
+}
+
+func lifecycleLogPath(spec Spec) (string, error) {
+	if err := validateInstanceName(spec.InstanceName); err != nil {
+		return "", err
+	}
+	stateHome := strings.TrimSpace(os.Getenv("XDG_STATE_HOME"))
+	if stateHome == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("resolve home directory: %w", err)
+		}
+		stateHome = filepath.Join(home, ".local", "state")
+	}
+	if !filepath.IsAbs(stateHome) {
+		abs, err := filepath.Abs(stateHome)
+		if err != nil {
+			return "", fmt.Errorf("resolve state directory: %w", err)
+		}
+		stateHome = abs
+	}
+	return filepath.Join(stateHome, "dune", "logs", spec.InstanceName+".log"), nil
 }

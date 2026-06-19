@@ -241,7 +241,7 @@ func TestRunDispatchesRuntimeCommands(t *testing.T) {
 		{
 			name:      "logs",
 			argv:      []string{"logs", "-d", root, "setup-persist"},
-			wantCalls: []string{"Validate", "Logs"},
+			wantCalls: []string{"Validate", "Logs", "PolicyLog"},
 			wantLog:   "setup-persist",
 		},
 		{
@@ -264,10 +264,75 @@ func TestRunDispatchesRuntimeCommands(t *testing.T) {
 			if got := backend.callNames(); strings.Join(got, ",") != strings.Join(tc.wantCalls, ",") {
 				t.Fatalf("runtime calls = %v, want %v", got, tc.wantCalls)
 			}
-			if tc.wantLog != "" && backend.calls[len(backend.calls)-1].service != tc.wantLog {
-				t.Fatalf("log service = %q, want %q", backend.calls[len(backend.calls)-1].service, tc.wantLog)
+			if tc.wantLog != "" && backend.serviceForCall("Logs") != tc.wantLog {
+				t.Fatalf("log service = %q, want %q", backend.serviceForCall("Logs"), tc.wantLog)
 			}
 		})
+	}
+}
+
+func TestRunLogsComposesDuneOwnedLogsAndPolicyRecords(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(t.TempDir(), "config"))
+
+	backend := &fakeRuntimeBackend{
+		logsOutput: "host lifecycle line\nsandbox setup line\n",
+		policyReport: sbxruntime.PolicyLogReport{
+			BlockedHosts: []sbxruntime.PolicyLogRecord{{
+				Host:       "blocked.example",
+				ProxyType:  "transparent",
+				Rule:       "deny-docs-site",
+				Reason:     "blocked by policy",
+				LastSeen:   "2026-06-19T00:00:00Z",
+				CountSince: 2,
+			}},
+			AllowedHosts: []sbxruntime.PolicyLogRecord{{
+				Host:       "registry.npmjs.org",
+				ProxyType:  "forward",
+				Rule:       "default-package-managers",
+				Reason:     "allowed by baseline",
+				LastSeen:   "2026-06-19T00:01:00Z",
+				CountSince: 1,
+			}},
+		},
+	}
+	withRuntimeBackend(t, backend)
+
+	var stdout, stderr strings.Builder
+	if err := Run(context.Background(), []string{"logs", "-d", root}, Environment{}, nil, &stdout, &stderr); err != nil {
+		t.Fatalf("Run(logs) error = %v", err)
+	}
+
+	wantCalls := []string{"Validate", "Logs", "PolicyLog"}
+	if got := backend.callNames(); strings.Join(got, ",") != strings.Join(wantCalls, ",") {
+		t.Fatalf("runtime calls = %v, want %v", got, wantCalls)
+	}
+	got := stdout.String()
+	for _, want := range []string{"host lifecycle line", "sandbox setup line", "== sbx policy log ==", "blocked host=blocked.example", "allowed host=registry.npmjs.org"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("stdout = %q, want substring %q", got, want)
+		}
+	}
+}
+
+func TestRunLogsPipelockIsOnlyAServiceNameNotSubcommand(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(t.TempDir(), "config"))
+
+	backend := &fakeRuntimeBackend{}
+	withRuntimeBackend(t, backend)
+
+	var stdout, stderr strings.Builder
+	if err := Run(context.Background(), []string{"logs", "-d", root, "pipelock"}, Environment{}, nil, &stdout, &stderr); err != nil {
+		t.Fatalf("Run(logs pipelock) error = %v", err)
+	}
+
+	wantCalls := []string{"Validate", "Logs", "PolicyLog"}
+	if got := backend.callNames(); strings.Join(got, ",") != strings.Join(wantCalls, ",") {
+		t.Fatalf("runtime calls = %v, want %v", got, wantCalls)
+	}
+	if got := backend.calls[1].service; got != "pipelock" {
+		t.Fatalf("log service = %q, want pipelock passed through as a legacy service arg", got)
 	}
 }
 
@@ -369,6 +434,8 @@ type fakeRuntimeBackend struct {
 	statuses      []sbxruntime.State
 	egressMessage string
 	egressErr     error
+	logsOutput    string
+	policyReport  sbxruntime.PolicyLogReport
 }
 
 type fakeRuntimeCall struct {
@@ -452,8 +519,11 @@ func (f *fakeRuntimeBackend) Rebuild(_ context.Context, spec sbxruntime.Spec, _ 
 	return nil
 }
 
-func (f *fakeRuntimeBackend) Logs(_ context.Context, spec sbxruntime.Spec, service string, _ sbxruntime.StdIO) error {
+func (f *fakeRuntimeBackend) Logs(_ context.Context, spec sbxruntime.Spec, service string, streams sbxruntime.StdIO) error {
 	f.calls = append(f.calls, fakeRuntimeCall{name: "Logs", spec: spec, service: service})
+	if f.logsOutput != "" && streams.Stdout != nil {
+		_, _ = fmt.Fprint(streams.Stdout, f.logsOutput)
+	}
 	return nil
 }
 
@@ -474,7 +544,7 @@ func (f *fakeRuntimeBackend) UnpublishPorts(_ context.Context, spec sbxruntime.S
 
 func (f *fakeRuntimeBackend) PolicyLog(_ context.Context, spec sbxruntime.Spec, _ int) (sbxruntime.PolicyLogReport, error) {
 	f.calls = append(f.calls, fakeRuntimeCall{name: "PolicyLog", spec: spec})
-	return sbxruntime.PolicyLogReport{}, nil
+	return f.policyReport, nil
 }
 
 func (f *fakeRuntimeBackend) SetServiceSecret(_ context.Context, spec sbxruntime.Spec, service, _ string) error {
@@ -508,4 +578,13 @@ func (f *fakeRuntimeBackend) callNames() []string {
 		names = append(names, call.name)
 	}
 	return names
+}
+
+func (f *fakeRuntimeBackend) serviceForCall(name string) string {
+	for _, call := range f.calls {
+		if call.name == name {
+			return call.service
+		}
+	}
+	return ""
 }
