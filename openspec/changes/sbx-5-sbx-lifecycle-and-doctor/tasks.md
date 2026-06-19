@@ -1,8 +1,8 @@
 ## 1. Finalise lifecycle commands
 
-- [ ] 1.1 Finalise `dune` / `dune up`: Validate → ensure template available → Ensure → Start (if stopped) → Shell at the mounted repo path; reuse a running sandbox without recreation (D1).
-- [ ] 1.2 Finalise `dune down` → Stop (state retained) and `dune rebuild` → recreate from the template preserving profile-scoped persisted state (D1).
-- [ ] 1.3 Add `dune destroy` → `sbx rm <instance>` with confirmation (or `--force`); profile-scoped persisted state survives (D2).
+- [x] 1.1 Finalise `dune` / `dune up`: Validate → ensure template available → Ensure → Start (if stopped) → Shell at the mounted repo path; reuse a running sandbox without recreation (D1).
+- [x] 1.2 Finalise `dune down` → Stop (state retained) and `dune rebuild` → recreate from the template preserving profile-scoped persisted state (D1).
+- [x] 1.3 Add `dune destroy` → `sbx rm <instance>` with confirmation (or `--force`); profile-scoped persisted state survives (D2).
 - [ ] 1.4 Add `dune ports` over the verified `sbx ports` surface (list via `sbx ports <sandbox>` [+ `--json`], publish via `--publish [[HOST_IP:]HOST_PORT:]SANDBOX_PORT[/PROTOCOL]`, unpublish via `--unpublish [HOST_IP:]HOST_PORT:SANDBOX_PORT[/PROTOCOL]` — spelling confirmed by spike 4), surfacing the loopback-vs-all-interfaces caveat (D1).
 
 ## 2. dune logs composition
@@ -24,7 +24,7 @@
 
 ## 5. Tests
 
-- [ ] 5.1 Fake-runner tests for `up`/`down`/`destroy`/`rebuild` command construction and sequencing (extending the `sbx-3` seam), including `dune destroy` → `sbx rm` and rebuild preserving persisted state.
+- [x] 5.1 Fake-runner tests for `up`/`down`/`destroy`/`rebuild` command construction and sequencing (extending the `sbx-3` seam), including `dune destroy` → `sbx rm` and rebuild preserving persisted state.
 - [ ] 5.2 Diagnostics tests asserting codes and preserved stderr for representative failures (missing sbx, failed diagnose, below-min version, create/start/exec/rm failures, template unavailable, corrupt profiles).
 - [ ] 5.3 `dune doctor` tests for pass/warn/fail/skip cases and `--json` shape; assert it constructs only read-only `sbx` calls (`diagnose`/`version`/`ls`/`policy ls`) and never a sandbox-mutating command (`create`/`run`/`exec`/`rm`).
 

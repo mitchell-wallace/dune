@@ -11,7 +11,7 @@ import (
 func main() {
 	err := dune.Run(context.Background(), os.Args[1:], dune.Environment{
 		CallerPWD: os.Getenv("DUNE_CALLER_PWD"),
-	}, os.Stdout, os.Stderr)
+	}, os.Stdin, os.Stdout, os.Stderr)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

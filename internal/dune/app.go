@@ -2,6 +2,7 @@ package dune
 
 import (
 	"archive/tar"
+	"bufio"
 	"compress/gzip"
 	"context"
 	"encoding/json"
@@ -30,6 +31,7 @@ const (
 Commands:
   up               Start or attach to the sandbox (default)
   down             Stop the sandbox
+  destroy          Remove the sandbox; persisted profile state is kept
   rebuild          Recreate the sandbox from the Dune sbx template
   logs [service]   Stream Dune runtime logs (default: all)
   version          Print dune version
@@ -41,9 +43,10 @@ Global flags:
   -h, --help       Show this help message and exit
   -u, --update     Update the dune CLI to the latest release
 
-Runtime flags (for up/down/rebuild/logs):
+Runtime flags (for up/down/destroy/rebuild/logs):
   -d, --directory  Workspace directory (default: current directory)
   -p, --profile    Profile name (default: default)
+  -f, --force      Skip destroy confirmation
 `
 )
 
@@ -61,7 +64,7 @@ type Environment struct {
 
 type profileStore map[string]string
 
-func Run(ctx context.Context, argv []string, env Environment, stdout, stderr io.Writer) error {
+func Run(ctx context.Context, argv []string, env Environment, stdin io.Reader, stdout, stderr io.Writer) error {
 	opts, err := cli.Parse(argv)
 	if err != nil {
 		return err
@@ -72,6 +75,9 @@ func Run(ctx context.Context, argv []string, env Environment, stdout, stderr io.
 	}
 	if stderr == nil {
 		stderr = io.Discard
+	}
+	if stdin == nil {
+		stdin = strings.NewReader("")
 	}
 
 	switch opts.Command {
@@ -123,7 +129,7 @@ func Run(ctx context.Context, argv []string, env Environment, stdout, stderr io.
 	}
 
 	spec := buildRuntimeSpec(ws, profile)
-	return dispatchRuntimeCommand(ctx, opts, spec, newRuntimeBackend(), stdout, stderr)
+	return dispatchRuntimeCommand(ctx, opts, spec, newRuntimeBackend(), stdin, stdout, stderr)
 }
 
 func buildRuntimeSpec(ws workspace.Ref, profile string) sbxruntime.Spec {
@@ -138,8 +144,9 @@ func buildRuntimeSpec(ws workspace.Ref, profile string) sbxruntime.Spec {
 	}
 }
 
-func dispatchRuntimeCommand(ctx context.Context, opts cli.Options, spec sbxruntime.Spec, backend sbxruntime.Backend, stdout, stderr io.Writer) error {
+func dispatchRuntimeCommand(ctx context.Context, opts cli.Options, spec sbxruntime.Spec, backend sbxruntime.Backend, stdin io.Reader, stdout, stderr io.Writer) error {
 	streams := sbxruntime.StdIO{
+		Stdin:  stdin,
 		Stdout: stdout,
 		Stderr: stderr,
 	}
@@ -152,6 +159,16 @@ func dispatchRuntimeCommand(ctx context.Context, opts cli.Options, spec sbxrunti
 			return err
 		}
 		return backend.Stop(ctx, spec)
+	case cli.CommandDestroy:
+		if !opts.Force {
+			if err := confirmDestroy(stdin, stderr, spec.InstanceName); err != nil {
+				return err
+			}
+		}
+		if err := backend.Validate(ctx); err != nil {
+			return err
+		}
+		return backend.Destroy(ctx, spec)
 	case cli.CommandRebuild:
 		if err := backend.Validate(ctx); err != nil {
 			return err
@@ -165,6 +182,30 @@ func dispatchRuntimeCommand(ctx context.Context, opts cli.Options, spec sbxrunti
 	default:
 		return fmt.Errorf("unsupported command %q", opts.Command)
 	}
+}
+
+func confirmDestroy(stdin io.Reader, stderr io.Writer, instanceName string) error {
+	if stdin == nil {
+		stdin = strings.NewReader("")
+	}
+	if stderr == nil {
+		stderr = io.Discard
+	}
+
+	_, _ = fmt.Fprintf(stderr, "This removes sandbox %q. Profile-scoped persisted state is kept.\n", instanceName)
+	_, _ = fmt.Fprintf(stderr, "Type %s to confirm: ", instanceName)
+
+	scanner := bufio.NewScanner(stdin)
+	if !scanner.Scan() {
+		if err := scanner.Err(); err != nil {
+			return fmt.Errorf("read destroy confirmation: %w", err)
+		}
+		return errors.New("destroy cancelled")
+	}
+	if strings.TrimSpace(scanner.Text()) != instanceName {
+		return errors.New("destroy cancelled")
+	}
+	return nil
 }
 
 func runUp(ctx context.Context, backend sbxruntime.Backend, spec sbxruntime.Spec, streams sbxruntime.StdIO) error {

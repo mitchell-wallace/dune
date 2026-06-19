@@ -13,6 +13,7 @@ type Command string
 const (
 	CommandUp          Command = "up"
 	CommandDown        Command = "down"
+	CommandDestroy     Command = "destroy"
 	CommandRebuild     Command = "rebuild"
 	CommandLogs        Command = "logs"
 	CommandVersion     Command = "version"
@@ -29,6 +30,7 @@ type Options struct {
 	ProfileExplicit bool
 	LogService      string
 	SetProfileName  string
+	Force           bool
 }
 
 func Parse(argv []string) (Options, error) {
@@ -52,6 +54,8 @@ func Parse(argv []string) (Options, error) {
 		return parseContainerCommand(CommandUp, "dune up", argv[1:])
 	case "down":
 		return parseContainerCommand(CommandDown, "dune down", argv[1:])
+	case "destroy":
+		return parseDestroy(argv[1:])
 	case "rebuild":
 		return parseContainerCommand(CommandRebuild, "dune rebuild", argv[1:])
 	case "logs":
@@ -63,6 +67,35 @@ func Parse(argv []string) (Options, error) {
 	default:
 		return parseContainerCommand(CommandUp, "dune", argv)
 	}
+}
+
+func parseDestroy(argv []string) (Options, error) {
+	fs := flag.NewFlagSet("dune destroy", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	opts := Options{Command: CommandDestroy}
+	fs.StringVar(&opts.WorkspaceInput, "directory", "", "")
+	fs.StringVar(&opts.WorkspaceInput, "d", "", "")
+	fs.StringVar(&opts.Profile, "profile", "", "")
+	fs.StringVar(&opts.Profile, "p", "", "")
+	fs.BoolVar(&opts.Force, "force", false, "")
+	fs.BoolVar(&opts.Force, "f", false, "")
+	if err := fs.Parse(argv); err != nil {
+		return Options{}, err
+	}
+
+	args := fs.Args()
+	if len(args) > 1 {
+		return Options{}, errors.New("usage: dune destroy [-f|--force] [-d directory] [-p profile]")
+	}
+	if len(args) == 1 {
+		if opts.WorkspaceInput != "" {
+			return Options{}, errors.New("usage: dune destroy [-f|--force] [-d directory] [-p profile]")
+		}
+		opts.WorkspaceInput = args[0]
+	}
+	opts.ProfileExplicit = opts.Profile != ""
+	return opts, nil
 }
 
 func parseContainerCommand(command Command, name string, argv []string) (Options, error) {

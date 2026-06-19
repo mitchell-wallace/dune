@@ -83,7 +83,7 @@ func TestRunUpDispatchesToSbxBackendAndIgnoresDockerfile(t *testing.T) {
 	var stdout, stderr strings.Builder
 	err = Run(context.Background(), []string{}, Environment{
 		CallerPWD: subdir,
-	}, &stdout, &stderr)
+	}, nil, &stdout, &stderr)
 	if err != nil {
 		t.Fatalf("Run() error = %v\nstderr:\n%s", err, stderr.String())
 	}
@@ -124,7 +124,7 @@ func TestRunUpReusesRunningSbxSandbox(t *testing.T) {
 	withRuntimeBackend(t, backend)
 
 	var stdout, stderr strings.Builder
-	if err := Run(context.Background(), []string{"up", "-d", root, "-p", "work"}, Environment{}, &stdout, &stderr); err != nil {
+	if err := Run(context.Background(), []string{"up", "-d", root, "-p", "work"}, Environment{}, nil, &stdout, &stderr); err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
 
@@ -149,7 +149,7 @@ func TestRunUpPassesStderrToEgressVerification(t *testing.T) {
 	withRuntimeBackend(t, backend)
 
 	var stdout, stderr strings.Builder
-	if err := Run(context.Background(), []string{"up", "-d", root}, Environment{}, &stdout, &stderr); err != nil {
+	if err := Run(context.Background(), []string{"up", "-d", root}, Environment{}, nil, &stdout, &stderr); err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
 
@@ -174,6 +174,11 @@ func TestRunDispatchesRuntimeCommands(t *testing.T) {
 			wantCalls: []string{"Validate", "Stop"},
 		},
 		{
+			name:      "destroy force",
+			argv:      []string{"destroy", "--force", "-d", root},
+			wantCalls: []string{"Validate", "Destroy"},
+		},
+		{
 			name:      "rebuild",
 			argv:      []string{"rebuild", "-d", root},
 			wantCalls: []string{"Validate", "Rebuild"},
@@ -192,7 +197,7 @@ func TestRunDispatchesRuntimeCommands(t *testing.T) {
 			withRuntimeBackend(t, backend)
 
 			var stdout, stderr strings.Builder
-			if err := Run(context.Background(), tc.argv, Environment{}, &stdout, &stderr); err != nil {
+			if err := Run(context.Background(), tc.argv, Environment{}, nil, &stdout, &stderr); err != nil {
 				t.Fatalf("Run() error = %v", err)
 			}
 
@@ -203,6 +208,50 @@ func TestRunDispatchesRuntimeCommands(t *testing.T) {
 				t.Fatalf("log service = %q, want %q", backend.calls[len(backend.calls)-1].service, tc.wantLog)
 			}
 		})
+	}
+}
+
+func TestRunDestroyWithConfirmation(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(t.TempDir(), "config"))
+
+	ws, err := workspace.Resolve(root)
+	if err != nil {
+		t.Fatalf("workspace.Resolve() error = %v", err)
+	}
+	instanceName := sbxruntime.InstanceName(ws.Slug, "work")
+
+	backend := &fakeRuntimeBackend{}
+	withRuntimeBackend(t, backend)
+
+	var stdout, stderr strings.Builder
+	if err := Run(context.Background(), []string{"destroy", "-d", root, "-p", "work"}, Environment{}, strings.NewReader(instanceName+"\n"), &stdout, &stderr); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	wantCalls := []string{"Validate", "Destroy"}
+	if got := backend.callNames(); strings.Join(got, ",") != strings.Join(wantCalls, ",") {
+		t.Fatalf("runtime calls = %v, want %v", got, wantCalls)
+	}
+	if !strings.Contains(stderr.String(), "Profile-scoped persisted state is kept") {
+		t.Fatalf("stderr = %q, want persist-state confirmation text", stderr.String())
+	}
+}
+
+func TestRunDestroyWithoutConfirmationDoesNotRemove(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(t.TempDir(), "config"))
+
+	backend := &fakeRuntimeBackend{}
+	withRuntimeBackend(t, backend)
+
+	var stdout, stderr strings.Builder
+	err := Run(context.Background(), []string{"destroy", "-d", root}, Environment{}, strings.NewReader("no\n"), &stdout, &stderr)
+	if err == nil {
+		t.Fatal("Run() error = nil, want cancellation")
+	}
+	if got := backend.callNames(); len(got) != 0 {
+		t.Fatalf("runtime calls = %v, want none", got)
 	}
 }
 
@@ -222,13 +271,13 @@ func TestVersionAndProfileCommandsDoNotCreateRuntimeBackend(t *testing.T) {
 	})
 
 	var stdout, stderr strings.Builder
-	if err := Run(context.Background(), []string{"version"}, Environment{}, &stdout, &stderr); err != nil {
+	if err := Run(context.Background(), []string{"version"}, Environment{}, nil, &stdout, &stderr); err != nil {
 		t.Fatalf("Run(version) error = %v", err)
 	}
-	if err := Run(context.Background(), []string{"profile", "set", "work", "-d", root}, Environment{}, &stdout, &stderr); err != nil {
+	if err := Run(context.Background(), []string{"profile", "set", "work", "-d", root}, Environment{}, nil, &stdout, &stderr); err != nil {
 		t.Fatalf("Run(profile set) error = %v", err)
 	}
-	if err := Run(context.Background(), []string{"profile", "list", "-d", root}, Environment{}, &stdout, &stderr); err != nil {
+	if err := Run(context.Background(), []string{"profile", "list", "-d", root}, Environment{}, nil, &stdout, &stderr); err != nil {
 		t.Fatalf("Run(profile list) error = %v", err)
 	}
 	if called {
@@ -330,6 +379,11 @@ func (f *fakeRuntimeBackend) Shell(_ context.Context, spec sbxruntime.Spec, _ sb
 
 func (f *fakeRuntimeBackend) Stop(_ context.Context, spec sbxruntime.Spec) error {
 	f.calls = append(f.calls, fakeRuntimeCall{name: "Stop", spec: spec})
+	return nil
+}
+
+func (f *fakeRuntimeBackend) Destroy(_ context.Context, spec sbxruntime.Spec) error {
+	f.calls = append(f.calls, fakeRuntimeCall{name: "Destroy", spec: spec})
 	return nil
 }
 

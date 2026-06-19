@@ -87,6 +87,16 @@ func (b *backend) Stop(ctx context.Context, spec Spec) error {
 	return nil
 }
 
+func (b *backend) Destroy(ctx context.Context, spec Spec) error {
+	if err := validateInstanceName(spec.InstanceName); err != nil {
+		return err
+	}
+	if _, err := b.runner.Capture(ctx, "", "sbx", "rm", "--force", spec.InstanceName); err != nil {
+		return fmt.Errorf("remove sbx sandbox %q: %w", spec.InstanceName, err)
+	}
+	return nil
+}
+
 func (b *backend) Logs(ctx context.Context, spec Spec, service string, streams StdIO) error {
 	if err := validateInstanceName(spec.InstanceName); err != nil {
 		return err
@@ -112,8 +122,8 @@ func (b *backend) Rebuild(ctx context.Context, spec Spec, streams StdIO) error {
 		return err
 	}
 	if state.Exists {
-		if _, err := b.runner.Capture(ctx, "", "sbx", "rm", "--force", spec.InstanceName); err != nil {
-			return fmt.Errorf("remove sbx sandbox %q: %w", spec.InstanceName, err)
+		if err := b.Destroy(ctx, spec); err != nil {
+			return err
 		}
 	}
 	if err := b.Ensure(ctx, spec); err != nil {

@@ -269,6 +269,38 @@ func TestStop_StopsSandbox(t *testing.T) {
 	assertCaptureCall(t, fr.calls[0], "sbx", "stop", spec.InstanceName)
 }
 
+func TestDestroy_RemovesSandboxWithForceAndPreservesPersistDir(t *testing.T) {
+	dataHome := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", dataHome)
+
+	spec := testSpec()
+	persistPath := filepath.Join(dataHome, "dune", "persist", spec.Profile)
+	if err := os.MkdirAll(persistPath, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	sentinel := filepath.Join(persistPath, "credentials.json")
+	if err := os.WriteFile(sentinel, []byte("kept"), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	fr := &fakeRunner{
+		responses: []fakeRunnerResponse{{}},
+	}
+	b := newBackend(fr)
+
+	if err := b.Destroy(context.Background(), spec); err != nil {
+		t.Fatalf("Destroy() error = %v", err)
+	}
+
+	if len(fr.calls) != 1 {
+		t.Fatalf("got %d calls, want 1: %+v", len(fr.calls), fr.calls)
+	}
+	assertCaptureCall(t, fr.calls[0], "sbx", "rm", "--force", spec.InstanceName)
+	if _, err := os.Stat(sentinel); err != nil {
+		t.Fatalf("Destroy() touched persist sentinel %q: %v", sentinel, err)
+	}
+}
+
 func TestLogs_StreamsDuneLogFiles(t *testing.T) {
 	spec := testSpec()
 	fr := &fakeRunner{

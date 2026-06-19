@@ -35,6 +35,27 @@ func TestParseDown(t *testing.T) {
 	}
 }
 
+func TestParseDestroyForce(t *testing.T) {
+	t.Parallel()
+
+	opts, err := Parse([]string{"destroy", "--force", "-p", "work", "./repo"})
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if opts.Command != CommandDestroy {
+		t.Fatalf("Command = %q, want %q", opts.Command, CommandDestroy)
+	}
+	if !opts.Force {
+		t.Fatal("Force = false, want true")
+	}
+	if opts.Profile != "work" || !opts.ProfileExplicit {
+		t.Fatalf("unexpected profile parsing: %#v", opts)
+	}
+	if opts.WorkspaceInput != "./repo" {
+		t.Fatalf("WorkspaceInput = %q", opts.WorkspaceInput)
+	}
+}
+
 func TestParseLogsService(t *testing.T) {
 	t.Parallel()
 
