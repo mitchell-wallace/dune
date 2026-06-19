@@ -50,11 +50,11 @@
       "title": "Verify the lifecycle/logs/diagnostics surface (sbx-5 phases 1-3)",
       "description": "Scope: verify the CODE surface only — the finalised command mapping + `dune destroy` + `dune ports`, the recomposed `dune logs`, and the structured diagnostics. Empirical sandbox smoke (destroy/recreate persistence, doctor non-mutation, real policy-log records, ports list) is deferred to the smoke lap and final acceptance — do NOT tick those boxes here. Doctor is a later lap.\n\nUse the openspec-verify-change skill against sbx-5-sbx-lifecycle-and-doctor, focused on phases 1-3 (lifecycle, logs, diagnostics).\n\nBranch/diff: the integration target is `dunex` (NOT main); confirm from the user/branch config/recent history, then `git diff dunex...HEAD` (or the merge-base). Treat everything through the sbx-4 close as pre-existing baseline — flag pre-existing issues but do not add cleanup laps for them unless the user asks.\n\nReview depth (not just 'tests pass'): trace the actual argument vectors through the runner seam against design D1 (`sbx rm --force`; the `sbx ports` list/`--publish`/`--unpublish` spellings) and D3 (logs reuses PolicyLog plus a Dune-owned source); confirm `dune destroy` requires confirmation-or-force and never deletes the persist dir; confirm diagnostics map to the D4 code set, preserve stderr, stay unwrap-compatible, and the taxonomy is not over-built; confirm `dune logs` exposes no pipelock surface. Run `go build ./cmd/dune` and `go test ./...`.\n\nDo not rewrite git history. If you find a substantive gap, add a focused fix lap at the head of the queue rather than fixing it here (tiny safe one-liners excepted).\n\nTick in tasks.md only what is verified correct and thorough: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 3.1, 3.2, 3.3, 5.1, 5.2. Leave doctor (4.1, 4.2, 4.3, 5.3) and 6.1/6.2/6.3 for later laps. Report findings first.",
       "assignee": "VERIFY",
-      "isDone": false,
+      "isDone": true,
       "order": 327680,
       "createdAt": "2026-06-19T05:10:00Z",
-      "updatedAt": "2026-06-19T05:10:00Z",
-      "completedAt": null
+      "updatedAt": "2026-06-19T03:21:32.761179304Z",
+      "completedAt": "2026-06-19T03:21:32.761179304Z"
     },
     {
       "id": "dune-2f8a",
