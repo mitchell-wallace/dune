@@ -317,7 +317,7 @@ func TestRunLogsComposesDuneOwnedLogsAndPolicyRecords(t *testing.T) {
 	}
 }
 
-func TestRunLogsPipelockIsOnlyAServiceNameNotSubcommand(t *testing.T) {
+func TestRunLogsPipelockIsNotAvailable(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(t.TempDir(), "config"))
 
@@ -325,16 +325,15 @@ func TestRunLogsPipelockIsOnlyAServiceNameNotSubcommand(t *testing.T) {
 	withRuntimeBackend(t, backend)
 
 	var stdout, stderr strings.Builder
-	if err := Run(context.Background(), []string{"logs", "-d", root, "pipelock"}, Environment{}, nil, &stdout, &stderr); err != nil {
-		t.Fatalf("Run(logs pipelock) error = %v", err)
+	err := Run(context.Background(), []string{"logs", "-d", root, "pipelock"}, Environment{}, nil, &stdout, &stderr)
+	if err == nil {
+		t.Fatalf("Run(logs pipelock) error = nil, want unavailable error")
 	}
-
-	wantCalls := []string{"Validate", "Logs", "PolicyLog"}
-	if got := backend.callNames(); strings.Join(got, ",") != strings.Join(wantCalls, ",") {
-		t.Fatalf("runtime calls = %v, want %v", got, wantCalls)
+	if !strings.Contains(err.Error(), "dune logs pipelock is not available") {
+		t.Fatalf("error = %q, want pipelock unavailable", err)
 	}
-	if got := backend.calls[1].service; got != "pipelock" {
-		t.Fatalf("log service = %q, want pipelock passed through as a legacy service arg", got)
+	if got := backend.callNames(); len(got) != 0 {
+		t.Fatalf("runtime calls = %v, want none", got)
 	}
 }
 

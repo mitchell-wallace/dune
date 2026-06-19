@@ -42,3 +42,6 @@ smoke-local:
 
 smoke-sbx-egress *ARGS:
   bash test/smoke/sbx-egress.sh {{ARGS}}
+
+smoke-sbx-commands *ARGS:
+  bash test/smoke/sbx-commands.sh {{ARGS}}

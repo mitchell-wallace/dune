@@ -185,6 +185,9 @@ func parseLogs(argv []string) (Options, error) {
 		return Options{}, errors.New("usage: dune logs [service] [-d directory] [-p profile]")
 	}
 	if len(args) == 1 {
+		if strings.EqualFold(args[0], "pipelock") {
+			return Options{}, errors.New("dune logs pipelock is not available on the sbx backend; use dune logs for Dune runtime logs and sbx policy records")
+		}
 		opts.LogService = args[0]
 	}
 	opts.ProfileExplicit = opts.Profile != ""
