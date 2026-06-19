@@ -94,11 +94,11 @@
       "title": "Final sbx-5 acceptance: verify lifecycle/diagnostics/doctor and close the change",
       "description": "Scope: full-change verification of sbx-5-sbx-lifecycle-and-doctor. Run the complete openspec-verify-change against the change and inspect the WHOLE diff.\n\nBranch/diff: the integration target is `dunex` (NOT main) — confirm from the user/branch config/recent history, then `git diff dunex...HEAD` (or the merge-base). Treat work through the sbx-4 close as pre-existing baseline (flag, don't remove, unless the user asks). Do not rewrite git history; substantive gaps become new head laps.\n\nVerify against the three spec deltas (specs/sbx-lifecycle/spec.md, specs/runtime-diagnostics/spec.md, specs/dune-doctor/spec.md) and design D1-D5, tracing real evidence: the finalised up/down/destroy/rebuild/ports mapping with the verified sbx spellings; the `dune logs` composition (Dune-owned + `sbx policy log`, no pipelock, the docker-compose-logs note); the structured diagnostics (small code set, preserved stderr, unwrap-compatible, concise vs verbose); the read-only `dune doctor` (check groups, warn-vs-fail egress per sbx-4 D1, asserts no mutating sbx call, `--json`); and the smoke evidence (destroy/recreate persistence, doctor non-mutation, logs records, ports list). Confirm `go build ./cmd/dune` and `go test ./...` green (task 6.1).\n\nTick all remaining tasks.md boxes that are verified correct and thorough: 4.1, 4.2, 4.3, 5.3, 6.1, 6.2, 6.3 (and any of 1.x/2.x/3.x/5.1/5.2 not already ticked). A checked box means verified-done, not attempted. Report findings first, then close out.",
       "assignee": "VERIFY",
-      "isDone": false,
+      "isDone": true,
       "order": 589824,
       "createdAt": "2026-06-19T05:10:00Z",
-      "updatedAt": "2026-06-19T05:10:00Z",
-      "completedAt": null
+      "updatedAt": "2026-06-19T05:47:54.512273801Z",
+      "completedAt": "2026-06-19T05:47:54.512273801Z"
     }
   ]
 }
