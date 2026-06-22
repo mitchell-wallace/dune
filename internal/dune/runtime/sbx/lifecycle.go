@@ -1,7 +1,6 @@
 package sbx
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -69,7 +68,7 @@ func (b *backend) Start(ctx context.Context, spec Spec) error {
 	if err := validateInstanceName(spec.InstanceName); err != nil {
 		return err
 	}
-	args := []string{"run", spec.InstanceName}
+	args := []string{"exec", spec.InstanceName, "true"}
 	output, err := b.runner.Capture(ctx, "", "sbx", args...)
 	if err != nil {
 		b.writeLifecycleLog(spec, "start failed: "+err.Error())
@@ -218,7 +217,7 @@ type sandboxListEntry struct {
 }
 
 func parseSandboxList(output []byte) ([]sandboxListEntry, error) {
-	trimmed := bytes.TrimSpace(output)
+	trimmed := trimToJSONPayload(output)
 	if len(trimmed) == 0 {
 		return nil, errors.New("empty sbx ls JSON")
 	}

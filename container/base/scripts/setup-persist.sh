@@ -21,7 +21,7 @@ copy_to_persist() {
   local dst="$2"
 
   sudo cp -a "${src}" "${dst}"
-  sudo chown -R "${AGENT_USER}:${AGENT_GROUP}" "${dst}"
+  sudo chown -hR "${AGENT_USER}:${AGENT_GROUP}" "${dst}"
 }
 
 seed_dir() {
@@ -117,7 +117,7 @@ link_persist_root() {
 
 ensure_persist_dir "${PERSIST_DIR}"
 link_persist_root
-sudo chown -R "${AGENT_USER}:${AGENT_GROUP}" "${PERSIST_DIR}"
+sudo chown -hR "${AGENT_USER}:${AGENT_GROUP}" "${PERSIST_DIR}"
 seed_dir ".claude"
 seed_dir ".codex"
 seed_dir ".config/opencode"

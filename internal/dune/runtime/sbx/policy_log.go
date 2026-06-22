@@ -1,7 +1,6 @@
 package sbx
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -79,7 +78,7 @@ func validatePolicyLogLimit(limit int) error {
 // a clear error. A missing decision array is treated as empty rather than an
 // error, so a sandbox with no observed traffic parses as a zero-length report.
 func parsePolicyLog(output []byte) (PolicyLogReport, error) {
-	trimmed := bytes.TrimSpace(output)
+	trimmed := trimToJSONPayload(output)
 	if len(trimmed) == 0 {
 		return PolicyLogReport{}, errors.New("empty sbx policy log output")
 	}

@@ -118,6 +118,16 @@ func TestStatus_DistinguishesMissingStoppedAndRunning(t *testing.T) {
 	}
 }
 
+func TestParseSandboxList_AllowsDaemonStartupPrefix(t *testing.T) {
+	entries, err := parseSandboxList([]byte("Starting daemon at /tmp/sandboxd.sock...\n{\"sandboxes\":[{\"name\":\"dune-demo-work\",\"status\":\"running\"}]}\n"))
+	if err != nil {
+		t.Fatalf("parseSandboxList() error = %v", err)
+	}
+	if len(entries) != 1 || entries[0].Name != "dune-demo-work" || entries[0].Status != "running" {
+		t.Fatalf("entries = %+v, want running dune-demo-work", entries)
+	}
+}
+
 func TestLifecycle_CreateStartAttachSequence(t *testing.T) {
 	dataHome := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", dataHome)
@@ -166,7 +176,7 @@ func TestLifecycle_CreateStartAttachSequence(t *testing.T) {
 		spec.InstanceName,
 		"bash", "-lc", "true",
 	)
-	assertCaptureCall(t, fr.calls[3], "sbx", "run", spec.InstanceName)
+	assertCaptureCall(t, fr.calls[3], "sbx", "exec", spec.InstanceName, "true")
 	assertStreamCall(t, fr.calls[4], "sbx",
 		"exec", "-it",
 		"-e", "TERM=xterm-256color",
@@ -243,7 +253,7 @@ func TestLifecycle_StoppedSandboxStartsBeforeAttach(t *testing.T) {
 		t.Fatalf("got %d calls, want 3: %+v", len(fr.calls), fr.calls)
 	}
 	assertCaptureCall(t, fr.calls[0], "sbx", "ls", "--json")
-	assertCaptureCall(t, fr.calls[1], "sbx", "run", spec.InstanceName)
+	assertCaptureCall(t, fr.calls[1], "sbx", "exec", spec.InstanceName, "true")
 	assertStreamCall(t, fr.calls[2], "sbx",
 		"exec", "-it",
 		"-w", spec.WorkingDir,
@@ -420,7 +430,7 @@ local        all          default-package-managers  network   allow      registr
 		"bash", "-lc", "true",
 	)
 	assertCaptureCall(t, fr.calls[5], "sbx", "policy", "ls", spec.InstanceName, "--type", "network")
-	assertCaptureCall(t, fr.calls[6], "sbx", "run", spec.InstanceName)
+	assertCaptureCall(t, fr.calls[6], "sbx", "exec", spec.InstanceName, "true")
 }
 
 func TestRebuild_WarnsClosedWhenPostureIsUnconfirmable(t *testing.T) {
@@ -452,7 +462,7 @@ func TestRebuild_WarnsClosedWhenPostureIsUnconfirmable(t *testing.T) {
 		t.Fatalf("got %d calls, want 6: %+v", len(fr.calls), fr.calls)
 	}
 	assertCaptureCall(t, fr.calls[4], "sbx", "policy", "ls", spec.InstanceName, "--type", "network")
-	assertCaptureCall(t, fr.calls[5], "sbx", "run", spec.InstanceName)
+	assertCaptureCall(t, fr.calls[5], "sbx", "exec", spec.InstanceName, "true")
 
 	if got := stderr.String(); !strings.Contains(got, "WARNING: could not confirm a non-Open sbx egress posture") {
 		t.Fatalf("stderr = %q, want warn-closed message", got)

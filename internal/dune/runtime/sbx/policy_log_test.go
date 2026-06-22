@@ -198,3 +198,13 @@ func TestParsePolicyLog_EmptyActivityIsZeroLengthReport(t *testing.T) {
 		t.Fatalf("report = %+v, want zero-length arrays", report)
 	}
 }
+
+func TestParsePolicyLog_AllowsDaemonStartupPrefix(t *testing.T) {
+	report, err := parsePolicyLog([]byte("Starting daemon at /tmp/sandboxd.sock...\n{\"blocked_hosts\":[],\"allowed_hosts\":[]}\n"))
+	if err != nil {
+		t.Fatalf("parsePolicyLog() error = %v", err)
+	}
+	if len(report.BlockedHosts) != 0 || len(report.AllowedHosts) != 0 {
+		t.Fatalf("report = %+v, want zero-length arrays", report)
+	}
+}
