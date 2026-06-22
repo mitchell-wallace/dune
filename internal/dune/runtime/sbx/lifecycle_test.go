@@ -215,9 +215,10 @@ func TestLifecycle_CreateStartAttachSequence(t *testing.T) {
 		"exec", "-it",
 		"-e", "TERM=xterm-256color",
 		"-e", "COLORTERM=truecolor",
-		"-w", spec.WorkingDir,
+		"-w", "/",
 		spec.InstanceName,
 		spec.Shell,
+		"-lc", "cd '/home/agent/work/demo-app' && exec 'zsh' -l",
 	)
 }
 
@@ -249,9 +250,10 @@ func TestLifecycle_RunningSandboxReuseAttachesWithoutCreateOrStart(t *testing.T)
 	assertStreamCall(t, fr.calls[1], "sbx",
 		"exec", "-it",
 		"-e", "TERM=xterm-256color",
-		"-w", spec.WorkingDir,
+		"-w", "/",
 		spec.InstanceName,
 		spec.Shell,
+		"-lc", "cd '/home/agent/work/demo-app' && exec 'zsh' -l",
 	)
 }
 
@@ -290,9 +292,10 @@ func TestLifecycle_StoppedSandboxStartsBeforeAttach(t *testing.T) {
 	assertCaptureCall(t, fr.calls[1], "sbx", "exec", spec.InstanceName, "true")
 	assertStreamCall(t, fr.calls[2], "sbx",
 		"exec", "-it",
-		"-w", spec.WorkingDir,
+		"-w", "/",
 		spec.InstanceName,
 		spec.Shell,
+		"-lc", "cd '/home/agent/work/demo-app' && exec 'zsh' -l",
 	)
 }
 
@@ -522,9 +525,10 @@ func TestShell_OmitsUnsetTerminalEnv(t *testing.T) {
 	}
 	assertStreamCall(t, fr.calls[0], "sbx",
 		"exec", "-it",
-		"-w", spec.WorkingDir,
+		"-w", "/",
 		spec.InstanceName,
 		spec.Shell,
+		"-lc", "cd '/home/agent/work/demo-app' && exec 'zsh' -l",
 	)
 }
 
@@ -550,9 +554,10 @@ func TestShell_FallsBackWhenWorkingDirFlagUnsupported(t *testing.T) {
 	}
 	assertStreamCall(t, fr.calls[0], "sbx",
 		"exec", "-it",
-		"-w", spec.WorkingDir,
+		"-w", "/",
 		spec.InstanceName,
 		spec.Shell,
+		"-lc", "cd '/home/agent/work/demo-app' && exec 'zsh' -l",
 	)
 	assertStreamCall(t, fr.calls[1], "sbx",
 		"exec", "-it",

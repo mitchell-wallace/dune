@@ -260,13 +260,14 @@ func isRunningStatus(status string) bool {
 
 func shellExecArgs(spec Spec, withWorkingDirFlag bool) []string {
 	shell := shellName(spec)
+	script := "cd " + shellQuote(workingDir(spec)) + " && exec " + shellQuote(shell) + " -l"
 	args := []string{"exec", "-it"}
 	args = append(args, hostTerminalEnvArgs()...)
 	if withWorkingDirFlag {
-		args = append(args, "-w", workingDir(spec), spec.InstanceName, shell)
+		args = append(args, "-w", "/", spec.InstanceName, shell, "-lc", script)
 		return args
 	}
-	args = append(args, spec.InstanceName, shell, "-lc", "cd "+shellQuote(workingDir(spec))+" && exec "+shellQuote(shell)+" -l")
+	args = append(args, spec.InstanceName, shell, "-lc", script)
 	return args
 }
 
