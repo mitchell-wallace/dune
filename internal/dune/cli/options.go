@@ -57,13 +57,13 @@ func Parse(argv []string) (Options, error) {
 
 	switch argv[0] {
 	case "up":
-		return parseContainerCommand(CommandUp, "dune up", argv[1:])
+		return parseContainerCommand(CommandUp, "dunex up", argv[1:])
 	case "down":
-		return parseContainerCommand(CommandDown, "dune down", argv[1:])
+		return parseContainerCommand(CommandDown, "dunex down", argv[1:])
 	case "destroy":
 		return parseDestroy(argv[1:])
 	case "rebuild":
-		return parseContainerCommand(CommandRebuild, "dune rebuild", argv[1:])
+		return parseContainerCommand(CommandRebuild, "dunex rebuild", argv[1:])
 	case "logs":
 		return parseLogs(argv[1:])
 	case "ports":
@@ -80,7 +80,7 @@ func Parse(argv []string) (Options, error) {
 }
 
 func parseDoctor(argv []string) (Options, error) {
-	fs := flag.NewFlagSet("dune doctor", flag.ContinueOnError)
+	fs := flag.NewFlagSet("dunex doctor", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
 	opts := Options{Command: CommandDoctor}
@@ -96,11 +96,11 @@ func parseDoctor(argv []string) (Options, error) {
 
 	args := fs.Args()
 	if len(args) > 1 {
-		return Options{}, errors.New("usage: dune doctor [--json] [--verbose] [-d directory] [-p profile]")
+		return Options{}, errors.New("usage: dunex doctor [--json] [--verbose] [-d directory] [-p profile]")
 	}
 	if len(args) == 1 {
 		if opts.WorkspaceInput != "" {
-			return Options{}, errors.New("usage: dune doctor [--json] [--verbose] [-d directory] [-p profile]")
+			return Options{}, errors.New("usage: dunex doctor [--json] [--verbose] [-d directory] [-p profile]")
 		}
 		opts.WorkspaceInput = args[0]
 	}
@@ -126,11 +126,11 @@ func parseDestroy(argv []string) (Options, error) {
 
 	args := fs.Args()
 	if len(args) > 1 {
-		return Options{}, errors.New("usage: dune destroy [-f|--force] [-d directory] [-p profile]")
+		return Options{}, errors.New("usage: dunex destroy [-f|--force] [-d directory] [-p profile]")
 	}
 	if len(args) == 1 {
 		if opts.WorkspaceInput != "" {
-			return Options{}, errors.New("usage: dune destroy [-f|--force] [-d directory] [-p profile]")
+			return Options{}, errors.New("usage: dunex destroy [-f|--force] [-d directory] [-p profile]")
 		}
 		opts.WorkspaceInput = args[0]
 	}
@@ -167,7 +167,7 @@ func parseContainerCommand(command Command, name string, argv []string) (Options
 }
 
 func parseLogs(argv []string) (Options, error) {
-	fs := flag.NewFlagSet("dune logs", flag.ContinueOnError)
+	fs := flag.NewFlagSet("dunex logs", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
 	opts := Options{Command: CommandLogs}
@@ -182,11 +182,11 @@ func parseLogs(argv []string) (Options, error) {
 
 	args := fs.Args()
 	if len(args) > 1 {
-		return Options{}, errors.New("usage: dune logs [service] [-d directory] [-p profile]")
+		return Options{}, errors.New("usage: dunex logs [service] [-d directory] [-p profile]")
 	}
 	if len(args) == 1 {
 		if strings.EqualFold(args[0], "pipelock") {
-			return Options{}, errors.New("dune logs pipelock is not available on the sbx backend; use dune logs for Dune runtime logs and sbx policy records")
+			return Options{}, errors.New("dunex logs pipelock is not available on the sbx backend; use dunex logs for Dune runtime logs and sbx policy records")
 		}
 		opts.LogService = args[0]
 	}
@@ -195,7 +195,7 @@ func parseLogs(argv []string) (Options, error) {
 }
 
 func parsePorts(argv []string) (Options, error) {
-	fs := flag.NewFlagSet("dune ports", flag.ContinueOnError)
+	fs := flag.NewFlagSet("dunex ports", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
 	opts := Options{Command: CommandPorts}
@@ -212,11 +212,11 @@ func parsePorts(argv []string) (Options, error) {
 
 	args := fs.Args()
 	if len(args) > 1 {
-		return Options{}, errors.New("usage: dune ports [--publish <spec>] [--unpublish <spec>] [-d directory] [-p profile]")
+		return Options{}, errors.New("usage: dunex ports [--publish <spec>] [--unpublish <spec>] [-d directory] [-p profile]")
 	}
 	if len(args) == 1 {
 		if opts.WorkspaceInput != "" {
-			return Options{}, errors.New("usage: dune ports [--publish <spec>] [--unpublish <spec>] [-d directory] [-p profile]")
+			return Options{}, errors.New("usage: dunex ports [--publish <spec>] [--unpublish <spec>] [-d directory] [-p profile]")
 		}
 		opts.WorkspaceInput = args[0]
 	}
@@ -226,7 +226,7 @@ func parsePorts(argv []string) (Options, error) {
 
 func parseProfile(argv []string) (Options, error) {
 	if len(argv) == 0 {
-		return Options{}, errors.New("usage: dune profile <set|list> [args]")
+		return Options{}, errors.New("usage: dunex profile <set|list> [args]")
 	}
 
 	switch argv[0] {
@@ -235,13 +235,13 @@ func parseProfile(argv []string) (Options, error) {
 	case "list":
 		return parseProfileList(argv[1:])
 	default:
-		return Options{}, errors.New("usage: dune profile <set|list> [args]")
+		return Options{}, errors.New("usage: dunex profile <set|list> [args]")
 	}
 }
 
 func parseProfileSet(argv []string) (Options, error) {
 	if len(argv) == 0 {
-		return Options{}, errors.New("usage: dune profile set <name> [-d directory]")
+		return Options{}, errors.New("usage: dunex profile set <name> [-d directory]")
 	}
 
 	opts := Options{Command: CommandProfileSet}
@@ -250,7 +250,7 @@ func parseProfileSet(argv []string) (Options, error) {
 		argv = argv[1:]
 	}
 
-	fs := flag.NewFlagSet("dune profile set", flag.ContinueOnError)
+	fs := flag.NewFlagSet("dunex profile set", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	fs.StringVar(&opts.WorkspaceInput, "directory", "", "")
 	fs.StringVar(&opts.WorkspaceInput, "d", "", "")
@@ -261,14 +261,14 @@ func parseProfileSet(argv []string) (Options, error) {
 	args := fs.Args()
 	if opts.SetProfileName == "" {
 		if len(args) < 1 || len(args) > 2 {
-			return Options{}, errors.New("usage: dune profile set <name> [-d directory]")
+			return Options{}, errors.New("usage: dunex profile set <name> [-d directory]")
 		}
 		opts.SetProfileName = args[0]
 		if len(args) == 2 {
 			opts.WorkspaceInput = args[1]
 		}
 	} else if len(args) > 1 {
-		return Options{}, errors.New("usage: dune profile set <name> [-d directory]")
+		return Options{}, errors.New("usage: dunex profile set <name> [-d directory]")
 	} else if len(args) == 1 {
 		opts.WorkspaceInput = args[0]
 	}
@@ -276,7 +276,7 @@ func parseProfileSet(argv []string) (Options, error) {
 }
 
 func parseProfileList(argv []string) (Options, error) {
-	fs := flag.NewFlagSet("dune profile list", flag.ContinueOnError)
+	fs := flag.NewFlagSet("dunex profile list", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
 	opts := Options{Command: CommandProfileList}
@@ -286,28 +286,28 @@ func parseProfileList(argv []string) (Options, error) {
 		return Options{}, err
 	}
 	if len(fs.Args()) != 0 {
-		return Options{}, errors.New("usage: dune profile list [-d directory]")
+		return Options{}, errors.New("usage: dunex profile list [-d directory]")
 	}
 	return opts, nil
 }
 
 func parseVersion(argv []string) (Options, error) {
 	if len(argv) != 0 {
-		return Options{}, errors.New("usage: dune version")
+		return Options{}, errors.New("usage: dunex version")
 	}
 	return Options{Command: CommandVersion}, nil
 }
 
 func parseHelp(argv []string) (Options, error) {
 	if len(argv) != 0 {
-		return Options{}, errors.New("usage: dune --help")
+		return Options{}, errors.New("usage: dunex --help")
 	}
 	return Options{Command: CommandHelp}, nil
 }
 
 func parseUpdate(argv []string) (Options, error) {
 	if len(argv) != 0 {
-		return Options{}, errors.New("usage: dune --update")
+		return Options{}, errors.New("usage: dunex --update")
 	}
 	return Options{Command: CommandUpdate}, nil
 }

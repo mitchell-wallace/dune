@@ -27,7 +27,7 @@ const (
 	defaultProfile        = "default"
 	defaultShell          = "zsh"
 	defaultPolicyLogLimit = 50
-	helpText              = `Usage: dune [command] [options]
+	helpText              = `Usage: dunex [command] [options]
 
 Commands:
   up               Start or attach to the sandbox (default)
@@ -37,23 +37,23 @@ Commands:
   logs [service]   Show Dune runtime logs and sbx policy records (default: all)
   ports            List published host ports (default); --publish/--unpublish map them
   doctor           Report host, sandbox, profile, and egress readiness
-  version          Print dune version
+  version          Print dunex version
   profile set      Set the active profile for the current workspace
   profile list     List stored profile mappings
 
 Global flags:
-  -v, --version    Print dune version and exit
+  -v, --version    Print dunex version and exit
   -h, --help       Show this help message and exit
-  -u, --update     Update the dune CLI to the latest release
+  -u, --update     Update the dunex CLI to the latest release
 
 Runtime flags (for up/down/destroy/rebuild/logs/ports):
   -d, --directory  Workspace directory (default: current directory)
   -p, --profile    Profile name (default: default)
   -f, --force      Skip destroy confirmation
   --verbose         Show diagnostic command and stderr details on failure
-  --publish <spec> Publish a host->sandbox port (dune ports, repeatable)
+  --publish <spec> Publish a host->sandbox port (dunex ports, repeatable)
   --unpublish <spec>
-                   Unpublish a host->sandbox port (dune ports, repeatable)
+                   Unpublish a host->sandbox port (dunex ports, repeatable)
 
 Doctor flags:
   --json           Emit structured doctor checks
@@ -92,7 +92,7 @@ func Run(ctx context.Context, argv []string, env Environment, stdin io.Reader, s
 
 	switch opts.Command {
 	case cli.CommandVersion:
-		_, err := fmt.Fprintf(stdout, "dune %s\n", version.String())
+		_, err := fmt.Fprintf(stdout, "dunex %s\n", version.String())
 		return err
 	case cli.CommandHelp:
 		_, err := fmt.Fprint(stdout, helpText)

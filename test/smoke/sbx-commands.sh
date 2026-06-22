@@ -333,10 +333,10 @@ grep -Eq 'dune host lifecycle log|dune sandbox logs|setup-persist' "${LOGS_OUTPU
 grep -Fq "== sbx policy log ==" "${LOGS_OUTPUT}"
 grep -Fq "blocked host=${DOCS_HOST}" "${LOGS_OUTPUT}"
 if capture_report "${WORK_DIR}/logs-pipelock.out" run_dune "${DUNE_BIN}" logs -p "${PROFILE}" pipelock; then
-  log "dune logs pipelock unexpectedly succeeded"
+  log "dunex logs pipelock unexpectedly succeeded"
   exit 1
 fi
-grep -Fq "dune logs pipelock is not available" "${WORK_DIR}/logs-pipelock.out"
+grep -Fq "dunex logs pipelock is not available" "${WORK_DIR}/logs-pipelock.out"
 
 log ""
 log "## dune ports lists through sbx ports and surfaces publish guidance"

@@ -9,7 +9,7 @@ if [ ! -x "$BUILD_SCRIPT" ]; then
   exit 1
 fi
 
-DUNE_BIN_PATH="$("$BUILD_SCRIPT" --force --print-path)"
+DUNEX_BIN_PATH="$("$BUILD_SCRIPT" --force --print-path)"
 
 append_alias_if_missing() {
   local rc_file="$1"
@@ -25,8 +25,9 @@ append_alias_if_missing() {
   echo "Added alias to $rc_file"
 }
 
-append_alias_if_missing "$HOME/.bashrc" "alias dune='$DUNE_BIN_PATH'"
-append_alias_if_missing "$HOME/.zshrc" "alias dune='$DUNE_BIN_PATH'"
+append_alias_if_missing "$HOME/.bashrc" "alias dunex='$DUNEX_BIN_PATH'"
+append_alias_if_missing "$HOME/.zshrc" "alias dunex='$DUNEX_BIN_PATH'"
+append_alias_if_missing "$HOME/.zshrc" "alias dx='dunex'"
 
 echo "Done. Restart your shell or run: source ~/.bashrc (or source ~/.zshrc)"
-echo "Note: this alias points dune to the repo-local compiled Go binary and will override any standalone dune binary on your PATH."
+echo "Note: this branch uses dunex/dx and does not override any standalone dune binary on your PATH."

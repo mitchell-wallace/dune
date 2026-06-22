@@ -69,6 +69,16 @@ func TestValidate_Success(t *testing.T) {
 	assertCaptureCall(t, fr.calls[1], "sbx", "version")
 }
 
+func TestParseDiagnose_AllowsWarningPrefix(t *testing.T) {
+	report, err := parseDiagnose([]byte("WARN: failed to refresh token\n" + allPassDiagnoseJSON))
+	if err != nil {
+		t.Fatalf("parseDiagnose() error = %v", err)
+	}
+	if len(report.Checks) != 8 || report.Summary == nil || report.Summary.Pass != 8 {
+		t.Fatalf("report = %+v, want all-pass diagnose report", report)
+	}
+}
+
 func TestValidate_MissingSbxNotOnPATH(t *testing.T) {
 	fr := &fakeRunner{} // no responses: Validate must short-circuit before Capture
 	b := newBackend(fr)
@@ -266,6 +276,16 @@ func TestVersionAtLeast(t *testing.T) {
 				t.Errorf("versionAtLeast(%q, %q) = %v, want %v", tc.actual, tc.minimum, got, tc.want)
 			}
 		})
+	}
+}
+
+func TestParseSbxVersion_AllowsWarningPrefix(t *testing.T) {
+	got, err := parseSbxVersion([]byte("WARN: failed to refresh token\nsbx version: v0.32.0 55580366449bcfebfc1787b9944284cf64c856d7\n"))
+	if err != nil {
+		t.Fatalf("parseSbxVersion() error = %v", err)
+	}
+	if got != "v0.32.0" {
+		t.Fatalf("parseSbxVersion() = %q, want v0.32.0", got)
 	}
 }
 

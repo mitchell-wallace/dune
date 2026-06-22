@@ -84,7 +84,7 @@ type diagnoseSummary struct {
 
 func parseDiagnose(output []byte) (diagnoseReport, error) {
 	var report diagnoseReport
-	if err := json.Unmarshal(output, &report); err != nil {
+	if err := json.Unmarshal(trimToJSONPayload(output), &report); err != nil {
 		return report, fmt.Errorf("parse diagnose JSON: %w", err)
 	}
 	if err := validateDiagnoseReport(report); err != nil {
@@ -173,9 +173,17 @@ func diagnoseError(failed []diagnoseCheck) error {
 // Observed shape: "sbx version: v0.32.0 55580366449bcfebfc1787b9944284cf64c856d7".
 func parseSbxVersion(output []byte) (string, error) {
 	const prefix = "sbx version: "
-	line := strings.TrimSpace(string(output))
-	if !strings.HasPrefix(line, prefix) {
-		return "", fmt.Errorf("unrecognised sbx version output %q", line)
+	text := strings.TrimSpace(string(output))
+	var line string
+	for _, candidate := range strings.Split(text, "\n") {
+		candidate = strings.TrimSpace(candidate)
+		if strings.HasPrefix(candidate, prefix) {
+			line = candidate
+			break
+		}
+	}
+	if line == "" {
+		return "", fmt.Errorf("unrecognised sbx version output %q", text)
 	}
 	fields := strings.Fields(strings.TrimPrefix(line, prefix))
 	if len(fields) == 0 {

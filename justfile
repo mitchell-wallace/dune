@@ -28,6 +28,9 @@ hadolint:
 tooling-check:
   scripts/check-container-tooling.sh
 
+install-dev:
+  scripts/install-dev.sh
+
 test: golangci shellcheck hadolint tooling-check
   go test ./...
 

@@ -2,7 +2,7 @@
 
 > Because sometimes, your agents need something a little bigger than a sandbox
 
-Dune is a single-command, profile-aware, persistent, isolated development environment for AI-assisted coding work. Run `dune` for the host-side Go CLI that launches a dedicated **Dune sbx template** image inside an `sbx` microVM sandbox, then attaches you to an interactive shell at your repository root.
+Dunex is the sbx-backed development line for Dune: a single-command, profile-aware, persistent, isolated development environment for AI-assisted coding work. Run `dunex` for the host-side Go CLI that launches a dedicated **Dune sbx template** image inside an `sbx` microVM sandbox, then attaches you to an interactive shell at your repository root. The `dune` command remains reserved for the base Docker-backed Dune line.
 
 The sandbox runs a batteries-included base image for AI-assisted development, including [Rally](https://github.com/mitchell-wallace/rally), a failure-tolerant Ralph-loop based meta-harness with task-model routing for orchestrating work inside the sandbox, and [Laps](), the extensible agent-first sequential task manager CLI for organising units of work.
 
@@ -30,13 +30,13 @@ Rally and Laps make the environment more than a generic sandbox. Rally belongs i
 
 ## Prerequisites
 
-`dune` runs workspaces inside an `sbx` microVM sandbox, so the host needs `sbx` rather than Docker:
+`dunex` runs workspaces inside an `sbx` microVM sandbox, so the host needs `sbx` rather than Docker:
 
 - `sbx` installed and on `PATH`
 - `sbx` authenticated and its daemon healthy (`sbx diagnose` reports every check passing)
 - a supported `sbx` version — currently `v0.32.0` or newer
 
-`dune` validates all of this before any sandbox operation and errors clearly if `sbx` is missing, unhealthy, unauthenticated, or too old. Docker is no longer a host requirement for `dune`.
+`dunex` validates all of this before any sandbox operation and errors clearly if `sbx` is missing, unhealthy, unauthenticated, or too old. Docker is no longer a host requirement for `dunex`.
 
 ## Installation
 
@@ -54,51 +54,55 @@ curl -fsSL https://raw.githubusercontent.com/mitchell-wallace/dune/main/install.
 
 The installer downloads the correct binary for your platform, places it in `~/.local/bin`, and updates your shell configuration to include it on `PATH`.
 
-For local development from this repo, build the binary with `./scripts/build-dune.sh --force --print-path` or install the alias with `./scripts/install-dune-alias.sh`.
+For local development from this repo, build the binary with `./scripts/build-dune.sh --force --print-path`, or install the dev build as `~/.local/bin/dunex` with:
 
-If `dune` seems to be running the wrong thing on your machine, check `type -a dune`. A shell alias created by `./scripts/install-dune-alias.sh` will override a standalone binary on `PATH`.
+```sh
+just install-dev
+```
+
+`just install-dev` also adds `alias dx='dunex'` to `~/.zshrc` when missing. It does not install or alias `dune`, so a system Docker-backed Dune remains untouched.
 
 Then run:
 
 ```sh
-dune
-dune up
-dune down
-dune destroy
-dune rebuild
-dune logs
-dune ports
-dune doctor
-dune version
-dune profile set work
-dune profile list
+dunex
+dunex up
+dunex down
+dunex destroy
+dunex rebuild
+dunex logs
+dunex ports
+dunex doctor
+dunex version
+dunex profile set work
+dunex profile list
 ```
 
-`dune` resolves the workspace root from `git rev-parse --show-toplevel` and falls back to the current directory outside a git repo. It names each workspace's sandbox `dune-<workspace-slug>-<profile>` and stores profile-scoped persisted state under `~/.local/share/dune/persist/<profile>` (`$XDG_DATA_HOME/dune/persist/<profile>` if set).
+`dunex` resolves the workspace root from `git rev-parse --show-toplevel` and falls back to the current directory outside a git repo. It names each workspace's sandbox `dune-<workspace-slug>-<profile>` and stores profile-scoped persisted state under `~/.local/share/dune/persist/<profile>` (`$XDG_DATA_HOME/dune/persist/<profile>` if set).
 
 ## Commands
 
-- `dune` starts the sandbox for the current repo if needed, then opens an interactive `zsh` shell at the repository root inside the sandbox
-- `dune up` does the same thing explicitly; an already-running sandbox is attached without recreation
-- `dune down` stops the sandbox for the current workspace/profile (the sandbox is retained; it is not removed)
-- `dune destroy` removes the sandbox for the current workspace/profile (`sbx rm --force <instance>`); the sandbox is gone, but **profile-scoped persisted state survives** (credentials, config, tooling state under `~/.local/share/dune/persist/<profile>`). Asks for confirmation by default; pass `-f` / `--force` to skip it (required in non-interactive scripts, because `sbx rm` needs `--force` when stdin is not a TTY)
-- `dune rebuild` recreates and starts the sandbox from the Dune sbx template, preserving the profile's persisted state (it destroys and re-creates the sandbox; there is no `Dockerfile.dune` build)
-- `dune logs` shows Dune-owned setup/runtime logs and `sbx policy log` egress records (see [Lifecycle, logs, diagnostics, and `dune doctor`](./docs/architecture/host-cli.md))
-- `dune logs <service>` narrows the in-sandbox Dune-owned log read to `/var/log/dune/<service>.log`; `dune logs pipelock` is gone (Pipelock is fully removed for the sbx backend). App-dependency service logs are **not** in `dune logs` — read those via `docker compose logs` inside the sandbox against your project-owned Compose stack
-- `dune ports` lists published host ports for the sandbox (default); `--publish <spec>` and `--unpublish <spec>` (repeatable) map host→sandbox ports through `sbx ports`. Note: a published host port forwards to the **sandbox interface** only — a dev server bound solely to sandbox loopback (`127.0.0.1`) may not be reachable via the published host port, so bind to all sandbox interfaces (e.g. `--host 0.0.0.0`) when you want host exposure
-- `dune doctor` reports host, sbx, template, sandbox, profile, and egress readiness **without starting or entering the environment** (read-only: it never runs `sbx create`/`run`/`exec`/`rm`). Add `--json` for structured output and `--verbose` for detail/recovery hints
-- `dune version` prints the dune version, commit, and release build metadata
-- `dune -v` / `dune --version` is a shorthand for `dune version`
-- `dune -h` / `dune --help` shows usage information
-- `dune -u` / `dune --update` updates the dune CLI to the latest release
-- `dune profile set <name>` stores a profile mapping for the current workspace root
-- `dune profile list` shows the effective profile for the current workspace and any stored mappings
+- `dunex` starts the sandbox for the current repo if needed, then opens an interactive `zsh` shell at the repository root inside the sandbox
+- `dunex up` does the same thing explicitly; an already-running sandbox is attached without recreation
+- `dunex down` stops the sandbox for the current workspace/profile (the sandbox is retained; it is not removed)
+- `dunex destroy` removes the sandbox for the current workspace/profile (`sbx rm --force <instance>`); the sandbox is gone, but **profile-scoped persisted state survives** (credentials, config, tooling state under `~/.local/share/dune/persist/<profile>`). Asks for confirmation by default; pass `-f` / `--force` to skip it (required in non-interactive scripts, because `sbx rm` needs `--force` when stdin is not a TTY)
+- `dunex rebuild` recreates and starts the sandbox from the Dune sbx template, preserving the profile's persisted state (it destroys and re-creates the sandbox; there is no `Dockerfile.dune` build)
+- `dunex logs` shows Dune-owned setup/runtime logs and `sbx policy log` egress records (see [Lifecycle, logs, diagnostics, and `dune doctor`](./docs/architecture/host-cli.md))
+- `dunex logs <service>` narrows the in-sandbox Dune-owned log read to `/var/log/dune/<service>.log`; `dunex logs pipelock` is gone (Pipelock is fully removed for the sbx backend). App-dependency service logs are **not** in `dunex logs` — read those via `docker compose logs` inside the sandbox against your project-owned Compose stack
+- `dunex ports` lists published host ports for the sandbox (default); `--publish <spec>` and `--unpublish <spec>` (repeatable) map host→sandbox ports through `sbx ports`. Note: a published host port forwards to the **sandbox interface** only — a dev server bound solely to sandbox loopback (`127.0.0.1`) may not be reachable via the published host port, so bind to all sandbox interfaces (e.g. `--host 0.0.0.0`) when you want host exposure
+- `dunex doctor` reports host, sbx, template, sandbox, profile, and egress readiness **without starting or entering the environment** (read-only: it never runs `sbx create`/`run`/`exec`/`rm`). Add `--json` for structured output and `--verbose` for detail/recovery hints
+- `dunex version` prints the dunex version, commit, and release build metadata
+- `dunex -v` / `dunex --version` is a shorthand for `dunex version`
+- `dunex -h` / `dunex --help` shows usage information
+- `dunex -u` / `dunex --update` updates the dunex CLI to the latest release
+- `dunex profile set <name>` stores a profile mapping for the current workspace root
+- `dunex profile list` shows the effective profile for the current workspace and any stored mappings
 
 Runtime flags `-d` / `--directory` (workspace directory) and `-p` / `--profile` (profile name) apply to `up`/`down`/`destroy`/`rebuild`/`logs`/`ports`/`doctor`; `--verbose` shows diagnostic command and stderr details on failure.
 
 ## What Dune Sets Up
 
-When you run `dune`, it:
+When you run `dunex`, it:
 
 - resolves the workspace root from the current directory
 - selects a profile, defaulting to `default`
@@ -112,7 +116,7 @@ When you run `dune`, it:
 
 Profiles are string names such as `default`, `work`, or `personal`.
 
-- `dune profile set <name>` stores a directory-to-profile mapping in `~/.config/dune/profiles.json`
+- `dunex profile set <name>` stores a directory-to-profile mapping in `~/.config/dune/profiles.json`
 - `--profile` / `-p` overrides the stored mapping for a given command
 - Each profile gets its own durable persist directory: `~/.local/share/dune/persist/<profile>` (`$XDG_DATA_HOME/dune/persist/<profile>` if set)
 
@@ -198,7 +202,7 @@ sbx policy allow network --sandbox "$INSTANCE" docs.python.org:443
 sbx policy allow network --sandbox "$INSTANCE" *.docs.python.org:443
 ```
 
-Egress observability comes from `sbx policy log <instance>` (`--json` / `--limit`), which records blocked and allowed hosts for the sandbox. `dune logs` includes those records after Dune-owned host lifecycle and `/var/log/dune/` logs. This **replaces the old `dune logs pipelock`**, which is gone — Pipelock, its generated `pipelock.yaml`, and the proxy-env model are fully removed for the sbx backend.
+Egress observability comes from `sbx policy log <instance>` (`--json` / `--limit`), which records blocked and allowed hosts for the sandbox. `dunex logs` includes those records after Dune-owned host lifecycle and `/var/log/dune/` logs. This **replaces the old `dunex logs pipelock`**, which is gone — Pipelock, its generated `pipelock.yaml`, and the proxy-env model are fully removed for the sbx backend.
 
 The full egress baseline, domain-opening guidance, observability field reference, and the secrets posture (prefer service-identifier secrets; custom secrets are experimental/out-of-lifecycle; no secrets baked into the template; agent creds under `/persist/agent`) are documented in [sbx Network and Secrets Posture](./docs/architecture/sbx-network-and-secrets.md).
 
@@ -231,7 +235,7 @@ Useful checks:
 ```sh
 go test ./...
 go build ./cmd/dune
-./.bin/dune profile list
+./.bin/dunex profile list
 ```
 
-`test/smoke/sbx-runtime.sh` exercises the real `sbx` runtime end to end against the Dune sbx template: it confirms the attached shell's working directory is the mounted repository root and that the profile persist directory survives a sandbox recreate. `test/smoke/sbx-commands.sh` smoke-verifies the finalised command surface — `dune destroy --force` removes the instance and a subsequent `dune up` recreates it with persisted state intact, `dune doctor` is non-mutating against absent/stopped sandboxes, `dune logs` surfaces Dune-owned logs plus `sbx policy log` records (and `dune logs pipelock` is unavailable), and `dune ports` lists via `sbx ports`.
+`test/smoke/sbx-runtime.sh` exercises the real `sbx` runtime end to end against the Dune sbx template: it confirms the attached shell's working directory is the mounted repository root and that the profile persist directory survives a sandbox recreate. `test/smoke/sbx-commands.sh` smoke-verifies the finalised command surface — `dunex destroy --force` removes the instance and a subsequent `dunex up` recreates it with persisted state intact, `dunex doctor` is non-mutating against absent/stopped sandboxes, `dunex logs` surfaces Dune-owned logs plus `sbx policy log` records (and `dunex logs pipelock` is unavailable), and `dunex ports` lists via `sbx ports`.

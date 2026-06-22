@@ -329,7 +329,7 @@ func TestRunLogsPipelockIsNotAvailable(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Run(logs pipelock) error = nil, want unavailable error")
 	}
-	if !strings.Contains(err.Error(), "dune logs pipelock is not available") {
+	if !strings.Contains(err.Error(), "dunex logs pipelock is not available") {
 		t.Fatalf("error = %q, want pipelock unavailable", err)
 	}
 	if got := backend.callNames(); len(got) != 0 {
