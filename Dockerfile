@@ -158,6 +158,7 @@ RUN cp /opt/home-defaults/.zshrc /home/agent/.zshrc \
       /home/agent/.config/opencode \
       /home/agent/.local/share/opencode \
       /home/agent/.config/gh \
+      /home/agent/.config/rally \
       /home/agent/.config/mise \
       /home/agent/.gemini \
   && cp /opt/home-defaults/.claude/settings.json /home/agent/.claude/settings.json \
