@@ -20,9 +20,10 @@
 # DUNE_WORKSPACE is supplied by the sbx backend on the hook-firing exec:
 #   sbx exec -e DUNE_WORKSPACE=<absolute-mounted-repo> <name> bash -lc true
 #
-# /workspace is only a compatibility bridge; the real mounted repo path remains
-# canonical. Refresh this on every login shell that carries DUNE_WORKSPACE so it
-# is independent from the setup-persist sentinel below.
+# /workspace is the focused workspace bridge. When DUNE_HOST_HOME is supplied
+# and the workspace lives under it, also expose a home-relative alias so host
+# paths like /home/alice/Documents/app can be reached as ~/Documents/app
+# without surfacing the host username in normal sandbox use.
 _DUNE_LOG="/var/log/dune/setup-persist.log"
 
 # Ensure log directory exists (should already exist from the image build, but
@@ -55,6 +56,25 @@ if [ -n "${DUNE_WORKSPACE:-}" ]; then
             else
               printf '[%s] workspace: FAILED to link /workspace -> %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "${_DUNE_WORKSPACE_TARGET}"
             fi
+
+            _DUNE_HOST_HOME="${DUNE_HOST_HOME:-}"
+            _DUNE_HOST_HOME="${_DUNE_HOST_HOME%/}"
+            if [ -n "${_DUNE_HOST_HOME}" ]; then
+              case "${_DUNE_WORKSPACE_TARGET}" in
+                "${_DUNE_HOST_HOME}/"*)
+                  _DUNE_WORKSPACE_HOME_REL="${_DUNE_WORKSPACE_TARGET#"${_DUNE_HOST_HOME}/"}"
+                  _DUNE_WORKSPACE_HOME_ALIAS="${HOME}/${_DUNE_WORKSPACE_HOME_REL}"
+                  if [ -e "${_DUNE_WORKSPACE_HOME_ALIAS}" ] && [ ! -L "${_DUNE_WORKSPACE_HOME_ALIAS}" ]; then
+                    printf '[%s] workspace: skipped home alias because path exists: %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "${_DUNE_WORKSPACE_HOME_ALIAS}"
+                  elif mkdir -p "$(dirname "${_DUNE_WORKSPACE_HOME_ALIAS}")" 2>&1 \
+                    && ln -sfnT "${_DUNE_WORKSPACE_TARGET}" "${_DUNE_WORKSPACE_HOME_ALIAS}" 2>&1; then
+                    printf '[%s] workspace: linked %s -> %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "${_DUNE_WORKSPACE_HOME_ALIAS}" "${_DUNE_WORKSPACE_TARGET}"
+                  else
+                    printf '[%s] workspace: FAILED to link home alias %s -> %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "${_DUNE_WORKSPACE_HOME_ALIAS}" "${_DUNE_WORKSPACE_TARGET}"
+                  fi
+                  ;;
+              esac
+            fi
           else
             printf '[%s] workspace: FAILED to resolve DUNE_WORKSPACE: %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "${DUNE_WORKSPACE}"
           fi
@@ -68,7 +88,7 @@ if [ -n "${DUNE_WORKSPACE:-}" ]; then
     esac
   } >> "${_DUNE_LOG}"
 
-  unset _DUNE_WORKSPACE_TARGET _DUNE_WORKSPACE_READY
+  unset _DUNE_HOST_HOME _DUNE_WORKSPACE_HOME_ALIAS _DUNE_WORKSPACE_HOME_REL _DUNE_WORKSPACE_TARGET _DUNE_WORKSPACE_READY
 fi
 
 # Sentinel check: setup-persist already ran in this sandbox instance.

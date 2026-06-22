@@ -5,6 +5,7 @@ import "fmt"
 type Spec struct {
 	InstanceName      string
 	WorkspaceHostPath string
+	HostHomePath      string
 	Profile           string
 	TemplateRef       string
 	WorkingDir        string

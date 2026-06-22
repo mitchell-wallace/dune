@@ -50,10 +50,15 @@ func (b *backend) Ensure(ctx context.Context, spec Spec) error {
 	setupArgs := []string{
 		"exec",
 		"-e", "DUNE_WORKSPACE=" + spec.WorkspaceHostPath,
-		"-e", "PERSIST_DIR=" + persistHostPath,
+	}
+	if strings.TrimSpace(spec.HostHomePath) != "" {
+		setupArgs = append(setupArgs, "-e", "DUNE_HOST_HOME="+spec.HostHomePath)
+	}
+	setupArgs = append(setupArgs,
+		"-e", "PERSIST_DIR="+persistHostPath,
 		spec.InstanceName,
 		"bash", "-lc", "true",
-	}
+	)
 	setupOutput, err := b.runner.Capture(ctx, "", "sbx", setupArgs...)
 	if err != nil {
 		b.writeLifecycleLog(spec, "setup hook failed: "+err.Error())
@@ -294,6 +299,11 @@ func validateEnsureSpec(spec Spec) error {
 	}
 	if err := validateAbsolutePath("workspace host path", spec.WorkspaceHostPath); err != nil {
 		return NewDiagnosticError(CodeWorkspaceInvalid, "workspace host path is invalid", err.Error(), err)
+	}
+	if strings.TrimSpace(spec.HostHomePath) != "" {
+		if err := validateAbsolutePath("host home path", spec.HostHomePath); err != nil {
+			return NewDiagnosticError(CodeWorkspaceInvalid, "host home path is invalid", err.Error(), err)
+		}
 	}
 	if strings.TrimSpace(spec.Profile) == "" {
 		return errors.New("profile is required")

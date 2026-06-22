@@ -100,7 +100,7 @@ func TestRunUpDispatchesToSbxBackendAndIgnoresDockerfile(t *testing.T) {
 		WorkspaceHostPath: fixtureRoot,
 		Profile:           defaultProfile,
 		TemplateRef:       version.SbxTemplateRef(),
-		WorkingDir:        fixtureRoot,
+		WorkingDir:        defaultWorkspaceDir,
 		Shell:             defaultShell,
 		Timezone:          "Australia/Melbourne",
 	}
@@ -111,6 +111,42 @@ func TestRunUpDispatchesToSbxBackendAndIgnoresDockerfile(t *testing.T) {
 		if call.spec != wantSpec {
 			t.Fatalf("%s spec = %+v, want %+v", call.name, call.spec, wantSpec)
 		}
+	}
+}
+
+func TestBuildRuntimeSpecIncludesHostHomeForHomeWorkspace(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	root := filepath.Join(home, "Documents", "Mycode", "demo")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	ws, err := workspace.Resolve(root)
+	if err != nil {
+		t.Fatalf("workspace.Resolve() error = %v", err)
+	}
+
+	spec := buildRuntimeSpec(ws, "work")
+	if spec.HostHomePath != home {
+		t.Fatalf("HostHomePath = %q, want %q", spec.HostHomePath, home)
+	}
+	if spec.WorkingDir != defaultWorkspaceDir {
+		t.Fatalf("WorkingDir = %q, want %q", spec.WorkingDir, defaultWorkspaceDir)
+	}
+}
+
+func TestBuildRuntimeSpecOmitsHostHomeForExternalWorkspace(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	root := t.TempDir()
+	ws, err := workspace.Resolve(root)
+	if err != nil {
+		t.Fatalf("workspace.Resolve() error = %v", err)
+	}
+
+	spec := buildRuntimeSpec(ws, "work")
+	if spec.HostHomePath != "" {
+		t.Fatalf("HostHomePath = %q, want empty", spec.HostHomePath)
 	}
 }
 

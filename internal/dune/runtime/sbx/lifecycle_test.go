@@ -53,6 +53,40 @@ func TestEnsure_CreatesSandboxAndFiresHookWithPersistDir(t *testing.T) {
 	)
 }
 
+func TestEnsure_PassesHostHomeToSetupHookWhenPresent(t *testing.T) {
+	dataHome := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", dataHome)
+
+	spec := testSpec()
+	spec.WorkspaceHostPath = "/home/mitchell/Documents/Mycode/demo-app"
+	spec.HostHomePath = "/home/mitchell"
+	persistPath := filepath.Join(dataHome, "dune", "persist", spec.Profile)
+	fr := &fakeRunner{
+		responses: []fakeRunnerResponse{
+			{output: []byte(`{"sandboxes":[]}`)},
+			{},
+			{},
+		},
+	}
+	b := newBackend(fr)
+
+	if err := b.Ensure(context.Background(), spec); err != nil {
+		t.Fatalf("Ensure() error = %v", err)
+	}
+
+	if len(fr.calls) != 3 {
+		t.Fatalf("got %d calls, want 3: %+v", len(fr.calls), fr.calls)
+	}
+	assertCaptureCall(t, fr.calls[2], "sbx",
+		"exec",
+		"-e", "DUNE_WORKSPACE="+spec.WorkspaceHostPath,
+		"-e", "DUNE_HOST_HOME="+spec.HostHomePath,
+		"-e", "PERSIST_DIR="+persistPath,
+		spec.InstanceName,
+		"bash", "-lc", "true",
+	)
+}
+
 func TestEnsure_ReusesExistingRunningSandbox(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 

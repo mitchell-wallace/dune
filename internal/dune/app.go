@@ -26,6 +26,7 @@ import (
 const (
 	defaultProfile        = "default"
 	defaultShell          = "zsh"
+	defaultWorkspaceDir   = "/workspace"
 	defaultPolicyLogLimit = 50
 	helpText              = `Usage: dunex [command] [options]
 
@@ -198,12 +199,29 @@ func buildRuntimeSpec(ws workspace.Ref, profile string) sbxruntime.Spec {
 	return sbxruntime.Spec{
 		InstanceName:      sbxruntime.InstanceName(ws.Slug, profile),
 		WorkspaceHostPath: ws.Root,
+		HostHomePath:      hostHomeForWorkspace(ws.Root),
 		Profile:           profile,
 		TemplateRef:       version.SbxTemplateRef(),
-		WorkingDir:        ws.Root,
+		WorkingDir:        defaultWorkspaceDir,
 		Shell:             defaultShell,
 		Timezone:          effectiveTimezone(),
 	}
+}
+
+func hostHomeForWorkspace(workspaceRoot string) string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	home = filepath.Clean(home)
+	workspaceRoot = filepath.Clean(workspaceRoot)
+	if home == "." || home == string(filepath.Separator) {
+		return ""
+	}
+	if workspaceRoot == home || strings.HasPrefix(workspaceRoot, home+string(filepath.Separator)) {
+		return home
+	}
+	return ""
 }
 
 func dispatchRuntimeCommand(ctx context.Context, opts cli.Options, spec sbxruntime.Spec, backend sbxruntime.Backend, stdin io.Reader, stdout, stderr io.Writer) error {
