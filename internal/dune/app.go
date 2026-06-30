@@ -200,6 +200,9 @@ func Run(ctx context.Context, argv []string, env Environment, stdout, stderr io.
 		if err := prepareAgentImage(ctx, proj, true, stdout, stderr); err != nil {
 			return err
 		}
+		if err := seedHostRallyConfig(ctx, proj, stderr); err != nil {
+			_, _ = fmt.Fprintf(stderr, "Warning: %v\n", err)
+		}
 		return runStreaming(ctx, "", stdout, stderr, "docker", composeArgs(proj, "up", "-d", "--force-recreate")...)
 	case cli.CommandUp:
 		if err := validateDockerPrerequisites(ctx); err != nil {
@@ -228,11 +231,17 @@ func Run(ctx context.Context, argv []string, env Environment, stdout, stderr io.
 			if err := prepareAgentImage(ctx, proj, false, stdout, stderr); err != nil {
 				return err
 			}
+			if err := seedHostRallyConfig(ctx, proj, stderr); err != nil {
+				_, _ = fmt.Fprintf(stderr, "Warning: %v\n", err)
+			}
 			_, _ = fmt.Fprintln(stderr, "Starting container...")
 			if err := composeUp(ctx, proj, stderr); err != nil {
 				return err
 			}
 		} else if !running {
+			if err := seedHostRallyConfig(ctx, proj, stderr); err != nil {
+				_, _ = fmt.Fprintf(stderr, "Warning: %v\n", err)
+			}
 			_, _ = fmt.Fprintln(stderr, "Starting container...")
 			if err := composeUp(ctx, proj, stderr); err != nil {
 				return err
@@ -509,6 +518,73 @@ func validateComposeFile(ctx context.Context, proj project, path string) error {
 func ensureVolume(ctx context.Context, name string) error {
 	if _, err := capture(ctx, "", "docker", "volume", "create", name); err != nil {
 		return fmt.Errorf("create persist volume %q: %w", name, err)
+	}
+	return nil
+}
+
+// rallyHostConfigDir resolves the host rally user-config directory
+// ($XDG_CONFIG_HOME/rally or ~/.config/rally). It returns "" when it cannot be
+// resolved.
+func rallyHostConfigDir() string {
+	configDir, err := os.UserConfigDir()
+	if err != nil || strings.TrimSpace(configDir) == "" {
+		return ""
+	}
+	return filepath.Join(configDir, "rally")
+}
+
+// dirHasContent reports whether dir exists and contains at least one entry.
+func dirHasContent(dir string) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	return len(entries) > 0
+}
+
+// seedHostRallyConfig copies the host's ~/.config/rally into the per-profile
+// persist volume when that volume's rally config is empty. The container cannot
+// see the host filesystem, so the CLI mounts both the named persist volume and
+// the host config (read-only) into a throwaway container to perform the copy.
+// This is the host-side counterpart to the image-level ~/.config/rally persist
+// symlink: the symlink makes the folder survive restarts, this seeds it on
+// first run from the host so an existing ~/.config/rally/config.toml is carried
+// into every profile. Idempotent: a no-op once the volume has any rally config
+// or when the host has nothing to seed. Errors are returned for the caller to
+// surface as a non-fatal warning.
+func seedHostRallyConfig(ctx context.Context, proj project, stderr io.Writer) error {
+	src := rallyHostConfigDir()
+	if src == "" || !dirHasContent(src) {
+		return nil
+	}
+
+	const dst = "/persist/agent/.config/rally"
+	script := fmt.Sprintf(`set -e
+dst=%q
+if [ -n "$(find "$dst" -mindepth 1 -print -quit 2>/dev/null)" ]; then
+  exit 0
+fi
+install -d -m 0755 "$dst"
+cp -a /seed/rally/. "$dst"/
+chown -R 1000:1000 "$dst"
+echo "rally config seeded"
+`, dst)
+
+	args := []string{
+		"run", "--rm",
+		"--user", "0",
+		"--entrypoint", "/bin/bash",
+		"-v", proj.PersistVolume + ":/persist/agent",
+		"-v", src + ":/seed/rally:ro",
+		proj.BaseImage,
+		"-c", script,
+	}
+	output, err := capture(ctx, "", "docker", args...)
+	if err != nil {
+		return fmt.Errorf("seed rally config from host into persist volume: %w", err)
+	}
+	if msg := strings.TrimSpace(string(output)); msg != "" {
+		_, _ = fmt.Fprintln(stderr, msg)
 	}
 	return nil
 }
