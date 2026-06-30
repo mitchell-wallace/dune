@@ -9,7 +9,7 @@ usage() {
   cat <<'EOF'
 Usage: update-tools [--all | TOOL [VERSION] | TOOL@VERSION]
 
-Tools: claude, codex, opencode, gemini, rally, laps, agy, thenn
+Tools: claude, codex, opencode, rally, laps, agy, thenn
 
 Examples:
   update-tools --all

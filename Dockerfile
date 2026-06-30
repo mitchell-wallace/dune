@@ -119,7 +119,6 @@ RUN ln -sf /usr/bin/batcat /usr/local/bin/bat \
 RUN npm install -g \
     @anthropic-ai/claude-code \
     @fission-ai/openspec \
-    @google/gemini-cli \
     @openai/codex \
     opencode-ai \
     playwright@${PLAYWRIGHT_VERSION} \
@@ -159,9 +158,9 @@ RUN cp /opt/home-defaults/.zshrc /home/agent/.zshrc \
       /home/agent/.config/opencode \
       /home/agent/.local/share/opencode \
       /home/agent/.config/gh \
+      /home/agent/.config/rally \
       /home/agent/.config/mise \
-      /home/agent/.gemini \
-  && cp /opt/home-defaults/.claude/settings.json /home/agent/.claude/settings.json \
+   && cp /opt/home-defaults/.claude/settings.json /home/agent/.claude/settings.json \
   && cp /opt/home-defaults/.codex/config.toml /home/agent/.codex/config.toml \
   && cp /opt/home-defaults/.codex/mcp-servers.toml /home/agent/.codex/mcp-servers.toml \
   && cat <<'EOF' > /home/agent/.config/mise/config.toml

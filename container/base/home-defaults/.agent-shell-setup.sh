@@ -5,9 +5,6 @@ alias cx='codex --dangerously-bypass-approvals-and-sandbox'
 alias op='OPENCODE_PERMISSION='"'"'{"*":"allow"}'"'"' opencode'
 alias ut='update-tools'
 
-if command -v gemini >/dev/null 2>&1; then
-  alias ge='gemini --yolo'
-fi
 if command -v agy >/dev/null 2>&1; then
   alias ay='agy --dangerously-skip-permissions'
 fi

@@ -30,11 +30,6 @@ npm:
   - name: openspec
     package: "@fission-ai/openspec"
     verify: openspec --version
-  - name: gemini
-    package: "@google/gemini-cli"
-    verify: gemini --version
-    update: true
-    update_pin: 0.39.1
   - name: codex
     package: "@openai/codex"
     verify: codex --version

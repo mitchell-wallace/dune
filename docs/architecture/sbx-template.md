@@ -53,7 +53,7 @@ The template reproduces Dune's toolchain on top of the Docker-enabled base
 (sbx-2 task 4 — toolchain parity):
 
 - **Shell:** `zsh` with Powerlevel10k and Dune shell defaults.
-- **Agent CLIs:** `claude`, `codex`, `opencode`, `gemini`, plus `openspec`.
+- **Agent CLIs:** `claude`, `codex`, `opencode`, plus `openspec`.
 - **Dune harnesses:** Rally, Laps, `agy`, `thenn` (installed from GitHub
   Releases during the image build; Rally can self-update inside the sandbox).
 - **Git/GitHub:** `git`, `gh`, `delta`, `gitui`.

@@ -36,13 +36,11 @@ assert_container_command "tre --version"
 assert_container_command "ping -c1 127.0.0.1"
 assert_container_command "openspec --version"
 assert_container_command "laps version"
-assert_container_command "gemini --version"
 assert_container_command "update-tools --help"
 
 update_npm_tool "claude" "2.1.120" "claude --version"
 update_npm_tool "codex" "0.125.0" "codex --version"
 update_npm_tool "opencode" "1.14.28" "opencode --version"
-update_npm_tool "gemini" "0.39.1" "gemini --version"
 
 assert_container_command "update-tools rally 0.3.0"
 assert_container_command "rally version | grep -q 0.3.0"

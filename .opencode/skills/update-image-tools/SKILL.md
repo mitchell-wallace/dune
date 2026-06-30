@@ -1,6 +1,6 @@
 ---
 name: update-image-tools
-description: Rebuild the Dune base image with refreshed tool versions and cut a patch release. Use when the user wants to update the bundled agents/tools (claude, codex, opencode, gemini, rally, laps, agy, thenn) shipped in the image, bump the version, and publish. This is a host-side repo workflow — agents inside a running Dune container cannot do it (no docker build from inside the container); use the in-container `update-tools` command for ad-hoc runtime updates instead.
+description: Rebuild the Dune base image with refreshed tool versions and cut a patch release. Use when the user wants to update the bundled agents/tools (claude, codex, opencode, rally, laps, agy, thenn) shipped in the image, bump the version, and publish. This is a host-side repo workflow — agents inside a running Dune container cannot do it (no docker build from inside the container); use the in-container `update-tools` command for ad-hoc runtime updates instead.
 license: MIT
 compatibility: Requires the Dune repo on `main`, a clean tree, docker, and `just`.
 metadata:
@@ -25,7 +25,7 @@ them via `dune --update`.
 
 ## Tools whose versions are refreshed by a rebuild
 
-- npm: `claude`, `codex`, `opencode`, `gemini` (declared in `tooling.yaml` → `npm`)
+- npm: `claude`, `codex`, `opencode` (declared in `tooling.yaml` → `npm`)
 - release binaries: `rally`, `laps`, `agy`, `thenn` (`tooling.yaml` → `release_scripts`)
 - The Dockerfile installs these *unpinned* (latest at build time), so no version
   string in the Dockerfile normally needs changing for a refresh.
@@ -39,7 +39,6 @@ them via `dune --update`.
    npm view @anthropic-ai/claude-code version
    npm view @openai/codex version
    npm view opencode-ai version
-   npm view @google/gemini-cli version
    # release tools
    gh release view --repo mitchell-wallace/rally --json tagName -q .tagName
    gh release view --repo mitchell-wallace/laps  --json tagName -q .tagName
