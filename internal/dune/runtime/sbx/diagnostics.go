@@ -2,7 +2,6 @@ package sbx
 
 import (
 	"errors"
-	"fmt"
 	"os/exec"
 	"strings"
 )
@@ -147,8 +146,4 @@ func singleLineDetail(parts ...string) string {
 		}
 	}
 	return strings.Join(kept, "; ")
-}
-
-func diagnosticSummaryf(code, format string, args ...any) error {
-	return NewDiagnosticError(code, fmt.Sprintf(format, args...), "", nil)
 }

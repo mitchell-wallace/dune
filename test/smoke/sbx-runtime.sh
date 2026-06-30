@@ -148,6 +148,7 @@ assert_file_equals "${FIXTURE_ROOT}/.dune-smoke-persist-link" "${PERSIST_HOST_PA
 
 CLAUDE_LINK="$(tr -d '\r\n' < "${FIXTURE_ROOT}/.dune-smoke-claude-link")"
 if [ "${CLAUDE_LINK}" != "${PERSIST_HOST_PATH}/.claude" ] && [ "${CLAUDE_LINK}" != "/persist/agent/.claude" ]; then
+  # shellcheck disable=SC2088
   echo "~/.claude links to ${CLAUDE_LINK}; want ${PERSIST_HOST_PATH}/.claude or /persist/agent/.claude" >&2
   exit 1
 fi

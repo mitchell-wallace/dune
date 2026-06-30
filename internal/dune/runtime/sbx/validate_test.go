@@ -230,9 +230,8 @@ func TestValidate_BelowMinimumVersion(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Validate() want error for below-minimum version, got nil")
 	}
-	requireDiagnostic(t, err, CodeSbxVersionBelowMin)
+	diag := requireDiagnostic(t, err, CodeSbxVersionBelowMin)
 	for _, want := range []string{"v0.31.0", "v0.32.0", "upgrade"} {
-		diag, _ := AsDiagnostic(err)
 		text := diag.Summary + " " + strings.Join(diag.Recovery, " ")
 		if !strings.Contains(text, want) {
 			t.Fatalf("Validate() diagnostic text = %q, want it to contain %q", text, want)

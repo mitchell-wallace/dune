@@ -88,7 +88,7 @@ func TestUnpublishPorts_ConstructsVerifiedSpike4Shape(t *testing.T) {
 func TestPublishPorts_ValidationRunsNoSbxCommand(t *testing.T) {
 	spec := testSpec()
 	cases := []struct {
-		name string
+		name  string
 		specs []string
 	}{
 		{name: "blank spec", specs: []string{"  "}},
