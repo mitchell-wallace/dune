@@ -32,6 +32,12 @@ func (b *backend) Ensure(ctx context.Context, spec Spec) error {
 		return err
 	}
 
+	if seeded, err := seedHostRallyConfig(persistHostPath); err != nil {
+		b.writeLifecycleLog(spec, "rally config seed failed: "+err.Error())
+	} else if seeded {
+		b.writeLifecycleLog(spec, "seeded rally user config from host into "+filepath.Join(persistHostPath, ".config", "rally"))
+	}
+
 	createArgs := []string{
 		"create",
 		"--name", spec.InstanceName,
