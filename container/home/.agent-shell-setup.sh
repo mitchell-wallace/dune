@@ -4,9 +4,6 @@
 alias cc='claude --dangerously-skip-permissions'
 alias cx='codex --dangerously-bypass-approvals-and-sandbox'
 alias ut='update-tools'
-if command -v gemini >/dev/null 2>&1; then
-  alias ge='gemini --model gemini-3.1-pro-preview --yolo'
-fi
 if command -v opencode >/dev/null 2>&1; then
   alias op='opencode --yolo'
 fi
@@ -48,9 +45,6 @@ Sandbox aliases:
   cx      -> codex --dangerously-bypass-approvals-and-sandbox
 EOF
 
-  if command -v gemini >/dev/null 2>&1; then
-    printf '%s\n' "  ge      -> gemini --model gemini-3.1-pro-preview --yolo"
-  fi
   if command -v opencode >/dev/null 2>&1; then
     printf '%s\n' "  op      -> opencode --yolo"
   fi
@@ -61,7 +55,7 @@ EOF
   if [ "$mode" != "strict" ]; then
     cat <<'EOF'
 Update tools:
-  ut / update-tools      -> update claude, codex, opencode, gemini, rally, laps, agy
+  ut / update-tools      -> update claude, codex, opencode, rally, laps, agy
 
 Gear:
   gear                   -> list installed gear, available gear, and helper commands
@@ -74,9 +68,6 @@ Gear:
   gear install add-mailpit/add-minio/add-meilisearch -> local service binaries (mp-local helper for Mailpit)
   gear install add-python-uv/add-go/add-rust/add-dotnet/add-java/add-bun/add-deno -> language runtimes via mise
 EOF
-    if ! command -v gemini >/dev/null 2>&1; then
-      printf '%s\n' "  gear install add-gemini -> install Gemini CLI with persisted config/auth storage"
-    fi
     if ! command -v opencode >/dev/null 2>&1; then
       printf '%s\n' "  gear install add-opencode -> install OpenCode CLI with persisted config/auth storage"
     fi

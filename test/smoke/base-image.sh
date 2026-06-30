@@ -80,7 +80,6 @@ assert_container_command "ping -c1 127.0.0.1"
 
 assert_container_command "claude --version"
 assert_container_command "codex --version"
-assert_container_command "gemini --version"
 assert_container_command "laps version"
 assert_container_command "openspec --version"
 assert_container_command "opencode --version"

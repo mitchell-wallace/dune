@@ -131,7 +131,6 @@ The base image is meant to be ready to use without a separate bootstrap step. It
 - `claude`: Anthropic's Claude Code CLI
 - `codex`: OpenAI Codex CLI
 - `opencode`: Opencode CLI
-- `gemini`: Gemini CLI
 - `rally`: Ralph-loop based agent runner that ships with dune
 - `laps`: Minimal CLI-based sequential task manager for agents
 - `openspec`: CLI for the OpenSpec planning framework

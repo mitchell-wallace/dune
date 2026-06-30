@@ -5,7 +5,6 @@ NPM_TOOLS=(
   "claude:@anthropic-ai/claude-code"
   "codex:@openai/codex"
   "opencode:opencode-ai"
-  "gemini:@google/gemini-cli"
 )
 
 # shellcheck disable=SC2034
