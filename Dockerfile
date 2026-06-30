@@ -12,7 +12,6 @@ ARG GITUI_VERSION=v0.28.1
 ARG MISE_VERSION=v2026.3.16
 ARG PLAYWRIGHT_VERSION=1.58.2
 ARG INSTALL_RALLY=1
-ARG GITHUB_TOKEN
 
 ENV LANG=en_US.UTF-8
 ENV LANGUAGE=en_US:en
@@ -173,8 +172,6 @@ EOF
 
 RUN install -d -m 0755 /tmp/mailpit \
   && chown -R agent:agent /home/agent /opt/home-defaults /workspace /persist/agent /tmp/mailpit /var/lib/postgresql /var/lib/redis /var/log/redis /var/run/postgresql
-
-ENV GITHUB_TOKEN=${GITHUB_TOKEN}
 
 RUN runuser -u agent -- bash -lc 'git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ~/.powerlevel10k' \
   && runuser -u agent -- bash -lc '~/.powerlevel10k/gitstatus/install' \
